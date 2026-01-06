@@ -2,13 +2,6 @@
 **/node_modules
 .pnpm-store
 
-# Build outputs
-dist
-packages/server/public
-packages/ui/dist
-packages/schema/dist
-storybook-static
-
 # Environment & Config
 .env
 .env.local
@@ -31,9 +24,6 @@ coverage
 vite.config.ts.*
 *.tsbuildinfo
 
-# Nx cache
-.nx/
-
 # Development
 feature_worktrees/
 .container-use
@@ -45,8 +35,16 @@ feature_worktrees/
 /playwright/.cache/
 **/test-results.json
 
+# Nx
+.nx/
+
+# Plans
+docs/plans/
+
 # Specs and Claude
 specs/
 specs-link
 specs-completed/
 .claude/settings.local.json
+.review/sessions/
+.claude/marketplace/
