@@ -1,0 +1,6 @@
+# Environment
+.env
+
+# Expo generated
+.expo/
+expo-env.d.ts
