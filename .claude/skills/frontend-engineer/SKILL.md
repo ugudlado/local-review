@@ -39,9 +39,9 @@ State Decision:
 | ------------------------ | --------------------------------- | -------------------------- |
 | **Reusable Components**  | `packages/components/src/`        | **ALWAYS CHECK FIRST**     |
 | **API Types**            | `packages/schema/src/api/`        | **CHECK HERE FIRST**       |
-| **API Service Layer**    | `packages/ui/src/services/api.ts` | Type-safe API calls        |
-| **Zustand Store**        | `packages/ui/src/stores/`         | State management w/ Immer  |
-| **Component Tests**      | `packages/ui/src/components/*.test.tsx` | Testing patterns     |
+| **API Service Layer**    | `apps/ui/src/services/api.ts`     | Type-safe API calls        |
+| **Zustand Store**        | `apps/ui/src/stores/`             | State management w/ Immer  |
+| **Component Tests**      | `apps/ui/src/components/*.test.tsx` | Testing patterns          |
 | **Domain Types**         | `packages/schema/src/types.ts`    | Shared type definitions    |
 
 ## Type Safety & Validation
@@ -87,7 +87,7 @@ Need Component?
         |
 2. Reusable across features?
     ├── Yes -> Create in packages/components/
-    └── No -> Create in packages/ui/src/components/
+    └── No -> Create in apps/ui/src/components/
 ```
 
 ### Component Pattern

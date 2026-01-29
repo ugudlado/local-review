@@ -5,12 +5,14 @@ Multi-package monorepo template with full-stack TypeScript setup.
 ## Project Structure
 
 ```
+apps/
+├── server/      - Backend server (Express + Awilix DI)
+├── ui/          - Frontend UI application (React + Vite)
+└── mobile/      - Mobile app (Expo + React Native)
+
 packages/
 ├── components/  - Shared React components library
-├── schema/      - Database schema and types (Drizzle ORM)
-├── ui/          - Frontend UI application (React + Vite)
-├── server/      - Backend server (Express + Awilix DI)
-└── mobile/      - Mobile app (Expo + React Native)
+└── schema/      - Database schema and types (Drizzle ORM)
 ```
 
 ## Setup
@@ -23,7 +25,7 @@ pnpm install
 2. Configure environment:
 ```bash
 # Copy .env.example files in each package
-cp packages/server/.env.example packages/server/.env
+cp apps/server/.env.example apps/server/.env
 cp packages/schema/.env.example packages/schema/.env
 # Edit with your database credentials
 ```
@@ -75,7 +77,7 @@ This displays a QR code in the terminal. To test on your device:
 
 For simulators:
 ```bash
-cd packages/mobile
+cd apps/mobile
 pnpm ios      # iOS Simulator
 pnpm android  # Android Emulator
 ```
@@ -93,7 +95,7 @@ pnpm test:changed
 pnpm test
 
 # Run specific package tests
-cd packages/server
+cd apps/server
 pnpm test:unit
 ```
 

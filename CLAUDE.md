@@ -9,12 +9,14 @@
 ## Project Structure
 
 ```
-packages/
+apps/
 ├── server/     - Express.js backend (Node.js/TypeScript/Vitest)
 ├── ui/         - React frontend (Vite/TypeScript/Zustand)
-├── schema/     - Shared schema and types (Drizzle ORM/Zod)
-├── components/ - Shared React components library
 └── mobile/     - React Native app (Expo/TypeScript/Zustand)
+
+packages/
+├── schema/     - Shared schema and types (Drizzle ORM/Zod)
+└── components/ - Shared React components library
 
 scripts/
 └── init-db.sh  - Database initialization script
@@ -27,7 +29,7 @@ scripts/
 ./scripts/init-db.sh
 
 # 2. Setup environment (copy .env.example in each package)
-cp packages/server/.env.example packages/server/.env
+cp apps/server/.env.example apps/server/.env
 cp packages/schema/.env.example packages/schema/.env
 
 # 3. Run migrations
@@ -61,7 +63,7 @@ pnpm test:changed     # Run tests for changed packages only (Nx)
 ### Package-Specific
 
 ```bash
-cd packages/[package-name]
+cd apps/[app-name]        # or cd packages/[package-name]
 pnpm dev              # Start development server
 pnpm build            # Build for production
 pnpm test:unit        # Run unit tests
@@ -80,7 +82,7 @@ pnpm db:studio                           # Open Drizzle Studio
 
 ## Architecture
 
-### Server (packages/server)
+### Server (apps/server)
 
 - **Framework**: Express.js with TypeScript
 - **DI Container**: Awilix
@@ -88,7 +90,7 @@ pnpm db:studio                           # Open Drizzle Studio
 - **Logging**: Colored console logger with request/error middleware
 - **Pattern**: Controller → Service → Repository
 
-### UI (packages/ui)
+### UI (apps/ui)
 
 - **Framework**: React 18 with Vite
 - **State**: Zustand with Immer middleware
@@ -96,7 +98,7 @@ pnpm db:studio                           # Open Drizzle Studio
 - **Error Handling**: React ErrorBoundary
 - **Styling**: Tailwind CSS
 
-### Mobile (packages/mobile)
+### Mobile (apps/mobile)
 
 - **Framework**: Expo SDK 54 with React Native
 - **Routing**: Expo Router (file-based)

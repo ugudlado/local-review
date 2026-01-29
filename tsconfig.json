@@ -17,6 +17,12 @@
     "lib": ["ES2020", "DOM"]
   },
   "include": [
+    "apps/**/src/**/*.ts",
+    "apps/**/src/**/*.js",
+    "apps/**/src/**/*.tsx",
+    "apps/**/tests/**/*.ts",
+    "apps/**/tests/**/*.js",
+    "apps/**/tests/*/*.tsx",
     "packages/**/src/**/*.ts",
     "packages/**/src/**/*.js",
     "packages/**/src/**/*.tsx",

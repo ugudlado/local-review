@@ -61,22 +61,22 @@ Group 1: Schema changes (feat)
 - packages/schema/src/types.ts
 
 Group 2: Service layer implementation (feat)
-- packages/server/src/services/llm-summary.service.ts
-- packages/server/src/core/container-setup.ts
-- packages/server/src/core/container-tokens.ts
+- apps/server/src/services/llm-summary.service.ts
+- apps/server/src/core/container-setup.ts
+- apps/server/src/core/container-tokens.ts
 
 Group 3: Integration into hierarchy service (feat)
-- packages/server/src/services/hierarchy-service.ts
+- apps/server/src/services/hierarchy-service.ts
 
 Group 4: UI type updates (refactor)
-- packages/ui/src/components/nodes/career-transition/wizard/steps/types.ts
+- apps/ui/src/components/nodes/career-transition/wizard/steps/types.ts
 
 Group 5: UI display updates (feat)
-- packages/ui/src/pages/career-transition-detail.tsx
-- packages/ui/src/pages/interview-chapter-detail.tsx
+- apps/ui/src/pages/career-transition-detail.tsx
+- apps/ui/src/pages/interview-chapter-detail.tsx
 
 Group 6: Scripts and utilities (chore)
-- packages/server/scripts/*.ts
+- apps/server/scripts/*.ts
 ```
 
 ## Notes

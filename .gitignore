@@ -4,8 +4,8 @@
 
 # Build outputs
 dist
-packages/server/public
-packages/ui/dist
+apps/server/public
+apps/ui/dist
 packages/schema/dist
 storybook-static
 
