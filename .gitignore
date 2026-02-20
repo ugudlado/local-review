@@ -50,3 +50,5 @@ specs/
 specs-link
 specs-completed/
 .claude/settings.local.json
+.review/sessions/
+.claude/marketplace/
