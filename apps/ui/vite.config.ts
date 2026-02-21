@@ -187,10 +187,36 @@ async function getDiffBundle(
     ['diff', '--no-color', `${targetBranch}...${sourceBranch}`],
     worktreePath,
   );
-  const uncommittedDiff =
-    sourceBranch === currentBranch
-      ? await execGit(['diff', '--no-color', 'HEAD'], worktreePath)
-      : '';
+  let uncommittedDiff = '';
+  if (sourceBranch === currentBranch) {
+    const trackedDiff = await execGit(['diff', '--no-color', 'HEAD'], worktreePath);
+
+    // Also include untracked files as pseudo-diffs so they appear in the file explorer
+    const untrackedOutput = await execGit(
+      ['ls-files', '--others', '--exclude-standard'],
+      worktreePath,
+    );
+    const untrackedFiles = untrackedOutput.split('\n').filter(Boolean);
+    const untrackedDiffs = await Promise.all(
+      untrackedFiles.map(async (file) => {
+        try {
+          // git diff --no-index /dev/null <file> exits with code 1 when diff is non-empty
+          const { stdout } = await execFileAsync(
+            'git',
+            ['diff', '--no-color', '--no-index', '/dev/null', file],
+            { cwd: worktreePath, maxBuffer: 20 * 1024 * 1024 },
+          ).catch((err: { stdout?: string; code?: number }) =>
+            err.code === 1 && err.stdout ? { stdout: err.stdout } : Promise.reject(err),
+          );
+          return stdout;
+        } catch {
+          return '';
+        }
+      }),
+    );
+
+    uncommittedDiff = [trackedDiff, ...untrackedDiffs.filter(Boolean)].join('\n');
+  }
 
   // Build allDiff without duplicating files already shown in committedDiff.
   // Extract filenames from committedDiff and exclude matching blocks from uncommittedDiff.

@@ -188,6 +188,7 @@ Use this team and project when creating Linear tickets.
 3. Check existing patterns before implementing new features
 4. API contracts are defined in `packages/schema/src/api/`
 5. Reusable components go in `packages/components/`
+6. Never push to remote (`git push`) unless the user explicitly requests it
 
 ## Known Issues
 
