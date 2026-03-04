@@ -38,13 +38,12 @@ feature_worktrees/
 # Nx
 .nx/
 
-# Plans
-docs/plans/
-
 # Specs and Claude
-specs/
+# specs/ — tracked in feature branches for spec review workflow
 specs-link
 specs-completed/
 .claude/settings.local.json
 .review/sessions/
 .claude/marketplace/
+.claude/plugins/local-review
+.claude/worktrees/
