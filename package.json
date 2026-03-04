@@ -9,15 +9,15 @@
     "start": "pnpm --filter @local-review/ui preview",
     "test:unit": "pnpm --filter @local-review/ui test:unit",
     "lint": "pnpm --filter @local-review/ui lint",
-    "format": "prettier --write apps/ui/src/**/*.{ts,tsx} apps/ui/*.{ts,js}",
+    "format": "prettier --write src/apps/ui/src/**/*.{ts,tsx} src/apps/ui/*.{ts,js}",
     "prepare": "husky"
   },
   "lint-staged": {
-    "apps/ui/src/**/*.{ts,tsx}": [
-      "pnpm -C apps/ui exec eslint --no-warn-ignored",
+    "src/apps/ui/src/**/*.{ts,tsx}": [
+      "pnpm -C src/apps/ui exec eslint --no-warn-ignored",
       "prettier --write"
     ],
-    "apps/**/*.{json,css,html}": [
+    "src/apps/**/*.{json,css,html}": [
       "prettier --write"
     ],
     "*.md": [
