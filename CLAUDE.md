@@ -13,12 +13,23 @@ commands/           — Slash commands (open, resolve)
 agents/             — Subagent definitions (review-resolver)
 hooks/              — Session hooks (auto-start dev server)
 scripts/            — Shell scripts (context extraction)
-apps/ui/        — React review app (Vite + Tailwind + TypeScript)
-  src/components/   — React components (diff views, review panels, sidebar)
-  src/hooks/        — Custom React hooks (useReviewSession, useDiffNavigation)
-  src/pages/        — Page components (ReviewPage)
-  src/services/     — API clients (localReviewApi)
-  src/utils/        — Diff parsing and utilities
+specs/              — Feature specifications (active and archived)
+apps/ui/            — React review app (Vite + Tailwind + TypeScript)
+  src/components/   — React components
+    dashboard/      — Feature dashboard cards and pipeline views
+    diff/           — Diff rendering (DiffTable, ThreadWidget, selection)
+    review/         — Review panels (ActivityPanel, ComposeBox, ThreadCard)
+    shared/         — Reusable UI (CommandPalette, Skeleton, ReviewVerdict)
+    sidebar/        — File sidebar and overview
+    spec/           — Spec viewer (AnnotatableParagraph, diagrams)
+    tasks/          — Task board (PhaseCard, TaskBoard)
+  src/config/       — App configuration
+  src/hooks/        — Custom React hooks (7 hooks)
+  src/pages/        — Page components (Dashboard, CodeReview, SpecReview, Tasks, Review)
+  src/services/     — API clients (localReviewApi, featureApi)
+  src/styles/       — CSS themes (terminal-luxe)
+  src/types/        — TypeScript type definitions
+  src/utils/        — Diff parsing, spec anchoring, task parsing
   eslint.config.js  — ESLint 9 flat config (TypeScript + React)
   dist/             — Built output (committed for zero-build install)
 docs/plans/         — Design documents (local only, gitignored)
@@ -28,11 +39,14 @@ docs/plans/         — Design documents (local only, gitignored)
 ## Commands
 
 ```bash
-pnpm dev          # Start Vite dev server at http://localhost:37002
-pnpm build        # Build UI for production
-pnpm test:unit    # Run unit tests
-pnpm lint         # Lint all files
-pnpm format       # Format all source files with Prettier
+pnpm dev           # Start Vite dev server at http://localhost:37002
+pnpm build         # Build UI for production
+pnpm test:unit     # Run unit tests
+pnpm test:watch    # Run tests in watch mode
+pnpm test:coverage # Run tests with coverage report
+pnpm type-check    # TypeScript type checking
+pnpm lint          # Lint all files
+pnpm format        # Format all source files with Prettier
 ```
 
 ## Architecture
@@ -40,9 +54,10 @@ pnpm format       # Format all source files with Prettier
 ### UI (apps/ui)
 
 - **Framework**: React 18 with Vite 5
+- **Routing**: React Router with feature-based layout (FeatureLayout + FeatureNavBar)
 - **State**: Zustand with Immer middleware
 - **Styling**: Tailwind CSS
-- **API**: Vite plugin middleware in `vite.config.ts` provides REST endpoints
+- **API**: Vite plugin middleware in `vite.config.ts` provides REST endpoints (review sessions, features, specs, tasks)
 - **Real-time**: WebSocket push for session file changes (file watcher)
 
 ### Plugin
@@ -71,3 +86,4 @@ pnpm format       # Format all source files with Prettier
 2. API routes are defined in `apps/ui/vite.config.ts` as Vite plugin middleware
 3. Session files live in `.review/sessions/` (gitignored)
 4. Built dist is committed to git for zero-build plugin installation
+5. Plugin source lives at repo root (`.claude-plugin/`, `commands/`, `agents/`, `hooks/`) — do not create copies in subdirectories

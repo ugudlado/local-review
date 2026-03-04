@@ -8,6 +8,9 @@
     "build": "pnpm --filter @local-review/ui build",
     "start": "pnpm --filter @local-review/ui preview",
     "test:unit": "pnpm --filter @local-review/ui test:unit",
+    "test:watch": "pnpm --filter @local-review/ui test:watch",
+    "test:coverage": "pnpm --filter @local-review/ui test:coverage",
+    "type-check": "pnpm --filter @local-review/ui type-check",
     "lint": "pnpm --filter @local-review/ui lint",
     "format": "prettier --write apps/ui/src/**/*.{ts,tsx} apps/ui/*.{ts,js}",
     "prepare": "husky"
