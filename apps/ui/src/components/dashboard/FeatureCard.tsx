@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import type { FeatureInfo } from "../../services/featureApi";
 import { getStatusConfig } from "../../utils/featureStatus";
-import type { FeatureStatus } from "../../types/sessions";
+
 import PipelineProgress from "./PipelineProgress";
 
 export interface FeatureCardProps {
@@ -52,7 +52,7 @@ function ActionLink({ to, disabled, children }: ActionLinkProps) {
  */
 export default function FeatureCard({ feature }: FeatureCardProps) {
   const navigate = useNavigate();
-  const status = feature.status as FeatureStatus;
+  const status = feature.status;
   const statusConfig = getStatusConfig(status);
 
   return (
@@ -87,7 +87,7 @@ export default function FeatureCard({ feature }: FeatureCardProps) {
       </div>
 
       {/* Pipeline Progress */}
-      <PipelineProgress status={feature.status as FeatureStatus} />
+      <PipelineProgress status={feature.status} />
 
       {/* Quick Actions */}
       <div className="flex items-center gap-1 border-t border-slate-700/50 pt-2">

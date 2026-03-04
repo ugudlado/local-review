@@ -1,8 +1,10 @@
+import type { ThreadFilter } from "../../types/sessions";
+
 interface ThreadStatusTabsProps {
-  activeFilter: "open" | "resolved";
+  activeFilter: ThreadFilter;
   openCount: number;
   resolvedCount: number;
-  onFilterChange: (filter: "open" | "resolved") => void;
+  onFilterChange: (filter: ThreadFilter) => void;
   sticky?: boolean;
 }
 

@@ -1,5 +1,9 @@
 import { useState, useMemo } from "react";
-import type { ReviewThread, SpecBlockAnchor } from "../../types/sessions";
+import type {
+  ReviewThread,
+  SpecBlockAnchor,
+  ThreadFilter,
+} from "../../types/sessions";
 import { ThreadCard } from "../shared/ThreadCard";
 import { ThreadStatusTabs } from "../shared/ThreadStatusTabs";
 import { useThreadPartition } from "../../hooks/useThreadPartition";
@@ -24,7 +28,6 @@ export interface RightPanelProps {
 // Types
 // ---------------------------------------------------------------------------
 
-type ThreadFilter = "open" | "resolved";
 type ScopeFilter = "all" | "section";
 
 /**

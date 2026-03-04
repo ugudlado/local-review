@@ -95,6 +95,7 @@ export interface ReviewMessage {
 // ---------------------------------------------------------------------------
 
 export type ThreadSeverity = "blocking" | "suggestion" | "nitpick";
+export type ThreadFilter = "open" | "resolved";
 
 export interface ReviewThread {
   id: string;

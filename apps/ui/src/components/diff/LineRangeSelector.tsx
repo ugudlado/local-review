@@ -60,19 +60,6 @@ export function LineRangeSelector({
     selectionRef.current = sel;
   }, []);
 
-  /** Clear all tracking state and highlights. */
-  const clearSelectionImmediate = useCallback(() => {
-    selectionRef.current = null;
-    dragRef.current = null;
-    lastClickRef.current = null;
-    const container = containerRef.current;
-    if (container) {
-      container
-        .querySelectorAll(".line-range-highlight")
-        .forEach((el) => el.classList.remove("line-range-highlight"));
-    }
-  }, [containerRef]);
-
   /**
    * Check if `el` is inside (or is) a `+` add-widget button.
    * Returns the side and line number from the parent diff row, or null.
@@ -289,7 +276,7 @@ export function LineRangeSelector({
       // Open compose immediately for both single clicks and drag ranges.
       if (selectionRef.current) {
         onComment(selectionRef.current);
-        clearSelectionImmediate();
+        clearSelection();
       }
     };
 
@@ -318,7 +305,7 @@ export function LineRangeSelector({
     getLineFromRow,
     highlightRange,
     clearSelection,
-    clearSelectionImmediate,
+    clearSelection,
     updateSelection,
     onComment,
   ]);
