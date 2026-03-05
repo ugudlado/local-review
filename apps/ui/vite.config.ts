@@ -70,6 +70,10 @@ type FeatureInfo = {
   status: string;
   hasSpec: boolean;
   hasTasks: boolean;
+  taskProgress: { done: number; total: number };
+  openThreads: number;
+  lastActivity: string | null;
+  filesChanged: number;
 };
 
 function deriveFeatureStatusServer(
@@ -99,6 +103,53 @@ function deriveFeatureStatusServer(
   if (hasSpec) return "design";
 
   return "new";
+}
+
+function parseTaskProgress(content: string): { done: number; total: number } {
+  const checkboxes = content.match(/- \[[x→~ ]\] T\d+/gi) ?? [];
+  const done = checkboxes.filter((c) => /- \[[x~]\]/i.test(c)).length;
+  return { done, total: checkboxes.length };
+}
+
+function countOpenThreads(
+  specSession: Record<string, unknown> | null,
+  codeSession: Record<string, unknown> | null,
+): number {
+  let count = 0;
+  for (const session of [specSession, codeSession]) {
+    if (!session) continue;
+    const threads = session.threads;
+    if (!Array.isArray(threads)) continue;
+    for (const t of threads) {
+      if (t && typeof t === "object" && "status" in t && t.status === "open") {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+async function getLastActivity(paths: string[]): Promise<string | null> {
+  let latest: Date | null = null;
+  for (const p of paths) {
+    try {
+      const stat = await fs.stat(p);
+      if (!latest || stat.mtime > latest) latest = stat.mtime;
+    } catch {
+      // file may not exist — skip
+    }
+  }
+  return latest ? latest.toISOString() : null;
+}
+
+function countFilesChanged(
+  codeSession: Record<string, unknown> | null,
+): number {
+  if (!codeSession) return 0;
+  const diff = codeSession.diff;
+  if (typeof diff !== "string") return 0;
+  const matches = diff.match(/^diff --git /gm);
+  return matches ? matches.length : 0;
 }
 
 async function ensureSessionsDir(): Promise<void> {
@@ -548,71 +599,75 @@ export default defineConfig({
                       `${featureId}-code.json`,
                     );
 
-                    const [specSession, codeSession, hasSpec, hasTasks] =
-                      await Promise.all([
-                        (async () => {
-                          try {
-                            const content = await fs.readFile(
-                              specSessionPath,
-                              "utf-8",
-                            );
-                            return JSON.parse(content) as Record<
-                              string,
-                              unknown
-                            >;
-                          } catch {
-                            return null;
-                          }
-                        })(),
-                        (async () => {
-                          try {
-                            const content = await fs.readFile(
-                              codeSessionPath,
-                              "utf-8",
-                            );
-                            return JSON.parse(content) as Record<
-                              string,
-                              unknown
-                            >;
-                          } catch {
-                            return null;
-                          }
-                        })(),
-                        (async () => {
-                          try {
-                            const slug = path.basename(wt.path);
-                            await fs.access(
-                              path.join(
-                                wt.path,
-                                "specs",
-                                "active",
-                                slug,
-                                "spec.md",
-                              ),
-                            );
-                            return true;
-                          } catch {
-                            return false;
-                          }
-                        })(),
-                        (async () => {
-                          try {
-                            const slug = path.basename(wt.path);
-                            await fs.access(
-                              path.join(
-                                wt.path,
-                                "specs",
-                                "active",
-                                slug,
-                                "tasks.md",
-                              ),
-                            );
-                            return true;
-                          } catch {
-                            return false;
-                          }
-                        })(),
-                      ]);
+                    const slug = path.basename(wt.path);
+                    const specMdPath = path.join(
+                      wt.path,
+                      "specs",
+                      "active",
+                      slug,
+                      "spec.md",
+                    );
+                    const tasksMdPath = path.join(
+                      wt.path,
+                      "specs",
+                      "active",
+                      slug,
+                      "tasks.md",
+                    );
+
+                    const [
+                      specSession,
+                      codeSession,
+                      hasSpec,
+                      hasTasks,
+                      tasksContent,
+                    ] = await Promise.all([
+                      (async () => {
+                        try {
+                          const content = await fs.readFile(
+                            specSessionPath,
+                            "utf-8",
+                          );
+                          return JSON.parse(content) as Record<string, unknown>;
+                        } catch {
+                          return null;
+                        }
+                      })(),
+                      (async () => {
+                        try {
+                          const content = await fs.readFile(
+                            codeSessionPath,
+                            "utf-8",
+                          );
+                          return JSON.parse(content) as Record<string, unknown>;
+                        } catch {
+                          return null;
+                        }
+                      })(),
+                      (async () => {
+                        try {
+                          await fs.access(specMdPath);
+                          return true;
+                        } catch {
+                          return false;
+                        }
+                      })(),
+                      (async () => {
+                        try {
+                          await fs.access(tasksMdPath);
+                          return true;
+                        } catch {
+                          return false;
+                        }
+                      })(),
+                      (async () => {
+                        try {
+                          return await fs.readFile(tasksMdPath, "utf-8");
+                        } catch {
+                          return null;
+                        }
+                      })(),
+                    ]);
 
                     let branch = wt.branch;
                     if (!branch || branch.includes("detached")) {
@@ -622,6 +677,15 @@ export default defineConfig({
                         branch = "detached";
                       }
                     }
+
+                    const [lastActivity] = await Promise.all([
+                      getLastActivity([
+                        specMdPath,
+                        tasksMdPath,
+                        specSessionPath,
+                        codeSessionPath,
+                      ]),
+                    ]);
 
                     return {
                       id: featureId,
@@ -634,6 +698,10 @@ export default defineConfig({
                       ),
                       hasSpec,
                       hasTasks,
+                      taskProgress: parseTaskProgress(tasksContent ?? ""),
+                      openThreads: countOpenThreads(specSession, codeSession),
+                      lastActivity,
+                      filesChanged: countFilesChanged(codeSession),
                     };
                   }),
                 );
@@ -668,6 +736,10 @@ export default defineConfig({
                         status: "complete",
                         hasSpec,
                         hasTasks,
+                        taskProgress: { done: 0, total: 0 },
+                        openThreads: 0,
+                        lastActivity: null,
+                        filesChanged: 0,
                       });
                     }
                   }

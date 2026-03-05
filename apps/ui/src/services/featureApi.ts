@@ -25,6 +25,10 @@ export type FeatureInfo = {
   status: FeatureStatus;
   hasSpec: boolean;
   hasTasks: boolean;
+  taskProgress: { done: number; total: number };
+  openThreads: number;
+  lastActivity: string | null;
+  filesChanged: number;
 };
 
 export type ThreadPatch = {
