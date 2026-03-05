@@ -4,29 +4,29 @@
 
 ### Phase 1: Design System Foundation
 
-- [ ] T001: Set up dark Notion color tokens and typography [P]
+- [x] T001: Set up dark Notion color tokens and typography [P]
   - **Why**: Must Have — Dark Notion design language (color tokens, font families)
   - **Files**: `apps/ui/src/styles/notion-theme.css` (create), `apps/ui/tailwind.config.ts` (modify), `apps/ui/index.html` (add Google Fonts links)
   - **Done when**: Tailwind config extends with all canvas/ink/accent/border tokens; Google Fonts loaded for DM Sans, Newsreader, JetBrains Mono; CSS variables defined in notion-theme.css and imported
 
-- [ ] T002: Install TipTap and tiptap-markdown dependencies [P]
+- [x] T002: Install TipTap and tiptap-markdown dependencies [P]
   - **Why**: Must Have — Inline WYSIWYG editing via TipTap
   - **Files**: `apps/ui/package.json`
   - **Done when**: `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-code-block-lowlight`, `@tiptap/extension-link`, `@tiptap/extension-placeholder`, `tiptap-markdown` (community OSS by aguingand, NOT `@tiptap/markdown`), `lowlight` installed via pnpm; verify `tiptap-markdown` is MIT licensed
 
 ### Phase 2: Page Shell Redesign
 
-- [ ] T003: Create FeatureHeaderContext for page-specific header actions (depends: T001)
+- [x] T003: Create FeatureHeaderContext for page-specific header actions (depends: T001)
   - **Why**: Must Have — Verdict buttons and edit toggle in header need page-level state without prop drilling
   - **Files**: `apps/ui/src/components/FeatureLayout.tsx` (modify), `apps/ui/src/hooks/useFeatureHeader.ts` (create)
   - **Done when**: `FeatureHeaderContext` created with `setHeaderActions(ReactNode)` API; `FeatureLayout` provides the context; `useFeatureHeader()` hook exposes `setHeaderActions`; child pages can inject arbitrary header actions
 
-- [ ] T004: Redesign FeatureNavBar with two-row layout (depends: T003)
+- [x] T004: Redesign FeatureNavBar with two-row layout (depends: T003)
   - **Why**: Must Have — Redesigned page shell with verdict buttons in header
   - **Files**: `apps/ui/src/components/FeatureNavBar.tsx`
   - **Done when**: Two-row header renders: Row 1 (back arrow + "Dashboard" label, feature switcher, worktree path); Row 2 (tab pills with badges, header actions slot from context); backdrop blur applied; dark Notion tokens used; Approve/Request Changes buttons are rendered by consuming pages via the context, not hardcoded in navbar
 
-- [ ] T005: Update FeatureLayout with dark Notion theme (depends: T001)
+- [x] T005: Update FeatureLayout with dark Notion theme (depends: T001)
   - **Why**: Must Have — Page shell uses dark Notion design language
   - **Files**: `apps/ui/src/components/FeatureLayout.tsx`
   - **Done when**: Layout wrapper uses canvas base background, inherits notion-theme tokens; children render within the dark theme context
@@ -107,6 +107,7 @@
   - **Done when**: Type-check passes (`pnpm type-check`); dev server starts; screenshot comparison against `/private/tmp/claude-501/spec-view-mock.html` shows matching layout, colors, typography, and component styling; no console errors; compose/reply/resolve flows work end-to-end; j/k navigation works; edit mode works with anchor preservation
 
 ## Status Legend
+
 - [ ] = Pending
 - [→] = In Progress
 - [x] = Done

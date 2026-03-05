@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { getStatusConfig } from "../utils/featureStatus";
 import { useFeatures } from "../hooks/useFeaturesContext";
-
+import { useFeatureHeader } from "../hooks/useFeatureHeader";
 import { formatFeatureLabel } from "../utils/formatFeatureLabel";
 
 interface FeatureNavBarProps {
@@ -17,12 +17,19 @@ const tabs = [
 
 /**
  * Persistent top navigation bar for feature views.
- * Shows a back arrow, feature switcher dropdown, and [Spec] [Tasks] [Code] tab buttons.
- * Active tab is highlighted based on the current route.
+ *
+ * Two-row layout:
+ * - Row 1: ← Dashboard / feature-switcher     [path copy]
+ * - Row 2: [Spec] [Tasks] [Code] tabs          [headerActions]
+ *
+ * Active tab highlighting uses Notion dark tokens from tailwind.config.js.
+ * Header actions (verdict buttons, edit toggle) are injected by pages via
+ * the FeatureHeaderContext.
  */
 export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const { headerActions } = useFeatureHeader();
 
   const basePath = `/features/${featureId}`;
 
@@ -102,19 +109,21 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
   );
 
   return (
-    <header className="shrink-0 border-b border-[var(--border-default)] bg-[var(--bg-surface)]">
-      <div className="flex items-center gap-3 px-4 py-2.5">
-        {/* Back arrow */}
+    <header className="border-border bg-canvas-raised/95 shrink-0 border-b backdrop-blur-md">
+      {/* ------------------------------------------------------------------ */}
+      {/* Row 1: back link / feature switcher / worktree path                */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="flex items-center gap-2 px-4 pb-0 pt-2.5">
+        {/* ← Dashboard link */}
         <Link
           to="/"
-          className="text-slate-400 transition-colors hover:text-slate-200"
-          aria-label="Back to dashboard"
+          className="text-ink-muted hover:text-ink flex items-center gap-1 transition-colors"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 20 20"
             fill="currentColor"
-            className="h-5 w-5"
+            className="h-3.5 w-3.5"
           >
             <path
               fillRule="evenodd"
@@ -122,30 +131,39 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
               clipRule="evenodd"
             />
           </svg>
+          <span className="text-xs font-medium">Dashboard</span>
         </Link>
+
+        {/* Separator */}
+        <span className="text-ink-ghost select-none text-xs">/</span>
 
         {/* Feature switcher dropdown */}
         <div ref={dropdownRef} className="relative">
           <button
             type="button"
             onClick={() => setDropdownOpen((o) => !o)}
-            className="flex items-center gap-2 rounded px-2 py-1 font-mono text-sm font-semibold text-slate-200 transition-colors hover:bg-[var(--bg-elevated)]"
+            className="hover:bg-canvas-elevated flex items-center gap-2 rounded-md px-2 py-1 transition-colors"
           >
-            {formatFeatureLabel(featureId)}
-            {/* Status badge — shown when features are loaded */}
+            <span className="text-ink font-mono text-sm font-medium">
+              {formatFeatureLabel(featureId)}
+            </span>
+
+            {/* Status badge */}
             {currentFeature &&
               (() => {
                 const config = getStatusConfig(currentFeature.status);
                 return (
                   <span
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${config.color} ${config.bgColor}`}
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${config.color} ${config.bgColor}`}
                   >
                     {config.label}
                   </span>
                 );
               })()}
+
+            {/* Chevron */}
             <svg
-              className={`h-3 w-3 text-slate-500 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
+              className={`text-ink-faint h-3 w-3 transition-transform ${dropdownOpen ? "rotate-180" : ""}`}
               viewBox="0 0 12 12"
               fill="currentColor"
             >
@@ -154,23 +172,23 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
           </button>
 
           {dropdownOpen && (
-            <div className="absolute left-0 top-full z-50 mt-1 w-96 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] shadow-lg shadow-black/40">
+            <div className="border-border bg-canvas-raised absolute left-0 top-full z-50 mt-1 w-96 rounded-lg border shadow-lg shadow-black/40">
               {/* Search input */}
-              <div className="border-b border-[var(--bg-elevated)] p-2">
+              <div className="border-border border-b p-2">
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Filter features..."
-                  className="w-full rounded bg-[var(--bg-base)] px-2.5 py-1.5 text-xs text-slate-200 placeholder-slate-600 outline-none ring-1 ring-[var(--border-default)] focus:ring-[var(--accent-blue)]"
+                  className="bg-canvas-elevated text-ink placeholder-ink-faint ring-border focus:ring-accent-blue w-full rounded px-2.5 py-1.5 text-xs outline-none ring-1"
                 />
               </div>
 
               {/* Feature list */}
               <div className="max-h-64 overflow-y-auto py-1">
                 {filtered.length === 0 ? (
-                  <div className="px-3 py-4 text-center text-xs text-slate-600">
+                  <div className="text-ink-faint px-3 py-4 text-center text-xs">
                     No features found
                   </div>
                 ) : (
@@ -181,23 +199,23 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
                         key={f.id}
                         type="button"
                         onClick={() => handleSwitch(f.id)}
-                        className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left text-xs transition-colors hover:bg-[var(--bg-elevated)] ${
+                        className={`hover:bg-canvas-elevated flex w-full flex-col gap-0.5 px-3 py-2 text-left text-xs transition-colors ${
                           f.id === featureId
-                            ? "bg-[var(--accent-blue)]/10 text-[var(--accent-blue-text)]"
-                            : "text-slate-300"
+                            ? "bg-accent-blue/10 text-accent-blue"
+                            : "text-ink-muted"
                         }`}
                       >
                         <span className="flex items-center gap-2">
-                          <span className="truncate font-mono">
+                          <span className="text-ink truncate font-mono">
                             {formatFeatureLabel(f.id)}
                           </span>
                           <span
-                            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium ${fConfig.color} ${fConfig.bgColor}`}
+                            className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${fConfig.color} ${fConfig.bgColor}`}
                           >
                             {fConfig.label}
                           </span>
                         </span>
-                        <span className="truncate font-mono text-[10px] text-slate-600">
+                        <span className="text-ink-faint truncate font-mono text-[10px]">
                           {f.worktreePath}
                         </span>
                       </button>
@@ -209,10 +227,10 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
           )}
         </div>
 
-        {/* Worktree path + copy button */}
+        {/* Worktree path + copy button — pushed to the right */}
         {currentFeature && (
-          <div className="flex items-center gap-1.5 overflow-hidden">
-            <span className="truncate font-mono text-xs text-slate-500">
+          <div className="ml-auto flex items-center gap-1.5 overflow-hidden">
+            <span className="text-ink-faint truncate font-mono text-[11px]">
               {currentFeature.worktreePath}
             </span>
             <button
@@ -227,7 +245,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
                   1500,
                 );
               }}
-              className="shrink-0 rounded p-1 text-slate-500 transition-colors hover:bg-[var(--bg-elevated)] hover:text-slate-300"
+              className="text-ink-faint hover:bg-canvas-elevated hover:text-ink-muted shrink-0 rounded p-1 transition-colors"
               aria-label="Copy worktree path"
               title="Copy worktree path"
             >
@@ -236,7 +254,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 16 16"
                   fill="currentColor"
-                  className="h-3.5 w-3.5 text-green-400"
+                  className="text-accent-emerald h-3.5 w-3.5"
                 >
                   <path
                     fillRule="evenodd"
@@ -260,12 +278,16 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
         )}
       </div>
 
-      {/* Tab bar */}
-      <nav className="flex gap-0 px-4" aria-label="Feature tabs">
+      {/* ------------------------------------------------------------------ */}
+      {/* Row 2: tab pills (left) + header actions slot (right)              */}
+      {/* ------------------------------------------------------------------ */}
+      <nav
+        className="flex items-center gap-1 px-3 pb-0 pt-1"
+        aria-label="Feature tabs"
+      >
         {tabs.map((tab) => {
           const tabPath = `${basePath}/${tab.path}`;
           const isActive = pathname.startsWith(tabPath);
-          const currentFeature = features.find((f) => f.id === featureId);
           const isDisabled =
             tab.path === "code" && currentFeature?.status === "complete";
 
@@ -273,7 +295,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
             return (
               <span
                 key={tab.path}
-                className="cursor-not-allowed border-b-2 border-transparent px-3 pb-1.5 pt-0.5 font-mono text-sm font-medium text-slate-600"
+                className="text-ink-ghost cursor-not-allowed rounded-md px-3 py-1.5 text-sm font-medium"
                 title="No active worktree for completed feature"
               >
                 {tab.label}
@@ -285,16 +307,38 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
             <Link
               key={tab.path}
               to={tabPath}
-              className={`border-b-2 px-3 pb-1.5 pt-0.5 font-mono text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                 isActive
-                  ? "border-blue-500 text-slate-100"
-                  : "border-transparent text-slate-400 hover:border-[var(--border-default)] hover:text-slate-300"
+                  ? "bg-accent-blue/12 text-accent-blue"
+                  : "text-ink-muted hover:bg-canvas-elevated hover:text-ink"
               }`}
             >
               {tab.label}
+
+              {/* Spec tab: amber open-thread badge */}
+              {tab.path === "spec" &&
+                currentFeature &&
+                currentFeature.openThreads > 0 && (
+                  <span className="bg-accent-amber/15 text-accent-amber rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+                    {currentFeature.openThreads}
+                  </span>
+                )}
+
+              {/* Tasks tab: progress indicator */}
+              {tab.path === "tasks" && currentFeature && (
+                <span className="text-ink-faint text-[10px] font-medium">
+                  {currentFeature.taskProgress.done}/
+                  {currentFeature.taskProgress.total}
+                </span>
+              )}
             </Link>
           );
         })}
+
+        {/* Header actions injected by pages (verdict buttons, edit toggle, etc.) */}
+        {headerActions && (
+          <div className="ml-auto flex items-center gap-2">{headerActions}</div>
+        )}
       </nav>
     </header>
   );
