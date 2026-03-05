@@ -32,7 +32,7 @@ interface DiffTableProps {
     line: number,
   ) => void;
   onDragUpdate: (filePath: string, side: "old" | "new", line: number) => void;
-  panelRef: React.RefObject<HTMLDivElement | null>;
+  panelRef: React.RefObject<HTMLDivElement>;
   expandedGaps: Map<string, Set<number>>;
   expansionContent: Map<string, string>;
   onExpandGap: (filePath: string, gapIndex: number) => void;
