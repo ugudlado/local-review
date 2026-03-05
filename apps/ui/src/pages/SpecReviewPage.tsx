@@ -2,11 +2,11 @@ import { useParams } from "react-router-dom";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { featureApi } from "../services/featureApi";
 import { useSpecSession } from "../hooks/useSpecSession";
-import { buildAnchorMap } from "../utils/specAnchoring";
+import { useFeatureHeader } from "../hooks/useFeatureHeader";
+import { buildAnchorMap, resolveAnchor } from "../utils/specAnchoring";
 import { SpecOutline } from "../components/spec/SpecOutline";
 import { SpecRenderer } from "../components/spec/SpecRenderer";
-import { RightPanel } from "../components/spec/RightPanel";
-import { ReviewVerdict } from "../components/shared/ReviewVerdict";
+import { ThreadNav } from "../components/spec/ThreadNav";
 import type {
   SpecBlockAnchor,
   ReviewThread,
@@ -37,6 +37,7 @@ export default function SpecReviewPage() {
     error: sessionError,
     addThread,
     patchThread,
+    saveSession,
     setVerdict,
   } = useSpecSession(featureId);
 
@@ -158,11 +159,7 @@ export default function SpecReviewPage() {
   // Navigation
   // -------------------------------------------------------------------------
 
-  const [activeBlockIndex, setActiveBlockIndex] = useState<
-    number | undefined
-  >();
-
-  const specScrollRef = useRef<HTMLDivElement>(null);
+  const specScrollRef = useRef<HTMLElement>(null);
 
   // -------------------------------------------------------------------------
   // Active section tracking via scroll position
@@ -217,8 +214,7 @@ export default function SpecReviewPage() {
 
   const handleOutlineNavigate = useCallback(
     (blockIndex: number) => {
-      setActiveBlockIndex(blockIndex);
-      // Also update active section when navigating via outline
+      // Update active section when navigating via outline
       const navInfo = anchorMap.get(blockIndex);
       if (navInfo?.type === "heading") {
         setActiveSectionPath(navInfo.path);
@@ -270,86 +266,188 @@ export default function SpecReviewPage() {
   );
 
   // -------------------------------------------------------------------------
-  // Verdict
+  // Edit mode (T008)
   // -------------------------------------------------------------------------
 
-  const handleVerdictChange = useCallback(
-    (verdict: "approved" | "changes_requested") => {
-      void setVerdict(verdict);
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  const threads = useMemo(() => session?.threads ?? [], [session?.threads]);
+
+  // -------------------------------------------------------------------------
+  // Save spec with anchor write-back (T008)
+  // -------------------------------------------------------------------------
+
+  const handleSaveSpec = useCallback(
+    async (newMarkdown: string) => {
+      if (!featureId) return;
+
+      // 1. Rebuild AnchorMap from new markdown
+      const newAnchorMap = buildAnchorMap(newMarkdown);
+
+      // 2. For each spec thread, run resolveAnchor and update if drifted.
+      //    patchThread only supports status/messages, so we update anchors
+      //    directly on the session and persist the full session via saveSession.
+      const specThreads = (session?.threads ?? []).filter(
+        (t) => t.anchor.type !== "diff-line",
+      );
+
+      let updatedSession = session;
+      for (const thread of specThreads) {
+        const anchor = thread.anchor as SpecBlockAnchor;
+        const resolution = resolveAnchor(newAnchorMap, anchor);
+
+        if (resolution.status === "drifted") {
+          const newInfo = newAnchorMap.get(resolution.blockIndex);
+          if (newInfo && updatedSession) {
+            const patchedAnchor = {
+              ...anchor,
+              blockIndex: resolution.blockIndex,
+              hash: resolution.newHash,
+            };
+            updatedSession = {
+              ...updatedSession,
+              threads: updatedSession.threads.map((t) =>
+                t.id === thread.id ? { ...t, anchor: patchedAnchor } : t,
+              ),
+            };
+          }
+        }
+        // "orphaned" threads keep their current anchor (flagged in UI)
+        // "valid" threads need no update
+      }
+
+      // 3. Persist updated session if any anchors changed
+      if (updatedSession && updatedSession !== session) {
+        await saveSession(updatedSession);
+      }
+
+      // 4. Save spec content to disk
+      try {
+        await featureApi.saveSpec(featureId, newMarkdown);
+      } catch (err) {
+        setSpecError(
+          err instanceof Error ? err.message : "Failed to save spec",
+        );
+        return;
+      }
+
+      // 5. Update local spec content and exit edit mode
+      setSpecContent(newMarkdown);
+      setIsEditMode(false);
     },
-    [setVerdict],
+    [featureId, session, saveSession],
   );
 
   // -------------------------------------------------------------------------
-  // Edit mode
+  // Active thread state (for ThreadNav highlight)
   // -------------------------------------------------------------------------
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editDraft, setEditDraft] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const handleEditToggle = useCallback(() => {
-    if (!isEditing && specContent) {
-      setEditDraft(specContent);
-    }
-    setIsEditing((prev) => !prev);
-  }, [isEditing, specContent]);
-
-  const handleEditSave = useCallback(async () => {
-    if (!featureId || !editDraft) return;
-    setSaving(true);
-    try {
-      await featureApi.saveSpec(featureId, editDraft);
-      setSpecContent(editDraft);
-      setIsEditing(false);
-    } catch (err) {
-      setSpecError(err instanceof Error ? err.message : "Failed to save spec");
-    } finally {
-      setSaving(false);
-    }
-  }, [featureId, editDraft]);
-
-  const handleEditCancel = useCallback(() => {
-    setIsEditing(false);
-    setEditDraft("");
-  }, []);
-
-  const threads = session?.threads ?? [];
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
   // -------------------------------------------------------------------------
-  // Thread click → scroll to anchored block with flash highlight
+  // Thread click → scroll to inline thread element with flash highlight
   // -------------------------------------------------------------------------
 
-  const handleThreadClick = useCallback(
-    (threadId: string) => {
-      const thread = threads.find((t) => t.id === threadId);
-      if (!thread || thread.anchor.type === "diff-line") return;
-      const anchor = thread.anchor as SpecBlockAnchor;
-      const container = specScrollRef.current;
-      if (!container) return;
+  const handleThreadClick = useCallback((threadId: string) => {
+    setActiveThreadId(threadId);
 
-      const el = container.querySelector(
-        `[data-block-index="${anchor.blockIndex}"]`,
+    // Scroll to the inline thread element with data-thread-id
+    const threadEl = document.querySelector(`[data-thread-id="${threadId}"]`);
+    if (threadEl) {
+      threadEl.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      // Brief highlight animation
+      threadEl.classList.add(
+        "ring-2",
+        "ring-accent-blue",
+        "ring-offset-2",
+        "ring-offset-canvas",
       );
-      if (!el) return;
-
-      // Use scrollTo on the known scroll container (same pattern as handleOutlineNavigate)
-      // instead of scrollIntoView which can target the wrong ancestor in nested layouts.
-      const offsetTop = (el as HTMLElement).offsetTop;
-      const centerOffset = Math.max(0, offsetTop - container.clientHeight / 2);
-      container.scrollTo({ top: centerOffset, behavior: "smooth" });
-
-      // Flash highlight
-      el.classList.add("block-flash-highlight");
-      const onEnd = () => {
-        el.classList.remove("block-flash-highlight");
-        el.removeEventListener("animationend", onEnd);
-      };
-      el.addEventListener("animationend", onEnd);
-    },
+      setTimeout(() => {
+        threadEl.classList.remove(
+          "ring-2",
+          "ring-accent-blue",
+          "ring-offset-2",
+          "ring-offset-canvas",
+        );
+      }, 1500);
+    }
+  }, []);
+  const openThreadCount = useMemo(
+    () =>
+      threads.filter((t) => t.status !== "resolved" && t.status !== "approved")
+        .length,
     [threads],
   );
-  const openThreadCount = threads.filter((t) => t.status === "open").length;
+
+  // -------------------------------------------------------------------------
+  // Header actions — inject Edit toggle + verdict buttons via FeatureHeaderContext (T008)
+  // -------------------------------------------------------------------------
+
+  const { setHeaderActions } = useFeatureHeader();
+
+  useEffect(() => {
+    setHeaderActions(
+      <div className="flex items-center gap-2">
+        {/* Edit toggle */}
+        <button
+          type="button"
+          onClick={() => setIsEditMode((m) => !m)}
+          className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-[13px] font-medium transition-colors ${
+            isEditMode
+              ? "bg-accent-amber/15 text-accent-amber"
+              : "text-ink-muted hover:text-ink hover:bg-canvas-elevated"
+          }`}
+        >
+          {isEditMode ? "Editing" : "Edit"}
+        </button>
+
+        <div className="bg-border mx-1 h-4 w-px" />
+
+        {/* Thread count */}
+        {openThreadCount > 0 && (
+          <span className="text-ink-muted text-[12px]">
+            {openThreadCount} open
+          </span>
+        )}
+
+        {/* Approve button */}
+        <button
+          type="button"
+          onClick={() => void setVerdict("approved")}
+          className="bg-accent-emerald/15 text-accent-emerald hover:bg-accent-emerald/25 flex items-center gap-1.5 rounded px-3 py-1.5 text-[13px] font-medium transition-colors"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor">
+            <path
+              fillRule="evenodd"
+              d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z"
+              clipRule="evenodd"
+            />
+          </svg>
+          Approve
+        </button>
+
+        {/* Request Changes button — disabled when 0 open threads */}
+        <button
+          type="button"
+          onClick={() => void setVerdict("changes_requested")}
+          disabled={openThreadCount === 0}
+          className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-[13px] font-medium transition-colors ${
+            openThreadCount === 0
+              ? "bg-canvas-elevated/50 text-ink-ghost cursor-not-allowed"
+              : "bg-accent-amber/15 text-accent-amber hover:bg-accent-amber/25"
+          }`}
+        >
+          Request Changes
+        </button>
+      </div>,
+    );
+  }, [isEditMode, openThreadCount, setVerdict, setHeaderActions]);
+
+  // Clean up header actions on unmount
+  useEffect(() => {
+    return () => setHeaderActions(null);
+  }, [setHeaderActions]);
 
   // -------------------------------------------------------------------------
   // Command palette, shortcut help & thread navigation (T074 + T075)
@@ -357,8 +455,8 @@ export default function SpecReviewPage() {
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [focusedThreadIndex, setFocusedThreadIndex] = useState(-1);
 
+  // j/k shortcut: cycle through threads by ID using activeThreadId
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -379,72 +477,52 @@ export default function SpecReviewPage() {
         case "?":
           setHelpOpen((prev) => !prev);
           break;
-        case "j":
-          setFocusedThreadIndex((prev) => prev + 1);
+        case "j": {
+          if (threads.length === 0) break;
+          const currentIdx = activeThreadId
+            ? threads.findIndex((t) => t.id === activeThreadId)
+            : -1;
+          const nextIdx = Math.min(currentIdx + 1, threads.length - 1);
+          const nextThread = threads[nextIdx];
+          if (nextThread) handleThreadClick(nextThread.id);
           break;
-        case "k":
-          setFocusedThreadIndex((prev) => Math.max(-1, prev - 1));
+        }
+        case "k": {
+          if (threads.length === 0) break;
+          const currentIdx = activeThreadId
+            ? threads.findIndex((t) => t.id === activeThreadId)
+            : 0;
+          const prevIdx = Math.max(currentIdx - 1, 0);
+          const prevThread = threads[prevIdx];
+          if (prevThread) handleThreadClick(prevThread.id);
           break;
+        }
         case "Escape":
           setHelpOpen(false);
           setPaletteOpen(false);
-          setFocusedThreadIndex(-1);
+          setActiveThreadId(null);
           break;
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [threads, activeThreadId, handleThreadClick]);
 
-  useEffect(() => {
-    if (focusedThreadIndex < 0) return;
-    const threadElements = document.querySelectorAll("[data-thread-id]");
-    const target = threadElements[focusedThreadIndex] as
-      | HTMLElement
-      | undefined;
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      target.classList.add(
-        "ring-2",
-        "ring-[var(--accent-blue)]",
-        "ring-offset-1",
-      );
-      const prev = threadElements[focusedThreadIndex - 1] as
-        | HTMLElement
-        | undefined;
-      const next = threadElements[focusedThreadIndex + 1] as
-        | HTMLElement
-        | undefined;
-      prev?.classList.remove(
-        "ring-2",
-        "ring-[var(--accent-blue)]",
-        "ring-offset-1",
-      );
-      next?.classList.remove(
-        "ring-2",
-        "ring-[var(--accent-blue)]",
-        "ring-offset-1",
-      );
-      return () => {
-        target.classList.remove(
-          "ring-2",
-          "ring-[var(--accent-blue)]",
-          "ring-offset-1",
-        );
-      };
-    }
-  }, [focusedThreadIndex]);
-
-  const paletteItems = useMemo(() => {
-    const items: {
+  const [paletteItems, setPaletteItems] = useState<
+    {
       id: string;
       label: string;
       group: "Files" | "Threads" | "Actions";
       onAction: () => void;
       shortcut?: string;
-    }[] = [];
+    }[]
+  >([]);
 
-    // Sections from anchorMap
+  useEffect(() => {
+    if (!paletteOpen) return;
+
+    const items: typeof paletteItems = [];
+
     for (const [blockIndex, info] of anchorMap.entries()) {
       if (info.type === "heading") {
         items.push({
@@ -456,7 +534,6 @@ export default function SpecReviewPage() {
       }
     }
 
-    // Threads
     for (const thread of threads) {
       const anchor = thread.anchor as {
         path?: string;
@@ -468,13 +545,10 @@ export default function SpecReviewPage() {
         id: `thread-${thread.id}`,
         label: `${anchor.path ?? ""} — ${preview}`,
         group: "Threads",
-        onAction: () => {
-          handleThreadClick(thread.id);
-        },
+        onAction: () => handleThreadClick(thread.id),
       });
     }
 
-    // Actions
     items.push({
       id: "action-help",
       label: "Keyboard shortcuts",
@@ -483,8 +557,14 @@ export default function SpecReviewPage() {
       onAction: () => setHelpOpen(true),
     });
 
-    return items;
-  }, [anchorMap, threads, handleOutlineNavigate, handleThreadClick]);
+    setPaletteItems(items);
+  }, [
+    paletteOpen,
+    anchorMap,
+    threads,
+    handleOutlineNavigate,
+    handleThreadClick,
+  ]);
 
   // -------------------------------------------------------------------------
   // Guard: missing featureId
@@ -533,116 +613,44 @@ export default function SpecReviewPage() {
   // -------------------------------------------------------------------------
 
   return (
-    <div className="flex h-full bg-[var(--bg-base)]">
+    <div className="flex h-full overflow-hidden bg-[var(--bg-base)]">
       {/* Left sidebar — SpecOutline */}
-      <div className="w-[200px] shrink-0 overflow-y-auto border-r border-slate-700/50">
-        <SpecOutline
-          anchorMap={anchorMap}
-          threads={threads}
-          activeBlockIndex={activeBlockIndex}
-          onNavigate={handleOutlineNavigate}
-        />
-      </div>
+      <SpecOutline
+        anchorMap={anchorMap}
+        specContent={specContent ?? ""}
+        threads={threads}
+        activeSection={activeSectionPath}
+        onSectionClick={handleOutlineNavigate}
+      />
 
-      {/* Center — SpecRenderer / Editor + Diagrams */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Edit toggle toolbar */}
-        <div className="flex shrink-0 items-center justify-between border-b border-[var(--border-muted)] bg-[var(--bg-surface)] px-4 py-1.5">
-          <span className="text-[11px] font-medium text-[var(--text-muted)]">
-            specs/active/spec.md
-          </span>
-          <div className="flex items-center gap-1.5">
-            {isEditing && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleEditCancel}
-                  className="rounded-md bg-[var(--bg-elevated)] px-2.5 py-1 text-[11px] text-[var(--text-tertiary)] hover:bg-[var(--bg-overlay)] hover:text-[var(--text-secondary)]"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleEditSave()}
-                  disabled={saving}
-                  className="rounded-md bg-emerald-500/15 px-2.5 py-1 text-[11px] font-medium text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50"
-                >
-                  {saving ? "Saving..." : "Save"}
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={handleEditToggle}
-              className={`rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                isEditing
-                  ? "bg-blue-500/15 text-blue-400"
-                  : "bg-[var(--bg-elevated)] text-[var(--text-tertiary)] hover:bg-[var(--bg-overlay)] hover:text-[var(--text-secondary)]"
-              }`}
-            >
-              {isEditing ? "Preview" : "Edit"}
-            </button>
-          </div>
-        </div>
-
-        {/* Content area */}
-        <div ref={specScrollRef} className="min-h-0 flex-1 overflow-y-auto">
-          {isEditing ? (
-            <textarea
-              value={editDraft}
-              onChange={(e) => setEditDraft(e.target.value)}
-              spellCheck={false}
-              className="h-full w-full resize-none bg-[var(--bg-base)] p-6 font-mono text-sm leading-relaxed text-slate-300 outline-none"
-            />
-          ) : (
-            <>
-              {specContent && (
-                <SpecRenderer
-                  markdown={specContent}
-                  threads={threads}
-                  onCompose={handleCompose}
-                  composingBlockIndex={composingAnchor?.blockIndex}
-                  onNavigateToBlock={handleOutlineNavigate}
-                  onReply={handleReply}
-                  onThreadStatusChange={handleThreadStatusChange}
-                  onComposeSubmit={handleComposeSubmit}
-                  onComposeCancel={handleComposeCancel}
-                  composingSelectedText={composingAnchor?.selectedText}
-                />
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Right sidebar — Verdict + Thread index */}
-      <aside className="flex w-[320px] shrink-0 flex-col border-l border-[var(--border-muted)] bg-[var(--bg-base)]">
-        {/* Verdict bar */}
-        <div className="flex items-center justify-end gap-2 border-b border-[var(--border-muted)] px-3 py-2">
-          {openThreadCount > 0 && (
-            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
-              {openThreadCount} open
-            </span>
-          )}
-          <ReviewVerdict
-            verdict={session?.verdict ?? null}
-            onVerdictChange={handleVerdictChange}
-            openThreadCount={openThreadCount}
-            disabled={!session}
-          />
-        </div>
-
-        {/* Threads */}
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <RightPanel
+      {/* Center — SpecRenderer with TipTap (read-only or edit mode) */}
+      <main ref={specScrollRef} className="min-w-0 flex-1 overflow-y-auto">
+        {specContent && (
+          <SpecRenderer
+            markdown={specContent}
             threads={threads}
+            onCompose={handleCompose}
+            composingBlockIndex={composingAnchor?.blockIndex}
+            onNavigateToBlock={handleOutlineNavigate}
             onReply={handleReply}
             onThreadStatusChange={handleThreadStatusChange}
-            onThreadClick={handleThreadClick}
-            activeSectionPath={activeSectionPath}
+            onComposeSubmit={handleComposeSubmit}
+            onComposeCancel={handleComposeCancel}
+            composingSelectedText={composingAnchor?.selectedText}
+            isEditMode={isEditMode}
+            onSave={(md) => void handleSaveSpec(md)}
+            onCancelEdit={() => setIsEditMode(false)}
           />
-        </div>
-      </aside>
+        )}
+      </main>
+
+      {/* Right sidebar — ThreadNav (slim 240px thread navigator) */}
+      <ThreadNav
+        threads={threads}
+        anchorMap={anchorMap}
+        activeThreadId={activeThreadId ?? undefined}
+        onThreadClick={handleThreadClick}
+      />
 
       <CommandPalette
         open={paletteOpen}
