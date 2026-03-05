@@ -21,6 +21,7 @@
     "format": "prettier --write src/**/*.{ts,tsx} tests/**/*.ts {tailwind.config.js,postcss.config.cjs,vite.config.ts}"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.69",
     "@fontsource/geist-mono": "^5.2.7",
     "@fontsource/geist-sans": "^5.2.5",
     "@git-diff-view/react": "^0.0.40",

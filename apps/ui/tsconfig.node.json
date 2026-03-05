@@ -10,6 +10,7 @@
     "vite.config.ts",
     "vitest.config.unit.ts",
     "src/utils/tasksParser.ts",
-    "src/types/sessions.ts"
+    "src/types/sessions.ts",
+    "src/server/**/*.ts"
   ]
 }
