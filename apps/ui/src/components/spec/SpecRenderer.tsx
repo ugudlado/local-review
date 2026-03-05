@@ -1,42 +1,44 @@
 /**
- * SpecRenderer — two-column flex layout rendering spec markdown with
- * annotatable blocks and an annotation gutter.
+ * SpecRenderer — TipTap-based spec markdown renderer with per-block annotation
+ * affordances (hover compose, thread count badges, text selection commenting).
  *
  * Architecture:
  *   SpecRenderer
- *   +-- ContentColumn
- *   |   +-- AnnotatableParagraph (registers offsetTop via ref)
- *   |   +-- (diagrams — planned for future version)
- *   |   +-- (inline ComposeBox — future)
- *   +-- AnnotationGutter (continuous rail, renders markers at measured y-offsets)
+ *   +-- TipTap editor (read-only, with custom React Node Views)
+ *   |   +-- ParagraphNodeView (wraps each paragraph with AnnotatableNodeView)
+ *   |   +-- HeadingNodeView   (wraps each heading)
+ *   |   +-- ListItemNodeView  (wraps each list item)
+ *   |   +-- CodeBlockNodeView (wraps each code block)
+ *   +-- SelectionPopover (floating, on text selection)
+ *   +-- BlockRangeSelector (capture-phase, on "+" button drag)
  *
- * Uses react-markdown with custom component renderers that wrap each
- * block-level element in AnnotatableParagraph. Each renderer extracts text
- * content, hashes it via simpleHash, and looks up the matching AnchorInfo
- * from a reverse hash map — avoiding any dependency on render order.
+ * The posToBlockIndex map bridges TipTap's character-position world to
+ * the sequential blockIndex world of buildAnchorMap(). It is built once
+ * after TipTap loads the document by walking doc.descendants().
  */
 
 import {
   createContext,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
-  type ReactNode,
-  type ReactElement,
 } from "react";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
-import rehypeSlug from "rehype-slug";
-import rehypeAutolinkHeadings from "rehype-autolink-headings";
-import "highlight.js/styles/github-dark.css";
-import type { Components } from "react-markdown";
-import type { AnchorInfo, AnchorMap } from "../../utils/specAnchoring";
-import { buildAnchorMap, simpleHash } from "../../utils/specAnchoring";
+import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react";
+import type { Editor } from "@tiptap/react";
+import { StarterKit } from "@tiptap/starter-kit";
+import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
+import { Link } from "@tiptap/extension-link";
+import { Placeholder } from "@tiptap/extension-placeholder";
+import { Paragraph } from "@tiptap/extension-paragraph";
+import { Heading } from "@tiptap/extension-heading";
+import { ListItem } from "@tiptap/extension-list";
+import { Markdown } from "tiptap-markdown";
+import { createLowlight, common } from "lowlight";
+import type { AnchorMap } from "../../utils/specAnchoring";
+import { buildAnchorMap } from "../../utils/specAnchoring";
 import type { ReviewThread, SpecBlockAnchor } from "../../types/sessions";
-import { AnnotatableParagraph } from "./AnnotatableParagraph";
-import { AnnotationGutter } from "./AnnotationGutter";
 import {
   SelectionPopover,
   type SelectionInfo,
@@ -45,15 +47,60 @@ import {
   BlockRangeSelector,
   type BlockRangeSelection,
 } from "./BlockRangeSelector";
+import {
+  SpecRendererContext,
+  type SpecRendererContextValue,
+} from "./nodeviews/SpecRendererContext";
+import { ParagraphNodeView } from "./nodeviews/ParagraphNodeView";
+import { HeadingNodeView } from "./nodeviews/HeadingNodeView";
+import { ListItemNodeView } from "./nodeviews/ListItemNodeView";
+import { CodeBlockNodeView } from "./nodeviews/CodeBlockNodeView";
 
 // ---------------------------------------------------------------------------
 // Context — allows deeply nested components to access the anchor map
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const AnchorMapContext = createContext<AnchorMap>(new Map());
 
 // ---------------------------------------------------------------------------
-// Props
+// lowlight instance (created once at module level)
+// ---------------------------------------------------------------------------
+
+const lowlight = createLowlight(common);
+
+// ---------------------------------------------------------------------------
+// Custom extensions with React Node Views
+// These extend the base TipTap extensions to add React-based NodeViews that
+// render AnnotatableNodeView affordances around each block element.
+// ---------------------------------------------------------------------------
+
+const AnnotatableParagraph = Paragraph.extend({
+  addNodeView() {
+    return ReactNodeViewRenderer(ParagraphNodeView);
+  },
+});
+
+const AnnotatableHeading = Heading.extend({
+  addNodeView() {
+    return ReactNodeViewRenderer(HeadingNodeView);
+  },
+});
+
+const AnnotatableListItem = ListItem.extend({
+  addNodeView() {
+    return ReactNodeViewRenderer(ListItemNodeView);
+  },
+});
+
+const AnnotatableCodeBlock = CodeBlockLowlight.extend({
+  addNodeView() {
+    return ReactNodeViewRenderer(CodeBlockNodeView);
+  },
+}).configure({ lowlight });
+
+// ---------------------------------------------------------------------------
+// Props — same interface as the old react-markdown SpecRenderer
 // ---------------------------------------------------------------------------
 
 export interface SpecRendererProps {
@@ -80,6 +127,51 @@ export interface SpecRendererProps {
   onComposeCancel?: () => void;
   /** Selected text being composed on (for quote display in compose box). */
   composingSelectedText?: string;
+  /** Whether the editor is in edit mode (editable). */
+  isEditMode?: boolean;
+  /** Called with new markdown content when user saves in edit mode. */
+  onSave?: (markdown: string) => void;
+  /** Called when user cancels edit mode (after content is reverted). */
+  onCancelEdit?: () => void;
+}
+
+// ---------------------------------------------------------------------------
+// Annotatable node types — the same node types indexed by buildAnchorMap()
+// ---------------------------------------------------------------------------
+
+const ANNOTATABLE_TYPES = new Set([
+  "paragraph",
+  "heading",
+  "listItem",
+  "codeBlock",
+]);
+
+// ---------------------------------------------------------------------------
+// Build position → blockIndex map from TipTap document
+//
+// Walks doc.descendants() to enumerate annotatable nodes in document order
+// (same order as buildAnchorMap's remark AST walk) and assigns sequential
+// blockIndex values. The char position of each node maps to its index.
+// ---------------------------------------------------------------------------
+
+function buildPosToBlockIndex(editor: Editor): Map<number, number> {
+  const doc = editor.state.doc;
+  const newMap = new Map<number, number>();
+  let blockIdx = 0;
+
+  doc.descendants((node, pos) => {
+    if (ANNOTATABLE_TYPES.has(node.type.name)) {
+      newMap.set(pos, blockIdx++);
+      // For listItem, skip descending into its children so we don't
+      // double-count nested paragraphs (mirrors buildAnchorMap behavior)
+      if (node.type.name === "listItem") {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  return newMap;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,34 +183,30 @@ export function SpecRenderer({
   threads,
   onCompose,
   composingBlockIndex,
-  onNavigateToBlock,
+  onNavigateToBlock: _onNavigateToBlock,
   onReply,
   onThreadStatusChange,
   onComposeSubmit,
   onComposeCancel,
   composingSelectedText,
+  isEditMode = false,
+  onSave,
+  onCancelEdit,
 }: SpecRendererProps) {
   // -------------------------------------------------------------------------
-  // Build anchor map from markdown
+  // Build anchor map from markdown (remark AST pre-pass)
   // -------------------------------------------------------------------------
   const anchorMap = useMemo(() => buildAnchorMap(markdown), [markdown]);
 
-  // -------------------------------------------------------------------------
-  // Track block offsets reported by AnnotatableParagraph components
-  // -------------------------------------------------------------------------
-  const [offsets, setOffsets] = useState<Map<number, number>>(() => new Map());
+  // hashLookup (keyed by "{type}:{hash}") is built by T008 (edit/save anchor
+  // write-back) from anchorMap. Not needed here — anchorMap is the source.
 
-  const handleRegisterOffset = useCallback(
-    (blockIndex: number, offsetTop: number) => {
-      setOffsets((prev) => {
-        // Avoid re-render if the value hasn't changed
-        if (prev.get(blockIndex) === offsetTop) return prev;
-        const next = new Map(prev);
-        next.set(blockIndex, offsetTop);
-        return next;
-      });
-    },
-    [],
+  // -------------------------------------------------------------------------
+  // Position → blockIndex mapping
+  // Built once after TipTap loads the document by walking doc.descendants().
+  // -------------------------------------------------------------------------
+  const [posToBlockIndex, setPosToBlockIndex] = useState<Map<number, number>>(
+    () => new Map(),
   );
 
   // -------------------------------------------------------------------------
@@ -141,209 +229,144 @@ export function SpecRenderer({
   }, [threads]);
 
   // -------------------------------------------------------------------------
-  // Reverse hash map — keyed by "{type}:{hash}" for O(1) content lookup
-  // -------------------------------------------------------------------------
-  const hashLookup = useMemo(() => {
-    const map = new Map<string, AnchorInfo>();
-    for (const [, info] of anchorMap) {
-      // Key by type+hash to avoid collisions between different block types
-      const key = `${info.type}:${info.hash}`;
-      // First entry wins (duplicate hashes are extremely rare with djb2)
-      if (!map.has(key)) {
-        map.set(key, info);
-      }
-    }
-    return map;
-  }, [anchorMap]);
-
-  // -------------------------------------------------------------------------
-  // Gutter click handler
-  // -------------------------------------------------------------------------
-  const handleGutterBlockClick = useCallback(
-    (blockIndex: number) => {
-      if (onNavigateToBlock) {
-        onNavigateToBlock(blockIndex);
-      } else {
-        // Default: compose on click
-        const info = anchorMap.get(blockIndex);
-        if (info) {
-          onCompose({
-            type: info.type,
-            hash: info.hash,
-            path: info.path,
-            preview: info.preview,
-            blockIndex: info.blockIndex,
-          });
-        }
-      }
-    },
-    [anchorMap, onCompose, onNavigateToBlock],
-  );
-
-  // -------------------------------------------------------------------------
-  // Custom react-markdown renderers
-  // -------------------------------------------------------------------------
-  const components = useMemo((): Components => {
-    /**
-     * Extract plain text from React children (recursively).
-     */
-    function extractText(node: ReactNode): string {
-      if (node === null || node === undefined || typeof node === "boolean")
-        return "";
-      if (typeof node === "string") return node;
-      if (typeof node === "number") return String(node);
-      if (Array.isArray(node)) return node.map(extractText).join("");
-      if (typeof node === "object" && "props" in node) {
-        return extractText((node as ReactElement).props.children);
-      }
-      return "";
-    }
-
-    /**
-     * Look up an AnchorInfo by content text and expected type.
-     * Returns null if not found (e.g. nested paragraph inside a list item).
-     */
-    function findAnchor(
-      text: string,
-      expectedType: AnchorInfo["type"],
-    ): AnchorInfo | null {
-      const hash = simpleHash(text.trim());
-      return hashLookup.get(`${expectedType}:${hash}`) ?? null;
-    }
-
-    /**
-     * Wrap a block-level element in AnnotatableParagraph using the given info.
-     */
-    function wrapBlock(info: AnchorInfo, children: ReactNode): ReactNode {
-      const bi = info.blockIndex;
-      return (
-        <AnnotatableParagraph
-          anchorInfo={info}
-          threadCount={threadCountByBlock.get(bi) ?? 0}
-          threads={threadsByBlock.get(bi)}
-          onRegisterOffset={handleRegisterOffset}
-          onCompose={onCompose}
-          onReply={onReply}
-          onThreadStatusChange={onThreadStatusChange}
-          isComposing={composingBlockIndex === bi}
-          onComposeSubmit={
-            composingBlockIndex === bi ? onComposeSubmit : undefined
-          }
-          onComposeCancel={
-            composingBlockIndex === bi ? onComposeCancel : undefined
-          }
-          quotedText={
-            composingBlockIndex === bi ? composingSelectedText : undefined
-          }
-        >
-          {children}
-        </AnnotatableParagraph>
-      );
-    }
-
-    /**
-     * Helper: create a heading renderer for a given level.
-     */
-    function makeHeadingRenderer(Tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") {
-      return function HeadingRenderer({
-        children,
-        id,
-      }: React.JSX.IntrinsicElements[typeof Tag]) {
-        const text = extractText(children);
-        const info = findAnchor(text, "heading");
-        const el = <Tag id={id}>{children}</Tag>;
-        return info ? wrapBlock(info, el) : el;
-      };
-    }
-
-    return {
-      p({ children }) {
-        const text = extractText(children);
-        const info = findAnchor(text, "paragraph");
-        const el = <p>{children}</p>;
-        // If not found, this is likely a nested paragraph inside a list item
-        // (buildAnchorMap skips list item children) — render plain.
-        return info ? wrapBlock(info, el) : el;
-      },
-
-      h1({ children, id }: React.JSX.IntrinsicElements["h1"]) {
-        const text = extractText(children);
-        const info = findAnchor(text, "heading");
-        // Strip the feature ID slug prefix — the navbar already shows it.
-        // "2026-03-02-some-slug: Actual Title" → "Actual Title"
-        const stripped = text.replace(/^\d{4}-\d{2}-\d{2}-[^:]+:\s*/, "");
-        const el = <h1 id={id}>{stripped !== text ? stripped : children}</h1>;
-        return info ? wrapBlock(info, el) : el;
-      },
-      h2: makeHeadingRenderer("h2"),
-      h3: makeHeadingRenderer("h3"),
-      h4: makeHeadingRenderer("h4"),
-      h5: makeHeadingRenderer("h5"),
-      h6: makeHeadingRenderer("h6"),
-
-      li({ children }) {
-        const text = extractText(children);
-        const info = findAnchor(text, "list-item");
-        const el = <li>{children}</li>;
-        return info ? wrapBlock(info, el) : el;
-      },
-
-      code({ children, className, node, ...rest }) {
-        // Inline code — render as-is.
-        // Block code (fenced ``` blocks) always has a <pre> parent in the AST,
-        // even when no language is specified (className will be undefined).
-        const isBlock =
-          (node?.position &&
-            node.position.start.line !== node.position.end.line) ||
-          String(children).includes("\n");
-        const hasLanguage = className?.startsWith("language-");
-        if (!isBlock && !hasLanguage) {
-          return (
-            <code className={className} {...rest}>
-              {children}
-            </code>
-          );
-        }
-
-        const codeText = String(children).replace(/\n$/, "");
-
-        // Regular fenced code block — look up as "paragraph" type
-        // (buildAnchorMap tags non-diagram code as "paragraph")
-        const info = findAnchor(codeText, "paragraph");
-        const el = (
-          <div className="spec-code-block" role="code">
-            <code className={className} {...rest}>
-              {children}
-            </code>
-          </div>
-        );
-        return info ? wrapBlock(info, el) : el;
-      },
-
-      // Prevent react-markdown from wrapping code blocks in its own <pre>
-      pre({ children }) {
-        return <>{children}</>;
-      },
-    };
-  }, [
-    hashLookup,
-    threadCountByBlock,
-    threadsByBlock,
-    handleRegisterOffset,
-    onCompose,
-    onReply,
-    onThreadStatusChange,
-    onComposeSubmit,
-    onComposeCancel,
-    composingBlockIndex,
-    composingSelectedText,
-  ]);
-
-  // -------------------------------------------------------------------------
-  // Text selection commenting
+  // Content ref (used by selection popover and block range selector)
   // -------------------------------------------------------------------------
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // -------------------------------------------------------------------------
+  // TipTap editor setup
+  //
+  // StarterKit is configured with paragraph/heading/listItem/codeBlock disabled
+  // so we can provide our own extended versions with React Node Views.
+  // StarterKit also includes Link by default in v3, but we include our own
+  // configured version too.
+  // -------------------------------------------------------------------------
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({
+          // Disable nodes we replace with annotatable versions
+          paragraph: false,
+          heading: false,
+          listItem: false,
+          codeBlock: false,
+          // Disable StarterKit's built-in Link (we configure our own below)
+          link: false,
+        }),
+        // Annotatable versions of block nodes (with React NodeViews)
+        AnnotatableParagraph,
+        AnnotatableHeading,
+        AnnotatableListItem,
+        AnnotatableCodeBlock,
+        // Markdown parsing/serialization
+        Markdown.configure({
+          html: false,
+          tightLists: true,
+          tightListClass: "tight",
+          bulletListMarker: "-",
+          linkify: false,
+          breaks: false,
+          transformPastedText: false,
+          transformCopiedText: false,
+        }),
+        // Link extension
+        Link.configure({ openOnClick: !isEditMode }),
+        // Placeholder text
+        Placeholder.configure({
+          placeholder: "Spec content will appear here…",
+        }),
+      ],
+      editable: isEditMode,
+      content: "",
+      immediatelyRender: false,
+      onCreate({ editor: e }) {
+        e.commands.setContent(markdown);
+        setPosToBlockIndex(buildPosToBlockIndex(e));
+
+        // T007: DEV-only round-trip hash fidelity validation.
+        // After TipTap loads and serializes the markdown, buildAnchorMap()
+        // must produce identical hashes for all blocks. Mismatches indicate
+        // that tiptap-markdown is normalizing content in a way that would
+        // break stored anchor hashes after a save.
+        if (import.meta.env.DEV) {
+          const serialized = (
+            e.storage as { markdown?: { getMarkdown?: () => unknown } }
+          ).markdown?.getMarkdown?.() as string | undefined;
+          if (serialized) {
+            const originalMap = buildAnchorMap(markdown);
+            const serializedMap = buildAnchorMap(serialized);
+
+            let mismatches = 0;
+            for (const [idx, origInfo] of originalMap) {
+              const serializedInfo = serializedMap.get(idx);
+              if (!serializedInfo) {
+                console.warn(
+                  `[SpecRenderer] Round-trip: block ${idx} missing in serialized output`,
+                );
+                mismatches++;
+              } else if (serializedInfo.hash !== origInfo.hash) {
+                console.warn(
+                  `[SpecRenderer] Round-trip hash mismatch at block ${idx}:`,
+                  {
+                    type: origInfo.type,
+                    original: origInfo.preview,
+                    serialized: serializedInfo.preview,
+                    origHash: origInfo.hash,
+                    serializedHash: serializedInfo.hash,
+                  },
+                );
+                mismatches++;
+              }
+            }
+            if (mismatches === 0) {
+              // eslint-disable-next-line no-console
+              console.info(
+                `[SpecRenderer] Round-trip validation: all ${originalMap.size} block hashes match ✓`,
+              );
+            } else {
+              console.warn(
+                `[SpecRenderer] Round-trip validation: ${mismatches} hash mismatches found`,
+              );
+            }
+          }
+        }
+      },
+      onUpdate({ editor: e }) {
+        setPosToBlockIndex(buildPosToBlockIndex(e));
+      },
+    },
+    [isEditMode],
+  );
+
+  // -------------------------------------------------------------------------
+  // Update editor editable state when isEditMode changes
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(isEditMode);
+  }, [editor, isEditMode]);
+
+  // -------------------------------------------------------------------------
+  // Update editor content when markdown prop changes
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (!editor) return;
+    // Compare against current markdown to avoid infinite loops
+    const current =
+      (
+        editor.storage as { markdown?: { getMarkdown?: () => string } }
+      ).markdown?.getMarkdown?.() ?? "";
+    if (current !== markdown) {
+      editor.commands.setContent(markdown, { emitUpdate: false });
+      setPosToBlockIndex(buildPosToBlockIndex(editor));
+    }
+  }, [editor, markdown]);
+
+  // -------------------------------------------------------------------------
+  // Text selection commenting (T009)
+  // SelectionPopover works via document selectionchange — no special handling
+  // needed for TipTap since selectionchange fires regardless of ProseMirror.
+  // -------------------------------------------------------------------------
   const handleSelectionComment = useCallback(
     (info: SelectionInfo) => {
       const startInfo = anchorMap.get(info.blockIndex);
@@ -365,6 +388,11 @@ export function SpecRenderer({
     [anchorMap, onCompose],
   );
 
+  // -------------------------------------------------------------------------
+  // Block range commenting (T009)
+  // BlockRangeSelector uses capture-phase mousedown to fire before ProseMirror.
+  // It is disabled in edit mode.
+  // -------------------------------------------------------------------------
   const handleBlockRangeComment = useCallback(
     (sel: BlockRangeSelection) => {
       const startInfo = anchorMap.get(sel.startBlockIndex);
@@ -386,45 +414,118 @@ export function SpecRenderer({
   );
 
   // -------------------------------------------------------------------------
+  // T008: Edit mode — Save and Cancel handlers
+  // -------------------------------------------------------------------------
+
+  const handleSave = useCallback(() => {
+    if (!editor || !onSave) return;
+    const newMarkdown = (
+      editor.storage as { markdown?: { getMarkdown?: () => unknown } }
+    ).markdown?.getMarkdown?.() as string | undefined;
+    if (newMarkdown !== undefined) {
+      onSave(newMarkdown);
+    }
+  }, [editor, onSave]);
+
+  const handleCancelEdit = useCallback(() => {
+    if (!editor) return;
+    // Revert editor content to the original markdown prop
+    editor.commands.setContent(markdown);
+    setPosToBlockIndex(buildPosToBlockIndex(editor));
+    onCancelEdit?.();
+  }, [editor, markdown, onCancelEdit]);
+
+  // -------------------------------------------------------------------------
+  // SpecRendererContext value — passed down to Node Views via React context
+  // -------------------------------------------------------------------------
+  const contextValue = useMemo<SpecRendererContextValue>(
+    () => ({
+      threadsByBlock,
+      threadCountByBlock,
+      anchorMap,
+      posToBlockIndex,
+      onCompose,
+      composingBlockIndex,
+      onReply,
+      onThreadStatusChange,
+      onComposeSubmit:
+        composingBlockIndex !== undefined ? onComposeSubmit : undefined,
+      onComposeCancel:
+        composingBlockIndex !== undefined ? onComposeCancel : undefined,
+      composingSelectedText,
+      isEditMode,
+    }),
+    [
+      threadsByBlock,
+      threadCountByBlock,
+      anchorMap,
+      posToBlockIndex,
+      onCompose,
+      composingBlockIndex,
+      onReply,
+      onThreadStatusChange,
+      onComposeSubmit,
+      onComposeCancel,
+      composingSelectedText,
+      isEditMode,
+    ],
+  );
+
+  // -------------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------------
   return (
     <AnchorMapContext.Provider value={anchorMap}>
-      <div className="relative flex">
-        {/* Content column — enhanced typography */}
-        <div
-          ref={contentRef}
-          className="spec-content prose prose-invert relative min-w-0 max-w-none flex-1 py-6 pl-10 pr-4"
-        >
+      <SpecRendererContext.Provider value={contextValue}>
+        <div ref={contentRef} className="relative min-w-0 flex-1 py-6">
+          {/* T009: SelectionPopover — listens on document selectionchange,
+                scoped to blocks inside containerRef. Works with TipTap's
+                ProseMirror selection model since text selection fires
+                selectionchange as normal. */}
           <SelectionPopover
             containerRef={contentRef}
             onComment={handleSelectionComment}
           />
-          <BlockRangeSelector
-            containerRef={contentRef}
-            onComment={handleBlockRangeComment}
-          />
-          <Markdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[
-              rehypeSlug,
-              [rehypeAutolinkHeadings, { behavior: "wrap" }],
-              [rehypeHighlight, { detect: false, ignoreMissing: true }],
-            ]}
-            components={components}
-          >
-            {markdown}
-          </Markdown>
-        </div>
 
-        {/* Annotation gutter */}
-        <AnnotationGutter
-          offsets={offsets}
-          threads={threads}
-          anchorMap={anchorMap}
-          onBlockClick={handleGutterBlockClick}
-        />
-      </div>
+          {/* T009: BlockRangeSelector — disabled in edit mode.
+                Uses capture-phase mousedown (addEventListener(..., true))
+                to intercept before ProseMirror's own handlers fire. */}
+          {!isEditMode && (
+            <BlockRangeSelector
+              containerRef={contentRef}
+              onComment={handleBlockRangeComment}
+            />
+          )}
+
+          {/* TipTap editor content */}
+          <div className="text-ink mx-auto max-w-[720px] px-10 py-10 font-sans">
+            <EditorContent
+              editor={editor}
+              className="tiptap-spec-content outline-none"
+            />
+          </div>
+
+          {/* T008: Floating save/cancel toolbar — visible only in edit mode */}
+          {isEditMode && (
+            <div className="bg-canvas-raised/95 border-border sticky bottom-0 flex items-center justify-end gap-2 border-t px-4 py-2 backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={handleCancelEdit}
+                className="text-ink-muted hover:text-ink hover:bg-canvas-overlay rounded px-3 py-1.5 text-[13px] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                className="bg-accent-blue hover:bg-accent-blue/90 rounded px-4 py-1.5 text-[13px] font-medium text-white transition-colors"
+              >
+                Save
+              </button>
+            </div>
+          )}
+        </div>
+      </SpecRendererContext.Provider>
     </AnchorMapContext.Provider>
   );
 }

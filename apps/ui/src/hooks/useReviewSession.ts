@@ -127,6 +127,7 @@ export function useReviewSession({
         await localReviewApi.saveSession({
           name,
           notes: summaryNotes,
+          diff: "",
           sourceBranch,
           targetBranch,
           worktreePath: selectedWorktree,

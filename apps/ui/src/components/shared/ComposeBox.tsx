@@ -29,19 +29,17 @@ const severityStyles: Record<
   blocking: {
     active:
       "bg-red-500/15 text-red-400 shadow-[inset_0_0_0_1px_rgba(248,81,73,0.2)]",
-    inactive: "text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10",
+    inactive: "text-ink-muted hover:text-red-400 hover:bg-red-500/10",
   },
   suggestion: {
     active:
-      "bg-blue-500/15 text-blue-400 shadow-[inset_0_0_0_1px_rgba(88,166,255,0.2)]",
-    inactive:
-      "text-[var(--text-muted)] hover:text-blue-400 hover:bg-blue-500/10",
+      "bg-accent-blue/15 text-accent-blue shadow-[inset_0_0_0_1px_rgba(96,165,250,0.2)]",
+    inactive: "text-ink-muted hover:text-accent-blue hover:bg-accent-blue/10",
   },
   nitpick: {
     active:
-      "bg-[var(--bg-overlay)] text-[var(--text-tertiary)] shadow-[inset_0_0_0_1px_var(--border-muted)]",
-    inactive:
-      "text-[var(--text-muted)] hover:text-[var(--text-tertiary)] hover:bg-[var(--bg-elevated)]",
+      "bg-canvas-overlay text-ink-muted shadow-[inset_0_0_0_1px_theme(colors.border.DEFAULT)]",
+    inactive: "text-ink-muted hover:text-ink hover:bg-canvas-elevated",
   },
 };
 
@@ -94,66 +92,33 @@ export function ComposeBox({
     el.style.height = `${el.scrollHeight}px`;
   }, []);
 
-  const padCls = compact ? "p-2" : "p-3";
-  const fontCls = compact ? "text-[11px]" : "text-xs";
   const rowCount = compact ? 2 : 3;
 
   return (
-    <div
-      className={`compose-enter overflow-hidden rounded-lg bg-[var(--bg-surface)] ${
-        compact
-          ? ""
-          : "shadow-[0_2px_8px_rgba(0,0,0,0.4),0_0_0_1px_var(--border-muted)]"
-      }`}
-    >
+    <div className="compose-enter border-border bg-canvas-elevated overflow-hidden rounded-md border shadow-lg">
       {quotedText && (
-        <div className="border-b border-[var(--border-muted)] px-3 py-2">
-          <div className="max-h-20 overflow-y-auto rounded-md border-l-2 border-blue-500/40 bg-[var(--bg-base)] px-2.5 py-1.5 text-[11px] leading-relaxed text-[var(--text-tertiary)]">
+        <div className="border-accent-blue/40 bg-canvas-overlay mx-3 mb-2 mt-3 rounded-sm border-l-2 px-3 py-2">
+          <p className="text-ink-muted text-[13px] italic leading-relaxed">
             {quotedText.length > 200
               ? `${quotedText.slice(0, 200)}...`
               : quotedText}
-          </div>
+          </p>
         </div>
       )}
-      <div className={padCls}>
-        <div className="flex gap-2">
-          <textarea
-            ref={textareaRef}
-            rows={rowCount}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onInput={handleInput}
-            onKeyDown={handleKeyDown}
-            placeholder={`${placeholder} (⌘↵ to submit${onCancel ? ", Esc to cancel" : ""})`}
-            autoFocus={autoFocus}
-            className={`flex-1 resize-none rounded-md bg-[var(--bg-base)] px-2.5 py-1.5 ${fontCls} text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none ring-1 ring-[var(--border-muted)] transition-shadow focus:ring-[var(--accent-blue)]`}
-          />
-          <div className="flex flex-col gap-1.5 self-end">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isEmpty}
-              className={`rounded-md px-3 py-1 ${fontCls} font-medium transition-all ${
-                isEmpty
-                  ? "bg-[var(--bg-elevated)] text-[var(--text-muted)]"
-                  : "bg-[var(--accent-blue)]/15 hover:bg-[var(--accent-blue)]/25 text-blue-400"
-              }`}
-            >
-              Comment
-            </button>
-            {onCancel && (
-              <button
-                type="button"
-                onClick={onCancel}
-                className={`rounded-md bg-[var(--bg-elevated)] px-3 py-1 ${fontCls} text-[var(--text-tertiary)] hover:bg-[var(--bg-overlay)] hover:text-[var(--text-secondary)]`}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </div>
-        {showSeverity && (
-          <div className="mt-2 flex gap-1">
+      <textarea
+        ref={textareaRef}
+        rows={rowCount}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onInput={handleInput}
+        onKeyDown={handleKeyDown}
+        placeholder={`${placeholder} (⌘↵ to submit${onCancel ? ", Esc to cancel" : ""})`}
+        autoFocus={autoFocus}
+        className="text-ink placeholder-ink-ghost min-h-[80px] w-full resize-none bg-transparent px-3 py-2.5 text-[14px] outline-none"
+      />
+      <div className="border-border flex items-center justify-between gap-2 border-t px-3 py-2">
+        {showSeverity ? (
+          <div className="flex gap-1">
             {SEVERITIES.map((s) => {
               const isActive = severity === s;
               const style = severityStyles[s];
@@ -171,7 +136,32 @@ export function ComposeBox({
               );
             })}
           </div>
+        ) : (
+          <span />
         )}
+        <div className="flex items-center gap-1">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-ink-muted hover:text-ink hover:bg-canvas-overlay rounded px-3 py-1.5 text-[13px] transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isEmpty}
+            className={`rounded px-3 py-1.5 text-[13px] font-medium transition-colors ${
+              isEmpty
+                ? "bg-canvas-overlay text-ink-faint cursor-not-allowed"
+                : "bg-accent-blue hover:bg-accent-blue/90 text-white"
+            }`}
+          >
+            Comment
+          </button>
+        </div>
       </div>
     </div>
   );

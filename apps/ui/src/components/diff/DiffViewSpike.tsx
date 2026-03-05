@@ -47,7 +47,7 @@
  *    The `hunks` array is raw hunk strings from git diff output.
  */
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   DiffView,
   DiffModeEnum,

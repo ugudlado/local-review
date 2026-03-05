@@ -3,10 +3,17 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type {
   ReviewMessage,
-  ReviewThread,
+  ReviewThread as SessionsReviewThread,
   ThreadAnchor,
   ThreadSeverity,
 } from "../../types/sessions";
+import type { ReviewThread as ApiReviewThread } from "../../services/localReviewApi";
+
+/**
+ * ThreadCard accepts both the new anchor-based thread type (from sessions.ts)
+ * and the legacy flat thread type (from localReviewApi.ts).
+ */
+export type AnyReviewThread = SessionsReviewThread | ApiReviewThread;
 
 // ---------------------------------------------------------------------------
 // Anchor label helper
@@ -36,12 +43,27 @@ export function anchorLabel(anchor: ThreadAnchor): string {
   return anchor.path ? `${anchor.path} - ${preview}` : preview;
 }
 
+function threadLabel(thread: AnyReviewThread): string {
+  if ("anchor" in thread && thread.anchor) {
+    return anchorLabel(thread.anchor);
+  }
+  if ("filePath" in thread) {
+    const lineEnd = thread.lineEnd;
+    const range =
+      lineEnd && lineEnd !== thread.line
+        ? `L${thread.line}-L${lineEnd}`
+        : `L${thread.line}`;
+    return `${thread.filePath} ${range}`;
+  }
+  return "Thread";
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function StatusDot({ status }: { status: ReviewThread["status"] }) {
-  const colors: Record<ReviewThread["status"], string> = {
+function StatusDot({ status }: { status: AnyReviewThread["status"] }) {
+  const colors: Record<AnyReviewThread["status"], string> = {
     open: "bg-amber-400",
     resolved: "bg-indigo-400",
     approved: "bg-emerald-400",
@@ -55,8 +77,8 @@ function StatusDot({ status }: { status: ReviewThread["status"] }) {
   );
 }
 
-function StatusLabel({ status }: { status: ReviewThread["status"] }) {
-  const styles: Record<ReviewThread["status"], string> = {
+function StatusLabel({ status }: { status: AnyReviewThread["status"] }) {
+  const styles: Record<AnyReviewThread["status"], string> = {
     open: "text-amber-400",
     resolved: "text-indigo-400",
     approved: "text-emerald-400",
@@ -207,7 +229,7 @@ function StatusActions({
   currentStatus,
   onStatusChange,
 }: {
-  currentStatus: ReviewThread["status"];
+  currentStatus: AnyReviewThread["status"];
   onStatusChange: (status: "open" | "resolved" | "approved") => void;
 }) {
   const actionBtn =
@@ -250,7 +272,7 @@ function StatusActions({
 // ---------------------------------------------------------------------------
 
 export interface ThreadCardProps {
-  thread: ReviewThread;
+  thread: AnyReviewThread;
   onReply: (threadId: string, message: string) => void;
   onStatusChange: (
     threadId: string,
@@ -289,9 +311,11 @@ export function ThreadCard({
         className="hover:bg-[var(--bg-elevated)]/50 flex w-full items-center gap-2 px-3 py-2 text-left transition-colors"
       >
         <StatusDot status={thread.status} />
-        <SeverityBadge severity={thread.severity} />
+        <SeverityBadge
+          severity={"severity" in thread ? thread.severity : undefined}
+        />
         <span className="min-w-0 truncate text-[11px] text-[var(--text-secondary)]">
-          {anchorLabel(thread.anchor)}
+          {threadLabel(thread)}
         </span>
         <span className="ml-auto flex items-center gap-1.5">
           <StatusLabel status={thread.status} />
