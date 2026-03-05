@@ -27,7 +27,8 @@ export type AnyReviewThread = SessionsReviewThread | ApiReviewThread;
  * - Diff anchors: file path + line range
  *   e.g. "src/utils/parse.ts L12-L18"
  */
-export function anchorLabel(anchor: ThreadAnchor): string {
+export function anchorLabel(anchor: ThreadAnchor | undefined): string {
+  if (!anchor) return "General";
   if (anchor.type === "diff-line") {
     const range =
       anchor.lineEnd && anchor.lineEnd !== anchor.line

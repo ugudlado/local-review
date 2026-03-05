@@ -11,6 +11,8 @@
  *                review -> in-progress  (verdict="changes_requested")
  */
 
+import { useResolveStatus } from "../../hooks/useResolveStatus";
+
 export interface ReviewVerdictProps {
   verdict: "approved" | "changes_requested" | null;
   onVerdictChange: (verdict: "approved" | "changes_requested") => void;
@@ -18,6 +20,8 @@ export interface ReviewVerdictProps {
   openThreadCount: number;
   /** Disables both buttons (e.g. when session is not in "review" status). */
   disabled?: boolean;
+  /** Feature ID used to match resolve status events to this session. */
+  featureId?: string;
 }
 
 export function ReviewVerdict({
@@ -25,12 +29,22 @@ export function ReviewVerdict({
   onVerdictChange,
   openThreadCount,
   disabled = false,
+  featureId,
 }: ReviewVerdictProps) {
   const isApproved = verdict === "approved";
   const isChangesRequested = verdict === "changes_requested";
+  const resolveStatus = useResolveStatus();
+
+  // Only show status for this feature's resolve events
+  const isResolving =
+    resolveStatus.state === "resolving" &&
+    (!featureId || resolveStatus.featureId === featureId);
+  const justCompleted =
+    resolveStatus.state === "completed" &&
+    (!featureId || resolveStatus.featureId === featureId);
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-2">
       {/* Approve button */}
       <button
         type="button"
@@ -82,6 +96,35 @@ export function ReviewVerdict({
         )}
         {isChangesRequested ? "Changes Requested" : "Request Changes"}
       </button>
+
+      {/* Resolver status indicator */}
+      {isResolving && (
+        <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+          <svg
+            className="h-3 w-3 animate-spin"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 3v3m0 12v3M3 12h3m12 0h3M6.34 6.34l2.12 2.12m7.08 7.08 2.12 2.12M6.34 17.66l2.12-2.12m7.08-7.08 2.12-2.12"
+            />
+          </svg>
+          Resolving {resolveStatus.threadCount} thread
+          {resolveStatus.threadCount === 1 ? "" : "s"}…
+        </span>
+      )}
+      {justCompleted && (
+        <span className="text-xs text-emerald-400">
+          {resolveStatus.resolved} resolved
+          {resolveStatus.clarifications > 0
+            ? `, ${String(resolveStatus.clarifications)} need clarification`
+            : ""}
+        </span>
+      )}
     </div>
   );
 }
