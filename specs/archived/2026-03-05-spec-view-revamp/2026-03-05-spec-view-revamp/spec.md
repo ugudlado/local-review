@@ -37,12 +37,14 @@ Redesign the spec review page with a dark Notion-like aesthetic — clean, spaci
 The dark Notion theme is defined as a token system reusable across all views:
 
 **Color tokens:**
+
 - `canvas` (base `#1a1a1f`), `canvas-raised` (`#222228`), `canvas-elevated` (`#2a2a31`), `canvas-overlay` (`#32323a`)
 - `ink` (text `#e8e6e3`), `ink-muted` (`#9a9898`), `ink-faint` (`#5e5d5c`), `ink-ghost` (`#3d3d42`)
 - `accent-emerald`, `accent-amber`, `accent-blue`, `accent-rose` + dim variants
 - `border` (`#2e2e35`), `border-subtle` (`#262629`)
 
 **Typography:**
+
 - Headings: Newsreader (serif), 500 weight
 - Body: DM Sans, 15px, line-height 1.75
 - Code: JetBrains Mono, 13px
@@ -55,11 +57,13 @@ The dark Notion theme is defined as a token system reusable across all views:
 Redesigned as the app-wide design foundation:
 
 **Row 1 (Navigation)**:
+
 - Back arrow with "Dashboard" label
 - Feature switcher (monospace ID + status badge + dropdown chevron)
 - Worktree path + copy button (right-aligned, muted)
 
 **Row 2 (Tabs + Actions)**:
+
 - Tab pills: Spec (with thread count badge), Tasks (with progress), Code
 - View/Edit segmented toggle (icons + labels)
 - Vertical divider
@@ -70,6 +74,7 @@ Redesigned as the app-wide design foundation:
 **Backdrop**: `bg-canvas-raised/95` with `backdrop-blur-md`, border-bottom
 
 **Prop interface change**: `FeatureNavBar` currently accepts only `{ featureId: string }`. The redesign adds verdict buttons and edit toggle, which require page-level state. New approach:
+
 - `FeatureLayout` exposes a **header actions slot** via React context (`FeatureHeaderContext`)
 - `SpecReviewPage` (and other pages) inject their specific header actions (verdict buttons, edit toggle) into this context
 - `FeatureNavBar` reads from the context and renders the actions in Row 2
@@ -78,6 +83,7 @@ Redesigned as the app-wide design foundation:
 ### Spec Content Area
 
 **SpecRenderer refactor**: Replace `react-markdown` with TipTap editor:
+
 - Default state: read-only TipTap rendering (rich content display)
 - Edit mode: same TipTap instance becomes editable (`editor.setEditable(true)`)
 - Extensions: StarterKit, `tiptap-markdown` (community OSS package by aguingand, NOT `@tiptap/markdown` which is Pro/paid), CodeBlockLowlight, Link, Placeholder
@@ -99,11 +105,13 @@ This is roughly equivalent complexity to the current react-markdown renderers bu
 **SelectionPopover and BlockRangeSelector compatibility**
 
 Both components use mouse event listeners on the content container. TipTap intercepts all mouse/selection events via ProseMirror. To maintain these:
+
 - Use **capture-phase event listeners** (`addEventListener('mousedown', handler, true)` with `e.stopPropagation()`) to intercept before TipTap
 - This pattern is already established in the codebase (from `@git-diff-view/react` integration — see project memory)
 - In edit mode, disable `BlockRangeSelector` (conflicts with text editing) but keep `SelectionPopover` for "Comment on selection" functionality
 
 **Anchor stability after edit**: When saving from edit mode:
+
 1. Get markdown via `editor.storage.markdown.getMarkdown()`
 2. Rebuild `AnchorMap` from the new markdown
 3. For each existing thread, run `resolveAnchor()` against the new map
@@ -152,28 +160,30 @@ Replaces `RightPanel` (320px → 240px):
 
 ### Components Summary
 
-| Component | Action | Description |
-|-----------|--------|-------------|
-| `FeatureNavBar` | Redesign | Two-row header, verdict buttons, edit toggle |
-| `FeatureLayout` | Redesign | Dark Notion theme wrapper |
-| `SpecRenderer` | Major refactor | TipTap-based editor replacing react-markdown |
-| `InlineThread` | New | Elevated callout card for inline threads |
-| `ThreadNav` | New | Slim right panel replacing RightPanel |
-| `SpecOutline` | Redesign | Search + cleaner typography |
-| `AnnotatableParagraph` | Simplify | Remove gutter refs, lighter hover states |
-| `AnnotationGutter` | Delete | Replaced by inline threads |
-| `RightPanel` | Delete | Replaced by ThreadNav |
-| `ComposeBox` | Restyle | Dark Notion aesthetic |
-| `BlockRangeSelector` | Preserve | Keep existing interaction logic |
+| Component              | Action         | Description                                  |
+| ---------------------- | -------------- | -------------------------------------------- |
+| `FeatureNavBar`        | Redesign       | Two-row header, verdict buttons, edit toggle |
+| `FeatureLayout`        | Redesign       | Dark Notion theme wrapper                    |
+| `SpecRenderer`         | Major refactor | TipTap-based editor replacing react-markdown |
+| `InlineThread`         | New            | Elevated callout card for inline threads     |
+| `ThreadNav`            | New            | Slim right panel replacing RightPanel        |
+| `SpecOutline`          | Redesign       | Search + cleaner typography                  |
+| `AnnotatableParagraph` | Simplify       | Remove gutter refs, lighter hover states     |
+| `AnnotationGutter`     | Delete         | Replaced by inline threads                   |
+| `RightPanel`           | Delete         | Replaced by ThreadNav                        |
+| `ComposeBox`           | Restyle        | Dark Notion aesthetic                        |
+| `BlockRangeSelector`   | Preserve       | Keep existing interaction logic              |
 
 ### Files to Create/Modify
 
 **New files:**
+
 - `apps/ui/src/components/spec/InlineThread.tsx` — inline thread callout
 - `apps/ui/src/components/spec/ThreadNav.tsx` — slim thread navigator
 - `apps/ui/src/styles/notion-theme.css` — CSS variables for dark Notion tokens (imported globally)
 
 **Modified files:**
+
 - `apps/ui/tailwind.config.ts` — extend with Notion color tokens, font families
 - `apps/ui/src/components/FeatureNavBar.tsx` — two-row layout, verdict, edit toggle
 - `apps/ui/src/components/FeatureLayout.tsx` — theme wrapper update
@@ -184,6 +194,7 @@ Replaces `RightPanel` (320px → 240px):
 - `apps/ui/src/pages/SpecReviewPage.tsx` — wire new components, remove RightPanel/Gutter
 
 **Deleted files:**
+
 - `apps/ui/src/components/spec/AnnotationGutter.tsx`
 - `apps/ui/src/components/spec/RightPanel.tsx`
 
@@ -197,21 +208,25 @@ Replaces `RightPanel` (320px → 240px):
 ## Alternatives Considered
 
 ### Keep react-markdown + separate edit textarea
+
 - **Pros**: No new dependency (TipTap), simpler migration
 - **Cons**: Poor editing UX (full-document textarea with no preview), mode switch disrupts reading flow, no inline editing
 - **Why rejected**: The core user request is Notion-like inline editing; react-markdown fundamentally can't do this
 
 ### Milkdown instead of TipTap
+
 - **Pros**: Purpose-built for markdown WYSIWYG, lighter weight
 - **Cons**: Smaller ecosystem (135 vs 3336 snippets), lower benchmark score, fewer extensions, less React integration maturity
 - **Why rejected**: TipTap has a dedicated Notion-like template, better markdown extension, and larger community for long-term support
 
 ### Margin annotations (Google Docs-style) instead of inline threads
+
 - **Pros**: Content stays uninterrupted, threads always visible alongside
 - **Cons**: Requires precise y-offset alignment (fragile), reduces content width significantly, complex scroll synchronization
 - **Why rejected**: User preference for inline Notion-style callouts; simpler implementation, better mobile behavior
 
 ### Remove right panel entirely (inline-only threads)
+
 - **Pros**: Maximum content width, simplest layout
 - **Cons**: Loses the ability to quickly scan/navigate all threads, no overview of review status
 - **Why rejected**: User specifically requested keeping the thread panel for navigation and overview
@@ -221,6 +236,7 @@ Replaces `RightPanel` (320px → 240px):
 Reference mock: `/private/tmp/claude-501/spec-view-mock.html`
 
 The mock demonstrates:
+
 - Dark Notion aesthetic with DM Sans + Newsreader + JetBrains Mono
 - Two-row sticky header with tabs, edit toggle, verdict buttons
 - Outline sidebar with search input and section navigation
@@ -247,12 +263,14 @@ The mock demonstrates:
 **Reviewer**: `feature-dev:code-architect`
 
 **Critical issues found and resolved:**
+
 1. **TipTap Node View architecture**: TipTap doesn't support per-node render callbacks like react-markdown. Resolved by specifying custom React Node View extensions for paragraph, heading, listItem, and codeBlock — these wrap content in annotation-capable components.
 2. **`@tiptap/markdown` is a Pro package**: Switched to `tiptap-markdown` (community OSS by aguingand).
 3. **Markdown round-trip hash fidelity**: Added validation step to ensure `buildAnchorMap()` produces identical hashes after TipTap serialization round-trip.
 4. **SelectionPopover/BlockRangeSelector compatibility**: Added capture-phase event listener approach (established pattern from `@git-diff-view/react` integration).
 
 **Suggestions incorporated:**
+
 - FeatureNavBar prop interface: added `FeatureHeaderContext` approach for page-specific header actions
 - Drifted anchor write-back: added explicit `patchThread()` calls after edit saves
 - `InlineThread` needs `data-thread-id` attribute for scroll targeting
