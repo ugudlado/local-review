@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true
+  },
+  "include": [
+    "vite.config.ts",
+    "vitest.config.unit.ts",
+    "src/utils/tasksParser.ts",
+    "src/types/sessions.ts",
+    "src/types/constants.ts",
+    "src/server/**/*.ts"
+  ]
+}
