@@ -1,0 +1,22 @@
+flowchart TD
+    A[GET /features] --> B[List git worktrees]
+    A --> C[List unmerged branches]
+
+    B --> D[Filter: has specs/active/slug/]
+    D --> E[Build FeatureInfo\nsourceType: worktree]
+
+    C --> F[git branch --no-merged main]
+    F --> G[Skip main/master/HEAD]
+    G --> H[Derive slug from branch name]
+    H --> I{Slug matches\nexisting worktree?}
+    I -->|Yes| J[Skip - already covered]
+    I -->|No| K[Check .review/sessions/slug-code.json]
+    K --> L[Build FeatureInfo\nsourceType: branch]
+
+    E --> M[Merge all features]
+    L --> M
+    M --> N[Return JSON response]
+
+    style E fill:#1e3a5f,stroke:#3b82f6
+    style L fill:#1e3a5f,stroke:#3b82f6
+    style J fill:#3b1e1e,stroke:#ef4444

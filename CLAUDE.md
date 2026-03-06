@@ -1,0 +1,89 @@
+# Local Review Plugin — Claude Instructions
+
+## Project Overview
+
+**Project**: local-review
+**Repository**: Claude Code plugin for local code review with browser UI
+
+## Project Structure
+
+```
+.claude-plugin/     — Plugin metadata
+commands/           — Slash commands (open, resolve)
+agents/             — Subagent definitions (review-resolver)
+hooks/              — Session hooks (auto-start dev server)
+scripts/            — Shell scripts (context extraction)
+specs/              — Feature specifications (active and archived)
+apps/ui/            — React review app (Vite + Tailwind + TypeScript)
+  src/components/   — React components
+    dashboard/      — Feature dashboard cards and pipeline views
+    diff/           — Diff rendering (DiffTable, ThreadWidget, selection)
+    review/         — Review panels (ActivityPanel, ComposeBox, ThreadCard)
+    shared/         — Reusable UI (CommandPalette, Skeleton, ReviewVerdict)
+    sidebar/        — File sidebar and overview
+    spec/           — Spec viewer (AnnotatableParagraph, diagrams)
+    tasks/          — Task board (PhaseCard, TaskBoard)
+  src/config/       — App configuration
+  src/hooks/        — Custom React hooks (7 hooks)
+  src/pages/        — Page components (Dashboard, CodeReview, SpecReview, Tasks, Review)
+  src/services/     — API clients (localReviewApi, featureApi)
+  src/styles/       — CSS themes (terminal-luxe)
+  src/types/        — TypeScript type definitions
+  src/utils/        — Diff parsing, spec anchoring, task parsing
+  eslint.config.js  — ESLint 9 flat config (TypeScript + React)
+  dist/             — Built output (committed for zero-build install)
+docs/plans/         — Design documents (local only, gitignored)
+.review/sessions/   — Runtime session storage (gitignored)
+```
+
+## Commands
+
+```bash
+pnpm dev           # Start Vite dev server at http://localhost:37002
+pnpm build         # Build UI for production
+pnpm test:unit     # Run unit tests
+pnpm test:watch    # Run tests in watch mode
+pnpm test:coverage # Run tests with coverage report
+pnpm type-check    # TypeScript type checking
+pnpm lint          # Lint all files
+pnpm format        # Format all source files with Prettier
+```
+
+## Architecture
+
+### UI (apps/ui)
+
+- **Framework**: React 18 with Vite 5
+- **Routing**: React Router with feature-based layout (FeatureLayout + FeatureNavBar)
+- **State**: Zustand with Immer middleware
+- **Styling**: Tailwind CSS
+- **API**: Vite plugin middleware in `vite.config.ts` provides REST endpoints (review sessions, features, specs, tasks)
+- **Real-time**: WebSocket push for session file changes (file watcher)
+
+### Plugin
+
+- **Commands**: Markdown-based slash commands for Claude Code
+- **Agent**: `review-resolver` subagent processes individual review threads
+- **Hooks**: `SessionStart` hook auto-starts the Vite dev server
+
+## Environment
+
+```bash
+# No environment variables required for basic usage
+# The Vite dev server runs on port 37002 by default
+```
+
+## Code Quality
+
+- **ESLint**: Config at `apps/ui/eslint.config.js` (ESLint 9 flat config)
+- **Prettier**: Config at `.prettierrc` with Tailwind CSS plugin
+- **Pre-commit**: Husky runs lint-staged (eslint + prettier on staged ts/tsx files)
+- ESLint binary lives in `apps/ui/node_modules` — lint-staged uses `pnpm -C apps/ui exec eslint`
+
+## Important Reminders
+
+1. Use `pnpm` (not npm) for package management
+2. API routes are defined in `apps/ui/vite.config.ts` as Vite plugin middleware
+3. Session files live in `.review/sessions/` (gitignored)
+4. Built dist is committed to git for zero-build plugin installation
+5. Plugin source lives at repo root (`.claude-plugin/`, `commands/`, `agents/`, `hooks/`) — do not create copies in subdirectories
