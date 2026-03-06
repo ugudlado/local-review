@@ -1,0 +1,32 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/load-feature-context.sh",
+            "timeout": 10,
+            "async": false
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "agent",
+            "prompt": "A task is being marked complete. You have access to Read, Grep, and Glob tools. Use them to verify the work.\n\nTask input: $ARGUMENTS\n\nSteps:\n1. Extract task_subject from the input above\n2. Check if this is a trivial task (docs, config, single-line fix) — if so, respond with decision: allow\n3. For non-trivial tasks, use Grep to search the transcript file (from transcript_path in the input) for evidence of:\n   - Type check output: grep for 'type-check' or 'tsc' or 'no errors'\n   - Test output: grep for 'test' and 'pass' or 'PASS'\n   - Screenshot: grep for 'screenshot' or 'take_screenshot'\n   - Any verification command output\n4. If verification evidence found, respond: decision: allow\n5. If NO evidence found, respond: decision: block, reason: 'Run verification before completing this task: pnpm type-check, pnpm test:unit, or Chrome screenshot for UI changes'",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
