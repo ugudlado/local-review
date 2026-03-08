@@ -12,10 +12,10 @@ fi
 if [ "$SERVER_ALREADY_RUNNING" = false ]; then
   # Prefer the live repo if it exists (for local development), otherwise find in cache
   LIVE_REPO="$HOME/code/review"
-  if [ -f "$LIVE_REPO/apps/server/src/index.ts" ] && [ -d "$LIVE_REPO/apps/server/node_modules" ]; then
+  if [ -f "$LIVE_REPO/apps/server/dist/index.js" ]; then
     PLUGIN_ROOT="$LIVE_REPO"
   else
-    PLUGIN_ROOT=$(find ~/.claude/plugins/cache -name "index.ts" -path "*/local-review/*/apps/server/src/index.ts" 2>/dev/null | head -1 | sed 's|/apps/server/src/index.ts||')
+    PLUGIN_ROOT=$(find ~/.claude/plugins/cache -name "index.js" -path "*/local-review/*/apps/server/dist/index.js" 2>/dev/null | head -1 | sed 's|/apps/server/dist/index.js||')
   fi
 
   if [ -z "$PLUGIN_ROOT" ]; then
@@ -24,7 +24,7 @@ if [ "$SERVER_ALREADY_RUNNING" = false ]; then
 
   # Start the standalone server in the background (serves API + static UI dist/)
   cd "$PLUGIN_ROOT"
-  nohup pnpm -C apps/server dev >/tmp/local-review-server.log 2>&1 &
+  nohup node apps/server/dist/index.js >/tmp/local-review-server.log 2>&1 &
 
   # Wait for server to be ready (max 10s)
   for i in $(seq 1 20); do
