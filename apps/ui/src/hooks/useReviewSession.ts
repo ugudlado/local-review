@@ -12,7 +12,8 @@ import {
 } from "../services/localReviewApi";
 import { featureApi } from "../services/featureApi";
 import { AuthorType } from "../types/sessions";
-import { REVIEW_VERDICT, THREAD_STATUS } from "../types/constants";
+import { FLAGS } from "../config/app";
+
 import { uid } from "../utils/diffUtils";
 
 interface UseReviewSessionParams {
@@ -59,7 +60,8 @@ export function useReviewSession({
     "approved" | "changes_requested" | null
   >(null);
 
-  // Auto-load session when featureId is available
+  // Auto-load session when featureId or sourceBranch changes.
+  // Only apply threads if the session's source branch matches the current one.
   useEffect(() => {
     if (!featureId) return;
     let cancelled = false;
@@ -69,9 +71,20 @@ export function useReviewSession({
         const { session } = await featureApi.getCodeSession(featureId);
         if (cancelled) return;
         if (session) {
-          setThreads((session.threads as unknown as ReviewThread[]) || []);
-          setReviewVerdict(session.reviewVerdict ?? null);
-          setStatus(`Loaded session`);
+          // Only show threads for the matching branch
+          const branchMatches =
+            !sourceBranch ||
+            !session.sourceBranch ||
+            session.sourceBranch === sourceBranch;
+          if (branchMatches) {
+            setThreads((session.threads as unknown as ReviewThread[]) || []);
+            setReviewVerdict(session.reviewVerdict ?? null);
+            setStatus(`Loaded session`);
+          } else {
+            setThreads([]);
+            setReviewVerdict(null);
+            setStatus("Ready");
+          }
         } else {
           setThreads([]);
         }
@@ -86,7 +99,7 @@ export function useReviewSession({
     return () => {
       cancelled = true;
     };
-  }, [featureId]);
+  }, [featureId, sourceBranch]);
 
   // Summary notes localStorage read effect (on viewKey change)
   useEffect(() => {
@@ -130,12 +143,14 @@ export function useReviewSession({
     return () => clearTimeout(timer);
   }, [threads, reviewVerdict]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-reset "changes_requested" verdict when all threads are resolved
+  // When DEV_WORKFLOW is off there's no Approve button, so auto-reset verdict
+  // once all threads are resolved — lets the user start a fresh review round.
+  // In DEV_WORKFLOW mode the verdict stays sticky (user manually approves).
   useEffect(() => {
-    if (reviewVerdict !== REVIEW_VERDICT.ChangesRequested) return;
+    if (FLAGS.DEV_WORKFLOW) return;
     if (threads.length === 0) return;
-    const hasOpenThread = threads.some((t) => t.status === THREAD_STATUS.Open);
-    if (!hasOpenThread) {
+    const allResolved = threads.every((t) => t.status !== "open");
+    if (allResolved && reviewVerdict !== null) {
       setReviewVerdict(null);
     }
   }, [threads, reviewVerdict]);
