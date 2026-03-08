@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import type { ReviewThread } from "../../services/localReviewApi";
-import type { ThreadFilter, ThreadSeverity } from "../../types/sessions";
+import type { ThreadSeverity } from "../../types/sessions";
 import { relativeTime } from "../../utils/timeFormat";
 import { shortPath, lineLabel } from "../../utils/diffUtils";
+import { useResolveStatus } from "../../hooks/useResolveStatus";
 
 /** Extended thread with optional severity (may come from adapted threads). */
 type ThreadWithSeverity = ReviewThread & {
@@ -26,10 +27,16 @@ export interface DiffThreadNavProps {
 interface ThreadNavCardProps {
   thread: ThreadWithSeverity;
   isActive: boolean;
+  isResolving: boolean;
   onClick: () => void;
 }
 
-function ThreadNavCard({ thread, isActive, onClick }: ThreadNavCardProps) {
+function ThreadNavCard({
+  thread,
+  isActive,
+  isResolving,
+  onClick,
+}: ThreadNavCardProps) {
   const firstMessage = thread.messages[0];
   const previewText = firstMessage?.text ?? "";
   const author = firstMessage?.author ?? "";
@@ -37,7 +44,9 @@ function ThreadNavCard({ thread, isActive, onClick }: ThreadNavCardProps) {
 
   // Status dot color
   let dotColor: string;
-  if (thread.status === "resolved" || thread.status === "approved") {
+  if (isResolving) {
+    dotColor = "text-[var(--accent-blue)] animate-pulse";
+  } else if (thread.status === "resolved" || thread.status === "approved") {
     dotColor = "text-[var(--accent-emerald)]";
   } else if (thread.severity === "blocking") {
     dotColor = "text-[var(--accent-amber)]";
@@ -73,13 +82,17 @@ function ThreadNavCard({ thread, isActive, onClick }: ThreadNavCardProps) {
         <span className="min-w-0 flex-1 truncate text-[11px] font-medium text-[var(--accent-blue)]">
           {shortPath(thread.filePath)}:{lineLabel(thread.line, thread.lineEnd)}
         </span>
-        {showBadge && (
+        {isResolving ? (
+          <span className="bg-[var(--accent-blue)]/15 shrink-0 rounded px-1 py-0.5 text-[9px] text-[var(--accent-blue)]">
+            resolving…
+          </span>
+        ) : showBadge ? (
           <span
             className={`shrink-0 rounded px-1 py-0.5 text-[9px] ${badgeClasses}`}
           >
             {thread.severity}
           </span>
-        )}
+        ) : null}
       </div>
 
       {/* Row 2: preview text */}
@@ -103,84 +116,130 @@ function ThreadNavCard({ thread, isActive, onClick }: ThreadNavCardProps) {
 // DiffThreadNav — slim 240px right panel for quick thread navigation
 // ---------------------------------------------------------------------------
 
+function SectionLabel({
+  label,
+  count,
+  variant,
+}: {
+  label: string;
+  count: number;
+  variant: "open" | "resolved";
+}) {
+  const badgeColors =
+    variant === "open"
+      ? "bg-[var(--accent-amber-dim)] text-[var(--accent-amber)]"
+      : "bg-[var(--accent-emerald-dim)] text-[var(--accent-emerald)]";
+
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5">
+      <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--ink-muted)]">
+        {label}
+      </span>
+      <span
+        className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${badgeColors}`}
+      >
+        {count}
+      </span>
+    </div>
+  );
+}
+
 export function DiffThreadNav({
   threads,
   activeThreadId,
   onThreadClick,
 }: DiffThreadNavProps) {
-  const [activeTab, setActiveTab] = useState<ThreadFilter>("open");
+  const resolveStatus = useResolveStatus();
+  const resolvingIds = useMemo(() => {
+    if (resolveStatus.state !== "resolving") return new Set<string>();
+    const doneIds = new Set(resolveStatus.log.map((e) => e.threadId));
+    return new Set(
+      resolveStatus.threads.filter((t) => !doneIds.has(t.id)).map((t) => t.id),
+    );
+  }, [resolveStatus]);
 
   const openThreads = useMemo(
-    () => threads.filter((t) => t.status === "open"),
+    () =>
+      [...threads.filter((t) => t.status === "open")].sort(
+        (a, b) =>
+          new Date(b.lastUpdatedAt).getTime() -
+          new Date(a.lastUpdatedAt).getTime(),
+      ),
     [threads],
   );
 
   const resolvedThreads = useMemo(
     () =>
-      threads.filter((t) => t.status === "resolved" || t.status === "approved"),
+      [
+        ...threads.filter(
+          (t) => t.status === "resolved" || t.status === "approved",
+        ),
+      ].sort(
+        (a, b) =>
+          new Date(b.lastUpdatedAt).getTime() -
+          new Date(a.lastUpdatedAt).getTime(),
+      ),
     [threads],
   );
 
-  const visibleThreads = useMemo(() => {
-    const source = activeTab === "open" ? openThreads : resolvedThreads;
-    return [...source].sort(
-      (a, b) =>
-        new Date(b.lastUpdatedAt).getTime() -
-        new Date(a.lastUpdatedAt).getTime(),
+  if (threads.length === 0) {
+    return (
+      <div className="flex w-60 shrink-0 flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--canvas-raised)]">
+        <p className="px-3 pb-2 pt-3 text-[11px] font-medium uppercase tracking-wider text-[var(--ink-muted)]">
+          Threads
+        </p>
+        <p className="px-3 py-8 text-center text-[12px] text-[var(--ink-ghost)]">
+          No threads yet
+        </p>
+      </div>
     );
-  }, [activeTab, openThreads, resolvedThreads]);
-
-  const emptyMessage =
-    activeTab === "open" ? "No open threads" : "No resolved threads";
+  }
 
   return (
     <div className="flex w-60 shrink-0 flex-col overflow-hidden border-l border-[var(--border)] bg-[var(--canvas-raised)]">
       {/* Header title */}
-      <p className="px-3 pb-2 pt-3 text-[11px] font-medium uppercase tracking-wider text-[var(--ink-muted)]">
+      <p className="px-3 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wider text-[var(--ink-muted)]">
         Threads
       </p>
 
-      {/* Open / Resolved tabs */}
-      <div className="flex items-center gap-0 border-b border-[var(--border)] px-3">
-        <button
-          type="button"
-          onClick={() => setActiveTab("open")}
-          className={`-mb-px border-b-2 px-3 py-1.5 text-[12px] font-medium transition-colors ${
-            activeTab === "open"
-              ? "border-[var(--accent-blue)] text-[var(--ink)]"
-              : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)]"
-          }`}
-        >
-          Open ({openThreads.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("resolved")}
-          className={`-mb-px border-b-2 px-3 py-1.5 text-[12px] font-medium transition-colors ${
-            activeTab === "resolved"
-              ? "border-[var(--accent-blue)] text-[var(--ink)]"
-              : "border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)]"
-          }`}
-        >
-          Resolved ({resolvedThreads.length})
-        </button>
-      </div>
-
-      {/* Thread list */}
-      <div className="flex-1 overflow-y-auto py-1">
-        {visibleThreads.length === 0 ? (
-          <p className="px-3 py-8 text-center text-[12px] text-[var(--ink-ghost)]">
-            {emptyMessage}
+      {/* Single scrollable list with Open / Resolved sections */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Open section */}
+        <SectionLabel label="Open" count={openThreads.length} variant="open" />
+        {openThreads.length === 0 ? (
+          <p className="px-3 pb-3 text-[12px] text-[var(--ink-ghost)]">
+            All threads resolved
           </p>
         ) : (
-          visibleThreads.map((thread) => (
+          openThreads.map((thread) => (
             <ThreadNavCard
               key={thread.id}
               thread={thread}
               isActive={thread.id === activeThreadId}
+              isResolving={resolvingIds.has(thread.id)}
               onClick={() => onThreadClick(thread)}
             />
           ))
+        )}
+
+        {/* Resolved section */}
+        {resolvedThreads.length > 0 && (
+          <>
+            <SectionLabel
+              label="Resolved"
+              count={resolvedThreads.length}
+              variant="resolved"
+            />
+            {resolvedThreads.map((thread) => (
+              <ThreadNavCard
+                key={thread.id}
+                thread={thread}
+                isActive={thread.id === activeThreadId}
+                isResolving={false}
+                onClick={() => onThreadClick(thread)}
+              />
+            ))}
+          </>
         )}
       </div>
     </div>

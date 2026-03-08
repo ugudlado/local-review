@@ -4,9 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @local-review/server dev & pnpm --filter @local-review/ui dev",
-    "dev:server": "pnpm --filter @local-review/server dev",
-    "dev:ui": "pnpm --filter @local-review/ui dev",
+    "dev": "pnpm --filter @local-review/server dev",
     "build": "pnpm --filter @local-review/ui build",
     "start": "pnpm --filter @local-review/server start",
     "test:unit": "pnpm --filter @local-review/ui test:unit",
