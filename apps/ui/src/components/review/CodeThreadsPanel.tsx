@@ -1,9 +1,8 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import type { ReviewThread } from "../../services/localReviewApi";
 import { ThreadCard } from "../shared/ThreadCard";
-import { ThreadStatusTabs } from "../shared/ThreadStatusTabs";
 import { useThreadPartition } from "../../hooks/useThreadPartition";
-import type { ThreadFilter } from "../../types/sessions";
+import { useResolveStatus } from "../../hooks/useResolveStatus";
 
 export interface CodeThreadsPanelProps {
   threads: ReviewThread[];
@@ -37,6 +36,121 @@ function shortPath(filePath: string): string {
   return parts.length <= 2 ? filePath : parts.slice(-2).join("/");
 }
 
+// ---------------------------------------------------------------------------
+// Section label
+// ---------------------------------------------------------------------------
+
+function SectionLabel({
+  label,
+  count,
+  variant,
+}: {
+  label: string;
+  count: number;
+  variant: "open" | "resolved";
+}) {
+  const badgeColors =
+    variant === "open"
+      ? "bg-[var(--accent-amber-dim)] text-[var(--accent-amber)]"
+      : "bg-[var(--accent-emerald-dim)] text-[var(--accent-emerald)]";
+
+  return (
+    <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--canvas-raised)] px-3 py-2">
+      <span className="text-xs font-medium text-[var(--ink)]">{label}</span>
+      {count > 0 && (
+        <span
+          className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${badgeColors}`}
+        >
+          {count}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Thread list section (grouped by file)
+// ---------------------------------------------------------------------------
+
+function ThreadSection({
+  threads,
+  selectedFilePath,
+  outdatedThreadIds,
+  resolvingIds,
+  addReply,
+  updateThreadStatus,
+  onThreadClick,
+}: {
+  threads: ReviewThread[];
+  selectedFilePath: string;
+  outdatedThreadIds: Set<string>;
+  resolvingIds: Set<string>;
+  addReply: (threadId: string, text?: string) => void;
+  updateThreadStatus: (
+    threadId: string,
+    status: ReviewThread["status"],
+  ) => void;
+  onThreadClick?: (thread: ReviewThread) => void;
+}) {
+  const grouped = useMemo(() => groupByFile(threads), [threads]);
+
+  return (
+    <>
+      {Array.from(grouped.entries()).map(([filePath, fileThreads]) => (
+        <div key={filePath}>
+          {/* File header */}
+          <div
+            className={`sticky top-8 z-[5] border-b border-[var(--border-muted)] px-2.5 py-1.5 text-[11px] font-medium ${
+              filePath === selectedFilePath
+                ? "bg-[var(--accent-blue)]/10 text-[var(--accent-blue-text)]"
+                : "bg-[var(--bg-surface)] text-[var(--text-secondary)]"
+            }`}
+            title={filePath}
+          >
+            {shortPath(filePath)}
+            <span className="ml-1.5 text-[10px] opacity-60">
+              {fileThreads.length}
+            </span>
+          </div>
+          {/* Threads for this file */}
+          <div className="space-y-2 p-2">
+            {fileThreads.map((thread, index) => (
+              <div
+                key={thread.id}
+                onClick={() => onThreadClick?.(thread)}
+                className={`stagger-fade-in ${
+                  onThreadClick
+                    ? "cursor-pointer rounded transition-colors hover:bg-[var(--bg-surface)]"
+                    : ""
+                }`}
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                {outdatedThreadIds.has(thread.id) && (
+                  <div className="mb-1 rounded bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-400">
+                    Outdated
+                  </div>
+                )}
+                <ThreadCard
+                  thread={thread}
+                  isResolving={resolvingIds.has(thread.id)}
+                  onReply={(threadId, text) => addReply(threadId, text)}
+                  onStatusChange={(threadId, status) =>
+                    updateThreadStatus(threadId, status)
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CodeThreadsPanel — single scrollable list with Open / Resolved labels
+// ---------------------------------------------------------------------------
+
 export function CodeThreadsPanel({
   threads,
   selectedFilePath,
@@ -45,88 +159,64 @@ export function CodeThreadsPanel({
   updateThreadStatus,
   onThreadClick,
 }: CodeThreadsPanelProps) {
-  const [activeFilter, setActiveFilter] = useState<ThreadFilter>("open");
+  const resolveStatus = useResolveStatus();
+  const resolvingIds = new Set(
+    resolveStatus.state === "resolving"
+      ? resolveStatus.threads
+          .filter((t) => !resolveStatus.log.some((e) => e.threadId === t.id))
+          .map((t) => t.id)
+      : [],
+  );
 
   const { openThreads, resolvedThreads } = useThreadPartition(threads);
 
-  const filteredThreads =
-    activeFilter === "open" ? openThreads : resolvedThreads;
+  const sharedProps = {
+    selectedFilePath,
+    outdatedThreadIds,
+    resolvingIds,
+    addReply,
+    updateThreadStatus,
+    onThreadClick,
+  };
 
-  const grouped = useMemo(
-    () => groupByFile(filteredThreads),
-    [filteredThreads],
-  );
+  if (threads.length === 0) {
+    return (
+      <aside className="flex w-[320px] shrink-0 flex-col border-l border-[var(--border-muted)] bg-[var(--bg-base)]">
+        <div className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--canvas-raised)] px-3 py-2">
+          <span className="text-xs font-medium text-[var(--ink)]">THREADS</span>
+        </div>
+        <div className="flex flex-1 items-center justify-center p-6 text-xs text-slate-600">
+          No threads yet
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="flex w-[320px] shrink-0 flex-col border-l border-[var(--border-muted)] bg-[var(--bg-base)]">
-      {/* Tab header — Open / Resolved */}
-      <ThreadStatusTabs
-        activeFilter={activeFilter}
-        openCount={openThreads.length}
-        resolvedCount={resolvedThreads.length}
-        onFilterChange={setActiveFilter}
-        sticky
-      />
+      <div className="flex-1 overflow-y-auto">
+        {/* Open section */}
+        <SectionLabel label="Open" count={openThreads.length} variant="open" />
+        {openThreads.length === 0 ? (
+          <div className="px-3 py-4 text-xs text-slate-600">
+            All threads resolved
+          </div>
+        ) : (
+          <ThreadSection threads={openThreads} {...sharedProps} />
+        )}
 
-      {/* Thread list grouped by file */}
-      {filteredThreads.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center p-6 text-xs text-slate-600">
-          {activeFilter === "open"
-            ? threads.length === 0
-              ? "No threads yet"
-              : "All threads resolved"
-            : "No resolved threads"}
-        </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto">
-          {Array.from(grouped.entries()).map(([filePath, fileThreads]) => (
-            <div key={filePath}>
-              {/* File header */}
-              <div
-                className={`sticky top-0 z-[5] border-b border-[var(--border-muted)] px-2.5 py-1.5 text-[11px] font-medium ${
-                  filePath === selectedFilePath
-                    ? "bg-[var(--accent-blue)]/10 text-[var(--accent-blue-text)]"
-                    : "bg-[var(--bg-surface)] text-[var(--text-secondary)]"
-                }`}
-                title={filePath}
-              >
-                {shortPath(filePath)}
-                <span className="ml-1.5 text-[10px] opacity-60">
-                  {fileThreads.length}
-                </span>
-              </div>
-              {/* Threads for this file */}
-              <div className="space-y-2 p-2">
-                {fileThreads.map((thread, index) => (
-                  <div
-                    key={thread.id}
-                    onClick={() => onThreadClick?.(thread)}
-                    className={`stagger-fade-in ${
-                      onThreadClick
-                        ? "cursor-pointer rounded transition-colors hover:bg-[var(--bg-surface)]"
-                        : ""
-                    }`}
-                    style={{ animationDelay: `${index * 50}ms` }}
-                  >
-                    {outdatedThreadIds.has(thread.id) && (
-                      <div className="mb-1 rounded bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-400">
-                        Outdated
-                      </div>
-                    )}
-                    <ThreadCard
-                      thread={thread}
-                      onReply={(threadId, text) => addReply(threadId, text)}
-                      onStatusChange={(threadId, status) =>
-                        updateThreadStatus(threadId, status)
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+        {/* Resolved section */}
+        {resolvedThreads.length > 0 && (
+          <>
+            <SectionLabel
+              label="Resolved"
+              count={resolvedThreads.length}
+              variant="resolved"
+            />
+            <ThreadSection threads={resolvedThreads} {...sharedProps} />
+          </>
+        )}
+      </div>
     </aside>
   );
 }

@@ -9,6 +9,7 @@ import {
 } from "../../utils/diffUtils";
 import { ThreadCard } from "../shared/ThreadCard";
 import { ComposeBox } from "../shared/ComposeBox";
+import { useResolveStatus } from "../../hooks/useResolveStatus";
 
 interface FullFileViewProps {
   fullFileLoading: boolean;
@@ -54,6 +55,15 @@ export function FullFileView({
   onDragUpdate,
   panelRef,
 }: FullFileViewProps) {
+  const resolveStatus = useResolveStatus();
+  const resolvingIds = new Set(
+    resolveStatus.state === "resolving"
+      ? resolveStatus.threads
+          .filter((t) => !resolveStatus.log.some((e) => e.threadId === t.id))
+          .map((t) => t.id)
+      : [],
+  );
+
   return (
     <div ref={panelRef} className="flex min-h-0 flex-1 overflow-auto">
       {fullFileLoading ? (
@@ -133,6 +143,7 @@ export function FullFileView({
                       <ThreadCard
                         key={thread.id}
                         thread={thread}
+                        isResolving={resolvingIds.has(thread.id)}
                         onReply={onReply}
                         onStatusChange={onStatusChange}
                       />

@@ -3,6 +3,7 @@ import type { AnchorInfo } from "../../utils/specAnchoring";
 import type { ReviewThread, SpecBlockAnchor } from "../../types/sessions";
 import { ThreadCard } from "../shared/ThreadCard";
 import { ComposeBox } from "../shared/ComposeBox";
+import { useResolveStatus } from "../../hooks/useResolveStatus";
 
 export interface AnnotatableParagraphProps {
   anchorInfo: AnchorInfo;
@@ -50,6 +51,15 @@ export function AnnotatableParagraph({
 }: AnnotatableParagraphProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
+
+  const resolveStatus = useResolveStatus();
+  const resolvingIds = new Set(
+    resolveStatus.state === "resolving"
+      ? resolveStatus.threads
+          .filter((t) => !resolveStatus.log.some((e) => e.threadId === t.id))
+          .map((t) => t.id)
+      : [],
+  );
 
   // -------------------------------------------------------------------------
   // Position reporting — notify parent of offsetTop on mount and resize
@@ -149,6 +159,7 @@ export function AnnotatableParagraph({
             <ThreadCard
               key={thread.id}
               thread={thread}
+              isResolving={resolvingIds.has(thread.id)}
               onReply={onReply}
               onStatusChange={onThreadStatusChange}
             />

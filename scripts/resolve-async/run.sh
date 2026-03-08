@@ -31,6 +31,16 @@ log() {
   printf "[%d.%03ds] %s\n" "$secs" "$ms" "$1" >&2
 }
 
+# --- Notify UI of resolve progress ---
+notify_ui() {
+  local event="$1"
+  local data="$2"
+  curl -s -X POST "$API_BASE/resolve-progress" \
+    -H 'Content-Type: application/json' \
+    -d "{\"event\":\"$event\",\"data\":$data}" \
+    >/dev/null 2>&1 || true
+}
+
 # --- Find session file ---
 find_session() {
   local mode="" feature_id="" session_file=""
@@ -98,6 +108,11 @@ fi
 FEATURE_ID=$(jq -r '.featureId' "$SESSION_FILE")
 log "Feature: $FEATURE_ID (type: $SESSION_TYPE)"
 
+# --- Detect API port from vite.config.ts ---
+API_PORT=$(grep -oE 'port: [0-9]+' "$REPO_ROOT/apps/ui/vite.config.ts" 2>/dev/null | head -1 | grep -oE '[0-9]+' || echo "37003")
+API_BASE="http://localhost:$API_PORT/api"
+log "API: $API_BASE"
+
 # --- Find open threads ---
 THREAD_IDS=$(jq -r '.threads[] | select(.status == "open") | .id' "$SESSION_FILE")
 THREAD_COUNT=$(echo "$THREAD_IDS" | grep -c . || true)
@@ -115,6 +130,22 @@ if [[ "$DRY_RUN" == "true" ]]; then
   done
   exit 0
 fi
+
+# Build thread list for UI progress tracking
+THREAD_LIST="["
+FIRST_TL=true
+for tid in $THREAD_IDS; do
+  TL_INFO=$(jq -r --arg id "$tid" '.threads[] | select(.id == $id) | "{\"id\":\"\(.id)\",\"filePath\":\"\(.filePath // "")\",\"line\":\(.line // 0)}"' "$SESSION_FILE")
+  if $FIRST_TL; then
+    FIRST_TL=false
+  else
+    THREAD_LIST+=","
+  fi
+  THREAD_LIST+="$TL_INFO"
+done
+THREAD_LIST+="]"
+
+notify_ui "review:resolve-started" "{\"featureId\":\"$FEATURE_ID\",\"threadCount\":$THREAD_COUNT,\"threads\":$THREAD_LIST}"
 
 log "Extracting $THREAD_COUNT thread contexts..."
 
@@ -136,11 +167,6 @@ done
 CONTEXTS+="]"
 
 log "Contexts ready ($THREAD_COUNT threads)."
-
-# --- Detect API port from vite.config.ts ---
-API_PORT=$(grep -oE 'port: [0-9]+' "$REPO_ROOT/apps/ui/vite.config.ts" 2>/dev/null | head -1 | grep -oE '[0-9]+' || echo "37003")
-API_BASE="http://localhost:$API_PORT/local-api"
-log "API: $API_BASE"
 
 # --- Build prompt ---
 PROMPT=$(cat <<EOF
@@ -171,8 +197,10 @@ if [[ $EXIT_CODE -eq 0 ]]; then
   RESOLVED=$(jq '[.threads[] | select(.status == "resolved")] | length' "$SESSION_FILE")
   STILL_OPEN=$(jq '[.threads[] | select(.status == "open")] | length' "$SESSION_FILE")
   log "Done. Resolved: $RESOLVED, Still open: $STILL_OPEN"
+  notify_ui "review:resolve-completed" "{\"featureId\":\"$FEATURE_ID\",\"resolved\":$RESOLVED,\"clarifications\":$STILL_OPEN}"
 else
   log "claude -p exited with code $EXIT_CODE"
+  notify_ui "review:resolve-failed" "{\"featureId\":\"$FEATURE_ID\",\"error\":\"claude -p exited with code $EXIT_CODE\"}"
 fi
 
 exit $EXIT_CODE

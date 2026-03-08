@@ -11,8 +11,79 @@
  *                review -> in-progress  (verdict="changes_requested")
  */
 
-import { useResolveStatus } from "../../hooks/useResolveStatus";
+import { useEffect, useRef, useState } from "react";
+import {
+  useResolveStatus,
+  type ThreadLogEntry,
+  type ThreadInfo,
+} from "../../hooks/useResolveStatus";
 import { FLAGS } from "../../config/app";
+
+// ---------------------------------------------------------------------------
+// ResolveRunLog — scrollable log of per-thread resolve outcomes
+// ---------------------------------------------------------------------------
+
+function ResolveRunLog({
+  log,
+  threads,
+}: {
+  log: ThreadLogEntry[];
+  threads: ThreadInfo[];
+}) {
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [log.length]);
+
+  const doneIds = new Set(log.map((e) => e.threadId));
+  const pending = threads.filter((t) => !doneIds.has(t.id));
+
+  const outcomeIcon: Record<string, string> = {
+    resolved: "\u2713",
+    clarification: "?",
+    error: "\u2717",
+  };
+  const outcomeColor: Record<string, string> = {
+    resolved: "text-emerald-400",
+    clarification: "text-amber-400",
+    error: "text-red-400",
+  };
+
+  return (
+    <div className="mt-1.5 max-h-32 overflow-y-auto rounded-md bg-[var(--canvas)] p-2 ring-1 ring-[var(--border-subtle)]">
+      {log.map((entry) => (
+        <div
+          key={entry.threadId}
+          className="flex items-center gap-2 py-0.5 font-mono text-[10px]"
+        >
+          <span className={outcomeColor[entry.outcome]}>
+            {outcomeIcon[entry.outcome]}
+          </span>
+          <span className="text-[var(--ink-muted)]">{entry.filePath}</span>
+          <span className="text-[var(--ink-ghost)]">L{entry.line}</span>
+          <span className={`ml-auto ${outcomeColor[entry.outcome]}`}>
+            {entry.outcome === "clarification"
+              ? "needs clarification"
+              : entry.outcome}
+          </span>
+        </div>
+      ))}
+      {pending.map((t) => (
+        <div
+          key={t.id}
+          className="flex items-center gap-2 py-0.5 font-mono text-[10px] text-[var(--ink-ghost)]"
+        >
+          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--ink-ghost)]" />
+          <span>{t.filePath}</span>
+          <span>L{t.line}</span>
+          <span className="ml-auto">waiting...</span>
+        </div>
+      ))}
+      <div ref={logEndRef} />
+    </div>
+  );
+}
 
 export interface ReviewVerdictProps {
   verdict: "approved" | "changes_requested" | null;
@@ -35,6 +106,7 @@ export function ReviewVerdict({
   const isApproved = verdict === "approved";
   const isChangesRequested = verdict === "changes_requested";
   const resolveStatus = useResolveStatus();
+  const [showLog, setShowLog] = useState(false);
 
   // Only show status for this feature's resolve events
   const matchesFeature = (s: { featureId: string }) =>
@@ -113,37 +185,71 @@ export function ReviewVerdict({
       )}
 
       {/* Resolver status indicator */}
-      {isResolving && (
-        <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-          <svg
-            className="h-3 w-3 animate-spin"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 3v3m0 12v3M3 12h3m12 0h3M6.34 6.34l2.12 2.12m7.08 7.08 2.12 2.12M6.34 17.66l2.12-2.12m7.08-7.08 2.12-2.12"
+      {isResolving && resolveStatus.state === "resolving" && (
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+            <svg
+              className="h-3 w-3 animate-spin"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 3v3m0 12v3M3 12h3m12 0h3M6.34 6.34l2.12 2.12m7.08 7.08 2.12 2.12M6.34 17.66l2.12-2.12m7.08-7.08 2.12-2.12"
+              />
+            </svg>
+            Resolving {resolveStatus.resolved}/{resolveStatus.threadCount}
+          </span>
+          <div className="h-1 w-16 overflow-hidden rounded-full bg-[var(--canvas-overlay)]">
+            <div
+              className="h-full rounded-full bg-[var(--accent-blue)] transition-all duration-500"
+              style={{
+                width: `${resolveStatus.threadCount > 0 ? (resolveStatus.resolved / resolveStatus.threadCount) * 100 : 0}%`,
+              }}
             />
-          </svg>
-          Resolving {resolveStatus.threadCount} thread
-          {resolveStatus.threadCount === 1 ? "" : "s"}…
-        </span>
+          </div>
+        </div>
       )}
-      {justCompleted && (
+      {justCompleted && resolveStatus.state === "completed" && (
         <span className="text-xs text-emerald-400">
           {resolveStatus.resolved} resolved
           {resolveStatus.clarifications > 0
             ? `, ${String(resolveStatus.clarifications)} need clarification`
             : ""}
+          {resolveStatus.log.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowLog((prev) => !prev)}
+              className="ml-1.5 text-[var(--ink-ghost)] underline decoration-dotted hover:text-[var(--ink-muted)]"
+            >
+              {showLog ? "hide log" : "show log"}
+            </button>
+          )}
         </span>
       )}
       {hasFailed && (
         <span className="text-xs text-red-400" title={resolveStatus.error}>
           Resolve failed
         </span>
+      )}
+      {(showLog ||
+        (isResolving &&
+          resolveStatus.state === "resolving" &&
+          resolveStatus.log.length > 0)) && (
+        <ResolveRunLog
+          log={
+            resolveStatus.state === "resolving" ||
+            resolveStatus.state === "completed"
+              ? resolveStatus.log
+              : []
+          }
+          threads={
+            resolveStatus.state === "resolving" ? resolveStatus.threads : []
+          }
+        />
       )}
     </div>
   );
