@@ -9,6 +9,7 @@
 import { useCallback } from "react";
 import { ComposeBox } from "../shared/ComposeBox";
 import { ThreadCard } from "../shared/ThreadCard";
+import { useResolveStatus } from "../../hooks/useResolveStatus";
 import type {
   DiffLineAnchor,
   ReviewThread,
@@ -104,6 +105,15 @@ export function ThreadDisplay({
   onReply,
   onStatusChange,
 }: ThreadDisplayProps) {
+  const resolveStatus = useResolveStatus();
+  const resolvingIds = new Set(
+    resolveStatus.state === "resolving"
+      ? resolveStatus.threads
+          .filter((t) => !resolveStatus.log.some((e) => e.threadId === t.id))
+          .map((t) => t.id)
+      : [],
+  );
+
   if (threads.length === 0) return null;
 
   return (
@@ -112,6 +122,7 @@ export function ThreadDisplay({
         <ThreadCard
           key={thread.id}
           thread={thread}
+          isResolving={resolvingIds.has(thread.id)}
           onReply={onReply}
           onStatusChange={onStatusChange}
         />

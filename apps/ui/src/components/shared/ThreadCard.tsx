@@ -283,6 +283,8 @@ export interface ThreadCardProps {
     status: "open" | "resolved" | "approved",
   ) => void;
   isExpanded?: boolean;
+  /** When true, shows a pulsing indicator that this thread is being resolved by Claude. */
+  isResolving?: boolean;
 }
 
 export function ThreadCard({
@@ -290,6 +292,7 @@ export function ThreadCard({
   onReply,
   onStatusChange,
   isExpanded: controlledExpanded,
+  isResolving = false,
 }: ThreadCardProps) {
   const [internalExpanded, setInternalExpanded] = useState(false);
   const isExpanded = controlledExpanded ?? internalExpanded;
@@ -306,7 +309,13 @@ export function ThreadCard({
     <div
       id={`thread-${thread.id}`}
       data-thread-id={thread.id}
-      className={`thread-enter overflow-hidden rounded-lg bg-[var(--canvas-raised)] shadow-[0_2px_8px_rgba(0,0,0,0.3),0_0_0_1px_var(--border)] transition-all duration-200 ${isExpanded ? "ring-1 ring-[var(--border)]" : "hover:shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_0_1px_var(--border)]"} `}
+      className={`thread-enter overflow-hidden rounded-lg bg-[var(--canvas-raised)] shadow-[0_2px_8px_rgba(0,0,0,0.3),0_0_0_1px_var(--border)] transition-all duration-200 ${
+        isResolving
+          ? "animate-pulse ring-1 ring-indigo-500/50"
+          : isExpanded
+            ? "ring-1 ring-[var(--border)]"
+            : "hover:shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_0_1px_var(--border)]"
+      } `}
     >
       {/* Header: click to expand/collapse */}
       <button
@@ -323,6 +332,20 @@ export function ThreadCard({
         </span>
         <span className="ml-auto flex items-center gap-1.5">
           <StatusLabel status={thread.status} />
+          {isResolving && (
+            <span className="inline-flex items-center gap-1 rounded bg-indigo-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-400">
+              <svg
+                className="h-2.5 w-2.5 animate-spin"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path strokeLinecap="round" d="M12 3v3m0 12v3M3 12h3m12 0h3" />
+              </svg>
+              resolving
+            </span>
+          )}
           <span className="font-mono text-[10px] text-[var(--ink-ghost)]">
             {thread.messages.length}
           </span>

@@ -10,10 +10,10 @@
   --canvas-overlay: #32323a;
 
   /* Ink — text */
-  --ink: #e8e6e3;
-  --ink-muted: #9a9898;
-  --ink-faint: #5e5d5c;
-  --ink-ghost: #3d3d42;
+  --ink: #f0eeeb;
+  --ink-muted: #bdbbb8;
+  --ink-faint: #908e8c;
+  --ink-ghost: #605f65;
 
   /* Accents */
   --accent-emerald: #34d399;
@@ -26,6 +26,6 @@
   --accent-rose-dim: #4c1d2e;
 
   /* Borders */
-  --border: #2e2e35;
-  --border-subtle: #262629;
+  --border: #383840;
+  --border-subtle: #2e2e35;
 }

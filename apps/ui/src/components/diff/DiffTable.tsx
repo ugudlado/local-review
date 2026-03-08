@@ -11,6 +11,7 @@ import {
 import { ThreadCard } from "../shared/ThreadCard";
 import { ComposeBox } from "../shared/ComposeBox";
 import { HunkExpandRow } from "./HunkExpandRow";
+import { useResolveStatus } from "../../hooks/useResolveStatus";
 
 interface DiffTableProps {
   selectedFile: DiffFile;
@@ -56,6 +57,15 @@ export function DiffTable({
   expansionContent,
   onExpandGap,
 }: DiffTableProps) {
+  const resolveStatus = useResolveStatus();
+  const resolvingIds = new Set(
+    resolveStatus.state === "resolving"
+      ? resolveStatus.threads
+          .filter((t) => !resolveStatus.log.some((e) => e.threadId === t.id))
+          .map((t) => t.id)
+      : [],
+  );
+
   return (
     <div className="flex min-h-0 flex-1">
       <div ref={panelRef} className="flex-1 overflow-auto">
@@ -235,6 +245,7 @@ export function DiffTable({
                           <ThreadCard
                             key={thread.id}
                             thread={thread}
+                            isResolving={resolvingIds.has(thread.id)}
                             onReply={onReply}
                             onStatusChange={onStatusChange}
                           />

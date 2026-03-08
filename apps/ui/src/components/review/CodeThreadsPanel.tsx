@@ -3,6 +3,7 @@ import type { ReviewThread } from "../../services/localReviewApi";
 import { ThreadCard } from "../shared/ThreadCard";
 import { ThreadStatusTabs } from "../shared/ThreadStatusTabs";
 import { useThreadPartition } from "../../hooks/useThreadPartition";
+import { useResolveStatus } from "../../hooks/useResolveStatus";
 import type { ThreadFilter } from "../../types/sessions";
 
 export interface CodeThreadsPanelProps {
@@ -46,6 +47,15 @@ export function CodeThreadsPanel({
   onThreadClick,
 }: CodeThreadsPanelProps) {
   const [activeFilter, setActiveFilter] = useState<ThreadFilter>("open");
+
+  const resolveStatus = useResolveStatus();
+  const resolvingIds = new Set(
+    resolveStatus.state === "resolving"
+      ? resolveStatus.threads
+          .filter((t) => !resolveStatus.log.some((e) => e.threadId === t.id))
+          .map((t) => t.id)
+      : [],
+  );
 
   const { openThreads, resolvedThreads } = useThreadPartition(threads);
 
@@ -115,6 +125,7 @@ export function CodeThreadsPanel({
                     )}
                     <ThreadCard
                       thread={thread}
+                      isResolving={resolvingIds.has(thread.id)}
                       onReply={(threadId, text) => addReply(threadId, text)}
                       onStatusChange={(threadId, status) =>
                         updateThreadStatus(threadId, status)

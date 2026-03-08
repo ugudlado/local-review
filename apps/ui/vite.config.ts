@@ -191,15 +191,23 @@ function triggerAutoResolve(
   sessionFile: string,
   sessionType: "code" | "spec",
   featureId: string,
-  openThreadCount: number,
+  openThreads: Array<{ id: string; filePath?: string; line?: number }>,
 ): void {
   console.log(
-    `[auto-resolve] Triggered for ${featureId} (${sessionType}, ${openThreadCount} open threads)`,
+    `[auto-resolve] Triggered for ${featureId} (${sessionType}, ${openThreads.length} open threads)`,
   );
   server.ws.send({
     type: "custom",
     event: "review:resolve-started",
-    data: { featureId, threadCount: openThreadCount },
+    data: {
+      featureId,
+      threadCount: openThreads.length,
+      threads: openThreads.map((t) => ({
+        id: t.id,
+        filePath: t.filePath ?? "",
+        line: t.line ?? 0,
+      })),
+    },
   });
   void daemonResolve(sessionFile, sessionType, featureId, repoRoot)
     .then((result) => {
@@ -553,6 +561,47 @@ export default defineConfig({
         // the echo back to the client that triggered the save.
         const recentlySaved = new Set<string>();
 
+        // Track thread statuses for resolve progress diffing.
+        // Maps featureId → Map<threadId, previousStatus>
+        const resolveTracking = new Map<string, Map<string, string>>();
+
+        const originalWsSend = server.ws.send.bind(server.ws);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        server.ws.send = ((...args: any[]) => {
+          const first = args[0];
+          if (typeof first === "object" && first !== null && "type" in first) {
+            const payload = first as {
+              type: string;
+              event?: string;
+              data?: Record<string, unknown>;
+            };
+            if (payload.event === "review:resolve-started" && payload.data) {
+              const { featureId, threads } = payload.data as {
+                featureId: string;
+                threads?: Array<{ id: string }>;
+              };
+              if (threads) {
+                const statusMap = new Map<string, string>();
+                for (const t of threads) {
+                  statusMap.set(t.id, "open");
+                }
+                resolveTracking.set(featureId, statusMap);
+              }
+            }
+            if (
+              payload.event === "review:resolve-completed" ||
+              payload.event === "review:resolve-failed"
+            ) {
+              const { featureId } = (payload.data ?? {}) as {
+                featureId?: string;
+              };
+              if (featureId) resolveTracking.delete(featureId);
+            }
+          }
+          return originalWsSend(...args);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        }) as any;
+
         server.watcher.on("change", (filePath: string) => {
           if (!filePath.endsWith(".json")) return;
           if (!filePath.startsWith(watchPath)) return;
@@ -570,6 +619,43 @@ export default defineConfig({
                 event: "review:session-updated",
                 data: { fileName, session },
               });
+
+              // Detect per-thread status changes during active resolves
+              const parsed = session as {
+                featureId?: string;
+                threads?: Array<{
+                  id: string;
+                  filePath?: string;
+                  line?: number;
+                  status: string;
+                }>;
+              };
+              if (parsed.featureId && resolveTracking.has(parsed.featureId)) {
+                const tracking = resolveTracking.get(parsed.featureId)!;
+                for (const thread of parsed.threads ?? []) {
+                  const prev = tracking.get(thread.id);
+                  if (prev && prev !== thread.status) {
+                    tracking.set(thread.id, thread.status);
+                    const outcome =
+                      thread.status === "resolved"
+                        ? "resolved"
+                        : thread.status === "open"
+                          ? "clarification"
+                          : "resolved";
+                    server.ws.send({
+                      type: "custom",
+                      event: "review:resolve-thread-done",
+                      data: {
+                        featureId: parsed.featureId,
+                        threadId: thread.id,
+                        filePath: thread.filePath ?? "",
+                        line: thread.line ?? 0,
+                        outcome,
+                      },
+                    });
+                  }
+                }
+              }
             } catch {
               // File may be mid-write or invalid JSON — ignore
             }
@@ -599,6 +685,29 @@ export default defineConfig({
           try {
             const requestUrl = new URL(req.url || "/", "http://localhost");
             const routePath = requestUrl.pathname;
+
+            if (req.method === "POST" && routePath === "/resolve-progress") {
+              const rawBody = await readBody(req);
+              const { event, data } = JSON.parse(rawBody) as {
+                event: string;
+                data: Record<string, unknown>;
+              };
+              const allowedEvents = [
+                "review:resolve-started",
+                "review:resolve-thread-done",
+                "review:resolve-completed",
+                "review:resolve-failed",
+              ];
+              if (!allowedEvents.includes(event)) {
+                res.writeHead(400, { "Content-Type": "application/json" });
+                res.end(JSON.stringify({ error: "Invalid event type" }));
+                return;
+              }
+              server.ws.send({ type: "custom", event, data });
+              res.writeHead(200, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ ok: true }));
+              return;
+            }
 
             if (req.method === "GET" && routePath === "/worktrees") {
               try {
@@ -1336,7 +1445,7 @@ export default defineConfig({
                     sessionFilePath,
                     "code",
                     featureId,
-                    openThreads.length,
+                    openThreads,
                   );
                 }
                 return;
@@ -1449,7 +1558,12 @@ export default defineConfig({
                 const rawBody = await readBody(req);
                 const session = JSON.parse(rawBody) as {
                   verdict?: string | null;
-                  threads?: Array<{ status: string }>;
+                  threads?: Array<{
+                    id: string;
+                    status: string;
+                    filePath?: string;
+                    line?: number;
+                  }>;
                 };
 
                 // Read previous verdict before overwriting
@@ -1484,7 +1598,7 @@ export default defineConfig({
                     specSessionFilePath,
                     "spec",
                     featureId,
-                    openSpecThreads.length,
+                    openSpecThreads,
                   );
                 }
                 return;
