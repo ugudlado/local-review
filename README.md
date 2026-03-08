@@ -70,19 +70,28 @@ The `review-resolver` subagent processes each thread independently, deciding whe
 
 4. **See replies** — Refresh the UI to view Claude's responses inline
 
+## Architecture
+
+The plugin ships with two apps:
+
+- **`apps/server`** — Standalone Hono server (REST API + WebSocket). Built with esbuild into a single bundled `dist/index.js` for zero-install plugin support.
+- **`apps/ui`** — React frontend (Vite + Tailwind). Built dist committed to git, served as static files by the server.
+
+The `SessionStart` hook auto-starts the server via `node apps/server/dist/index.js` — no `pnpm install` or build step needed after plugin installation.
+
 ## Development
 
 ```bash
-git clone https://github.com/anthropics/local-review.git
+git clone https://github.com/ugudlado/local-review.git
 cd local-review
 pnpm install
-pnpm -C apps/ui dev
+pnpm dev                      # Start server (tsx watch mode)
+pnpm -C apps/ui dev           # Start Vite dev server (HMR for UI work)
 ```
 
-Opens the UI at `http://localhost:37003` with the backend on `http://localhost:37003` (same port, Vite plugin middleware handles API routes).
-
 ```bash
-pnpm -C apps/ui build         # Build for production
+pnpm -C apps/server build     # Rebuild server bundle (esbuild)
+pnpm -C apps/ui build         # Build UI for production
 pnpm -C apps/ui test:unit     # Run unit tests
 pnpm type-check               # Type-check all workspaces
 ```
@@ -92,9 +101,10 @@ For more development details (workspace commands, architecture, gotchas), see [C
 ## Contributing
 
 1. Fork the repo and create a feature branch
-2. `pnpm install && pnpm -C apps/ui dev`
+2. `pnpm install && pnpm dev`
 3. Make your changes — validate with `pnpm type-check`
-4. Open a pull request
+4. Rebuild server if changed: `pnpm -C apps/server build`
+5. Open a pull request
 
 ## License
 
