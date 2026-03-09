@@ -12,3 +12,5 @@ Initial release.
 - Feature dashboard, spec review, and task board views
 - Session persistence to `.review/sessions/*.json`
 - `/local-review:open` and `/local-review:resolve` slash commands
+- Keyboard-driven code review navigation — arrow keys, j/k thread cycling, r/o resolve/reopen, Ctrl+K file search, ? help modal
+- OpenSpec configuration and schema for spec-driven development workflow
