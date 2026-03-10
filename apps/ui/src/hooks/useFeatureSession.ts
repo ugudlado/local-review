@@ -55,7 +55,7 @@ export interface UseFeatureSessionReturn<T extends SessionBase> {
   addThread: (thread: ReviewThread) => Promise<void>;
   patchThread: (
     threadId: string,
-    patch: { status?: string; messages?: ReviewMessage[] },
+    patch: { status?: string; severity?: string; messages?: ReviewMessage[] },
   ) => Promise<void>;
   setVerdict: (verdict: "approved" | "changes_requested") => Promise<void>;
   deleteSession: () => Promise<void>;
@@ -195,7 +195,7 @@ export function useFeatureSession<T extends SessionBase>(
   const patchThread = useCallback(
     async (
       threadId: string,
-      patch: { status?: string; messages?: ReviewMessage[] },
+      patch: { status?: string; severity?: string; messages?: ReviewMessage[] },
     ): Promise<void> => {
       const fid = featureIdRef.current;
       if (!fid) return;
@@ -206,6 +206,9 @@ export function useFeatureSession<T extends SessionBase>(
         const apiPatch: ThreadPatch = {};
         if (patch.status) {
           apiPatch.status = patch.status as ThreadPatch["status"];
+        }
+        if (patch.severity) {
+          apiPatch.severity = patch.severity;
         }
         if (patch.messages) {
           apiPatch.messages = patch.messages;

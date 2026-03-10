@@ -121,6 +121,8 @@ export interface SpecRendererProps {
     threadId: string,
     status: "open" | "resolved" | "approved",
   ) => void;
+  /** Called when a thread's severity changes inline */
+  onSeverityChange?: (threadId: string, severity: string) => void;
   /** Called when the inline compose box submits */
   onComposeSubmit?: (text: string) => void;
   /** Called when the inline compose box is cancelled */
@@ -186,6 +188,7 @@ export function SpecRenderer({
   onNavigateToBlock: _onNavigateToBlock,
   onReply,
   onThreadStatusChange,
+  onSeverityChange,
   onComposeSubmit,
   onComposeCancel,
   composingSelectedText,
@@ -448,6 +451,7 @@ export function SpecRenderer({
       composingBlockIndex,
       onReply,
       onThreadStatusChange,
+      onSeverityChange,
       onComposeSubmit:
         composingBlockIndex !== undefined ? onComposeSubmit : undefined,
       onComposeCancel:
@@ -464,6 +468,7 @@ export function SpecRenderer({
       composingBlockIndex,
       onReply,
       onThreadStatusChange,
+      onSeverityChange,
       onComposeSubmit,
       onComposeCancel,
       composingSelectedText,

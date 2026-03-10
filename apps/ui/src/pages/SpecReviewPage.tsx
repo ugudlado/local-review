@@ -11,7 +11,6 @@ import {
   AuthorType,
   type SpecBlockAnchor,
   type ReviewThread,
-  type ThreadSeverity,
 } from "../types/sessions";
 import { SpecSkeleton } from "../components/shared/Skeleton";
 import { CommandPalette } from "../components/shared/CommandPalette";
@@ -98,14 +97,14 @@ export default function SpecReviewPage() {
   }, []);
 
   const handleComposeSubmit = useCallback(
-    (text: string, severity?: ThreadSeverity) => {
+    (text: string) => {
       if (!composingAnchor) return;
 
       const newThread: ReviewThread = {
         id: crypto.randomUUID(),
         anchor: composingAnchor,
         status: "open",
-        severity,
+        severity: "improvement", // auto-triage will reclassify
         messages: [
           {
             id: crypto.randomUUID(),
@@ -152,6 +151,13 @@ export default function SpecReviewPage() {
   const handleThreadStatusChange = useCallback(
     (threadId: string, status: "open" | "resolved" | "approved") => {
       void patchThread(threadId, { status });
+    },
+    [patchThread],
+  );
+
+  const handleSeverityChange = useCallback(
+    (threadId: string, severity: string) => {
+      void patchThread(threadId, { severity });
     },
     [patchThread],
   );
@@ -635,6 +641,7 @@ export default function SpecReviewPage() {
             onNavigateToBlock={handleOutlineNavigate}
             onReply={handleReply}
             onThreadStatusChange={handleThreadStatusChange}
+            onSeverityChange={handleSeverityChange}
             onComposeSubmit={handleComposeSubmit}
             onComposeCancel={handleComposeCancel}
             composingSelectedText={composingAnchor?.selectedText}

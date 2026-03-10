@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ComposeWidget } from "./ThreadWidget";
-import type { DiffLineAnchor, ThreadSeverity } from "../../types/sessions";
+import type { DiffLineAnchor } from "../../types/sessions";
 
 export interface SelectionComposePortalProps {
   /** The scrollable container that holds the diff table. */
@@ -20,11 +20,7 @@ export interface SelectionComposePortalProps {
   side: "old" | "new";
   filePath: string;
   selectedText: string;
-  onSubmit: (
-    anchor: DiffLineAnchor,
-    text: string,
-    severity?: ThreadSeverity,
-  ) => void;
+  onSubmit: (anchor: DiffLineAnchor, text: string) => void;
   onClose: () => void;
 }
 

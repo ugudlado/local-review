@@ -3,12 +3,14 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   AuthorType,
+  THREAD_SEVERITY,
   type ReviewMessage,
   type ReviewThread as SessionsReviewThread,
   type ThreadAnchor,
   type ThreadSeverity,
 } from "../../types/sessions";
 import type { ReviewThread as ApiReviewThread } from "../../services/localReviewApi";
+import { lineLabel } from "../../utils/diffUtils";
 
 const remarkPlugins = [remarkGfm];
 
@@ -33,10 +35,7 @@ export type AnyReviewThread = SessionsReviewThread | ApiReviewThread;
 export function anchorLabel(anchor: ThreadAnchor | undefined): string {
   if (!anchor) return "General";
   if (anchor.type === "diff-line") {
-    const range =
-      anchor.lineEnd && anchor.lineEnd !== anchor.line
-        ? `L${anchor.line}-L${anchor.lineEnd}`
-        : `L${anchor.line}`;
+    const range = lineLabel(anchor.line, anchor.lineEnd);
     return `${anchor.path} ${range}`;
   }
   // Spec block anchor
@@ -52,11 +51,7 @@ function threadLabel(thread: AnyReviewThread): string {
     return anchorLabel(thread.anchor);
   }
   if ("filePath" in thread) {
-    const lineEnd = thread.lineEnd;
-    const range =
-      lineEnd && lineEnd !== thread.line
-        ? `L${thread.line}-L${lineEnd}`
-        : `L${thread.line}`;
+    const range = lineLabel(thread.line, thread.lineEnd);
     return `${thread.filePath} ${range}`;
   }
   return "Thread";
@@ -101,26 +96,33 @@ const severityConfig: Record<
   ThreadSeverity,
   { bg: string; text: string; dot: string }
 > = {
-  blocking: {
-    bg: "bg-[var(--accent-amber-dim)]",
-    text: "text-[var(--accent-amber)]",
-    dot: "bg-[var(--accent-amber)]",
+  [THREAD_SEVERITY.Critical]: {
+    bg: "bg-[var(--accent-rose-dim)]",
+    text: "text-[var(--accent-rose)]",
+    dot: "bg-[var(--accent-rose)]",
   },
-  suggestion: {
+  [THREAD_SEVERITY.Improvement]: {
     bg: "bg-[var(--accent-blue-dim)]",
     text: "text-[var(--accent-blue)]",
     dot: "bg-[var(--accent-blue)]",
   },
-  nitpick: {
+  [THREAD_SEVERITY.Style]: {
     bg: "bg-[var(--canvas-overlay)]",
     text: "text-[var(--ink-faint)]",
     dot: "bg-[var(--ink-faint)]",
   },
+  [THREAD_SEVERITY.Question]: {
+    bg: "bg-[var(--accent-amber-dim)]",
+    text: "text-[var(--accent-amber)]",
+    dot: "bg-[var(--accent-amber)]",
+  },
 };
 
-function SeverityBadge({ severity }: { severity?: ThreadSeverity }) {
+function SeverityBadge({ severity }: { severity?: ThreadSeverity | string }) {
   if (!severity) return null;
-  const cfg = severityConfig[severity];
+  const cfg =
+    severityConfig[severity as ThreadSeverity] ??
+    severityConfig[THREAD_SEVERITY.Improvement];
   return (
     <span
       className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium ${cfg.bg} ${cfg.text}`}
@@ -128,6 +130,78 @@ function SeverityBadge({ severity }: { severity?: ThreadSeverity }) {
       <span className={`h-1 w-1 rounded-full ${cfg.dot}`} />
       {severity}
     </span>
+  );
+}
+
+function formatModel(model: string): string {
+  if (model.includes("sonnet")) return "Sonnet";
+  if (model.includes("opus")) return "Opus";
+  if (model.includes("haiku")) return "Haiku";
+  return model;
+}
+
+function AnalyticsLabels({ labels }: { labels?: Record<string, string> }) {
+  if (!labels || Object.keys(labels).length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1">
+      {labels.severity && (
+        <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[9px] font-medium text-blue-300">
+          {labels.severity === "improvement"
+            ? "Improvement"
+            : labels.severity === "critical"
+              ? "Critical"
+              : labels.severity === "style"
+                ? "Style"
+                : labels.severity}
+        </span>
+      )}
+      {labels.model && (
+        <span className="rounded bg-indigo-500/20 px-1.5 py-0.5 text-[9px] font-medium text-indigo-300">
+          {formatModel(labels.model)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+const SEVERITY_OPTIONS: ThreadSeverity[] = [
+  THREAD_SEVERITY.Critical,
+  THREAD_SEVERITY.Improvement,
+  THREAD_SEVERITY.Style,
+  THREAD_SEVERITY.Question,
+];
+
+function SeveritySelector({
+  current,
+  onChange,
+}: {
+  current?: ThreadSeverity | string;
+  onChange: (severity: ThreadSeverity) => void;
+}) {
+  const activeSeverity =
+    (current as ThreadSeverity) ?? THREAD_SEVERITY.Improvement;
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-[10px] text-[var(--ink-faint)]">Severity:</span>
+      {SEVERITY_OPTIONS.map((s) => {
+        const cfg = severityConfig[s];
+        const isActive = activeSeverity === s;
+        return (
+          <button
+            key={s}
+            type="button"
+            onClick={() => onChange(s)}
+            className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-all ${
+              isActive
+                ? `${cfg.bg} ${cfg.text}`
+                : "text-[var(--ink-ghost)] hover:text-[var(--ink-muted)]"
+            }`}
+          >
+            {s}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -282,6 +356,8 @@ export interface ThreadCardProps {
     threadId: string,
     status: "open" | "resolved" | "approved",
   ) => void;
+  /** Callback when reviewer changes thread severity via the inline selector. */
+  onSeverityChange?: (threadId: string, severity: ThreadSeverity) => void;
   isExpanded?: boolean;
   /** When true, shows a pulsing indicator that this thread is being resolved by Claude. */
   isResolving?: boolean;
@@ -291,6 +367,7 @@ export function ThreadCard({
   thread,
   onReply,
   onStatusChange,
+  onSeverityChange,
   isExpanded: controlledExpanded,
   isResolving = false,
 }: ThreadCardProps) {
@@ -321,51 +398,72 @@ export function ThreadCard({
       <button
         type="button"
         onClick={() => setInternalExpanded((prev) => !prev)}
-        className="hover:bg-[var(--canvas-elevated)]/50 flex w-full items-center gap-2 px-3 py-2 text-left transition-colors"
+        className="hover:bg-[var(--canvas-elevated)]/50 flex w-full flex-col gap-1 px-3 py-2 text-left transition-colors"
       >
-        <StatusDot status={thread.status} />
-        <SeverityBadge
-          severity={"severity" in thread ? thread.severity : undefined}
-        />
-        <span className="min-w-0 truncate text-[11px] text-[var(--ink-muted)]">
-          {threadLabel(thread)}
-        </span>
-        <span className="ml-auto flex items-center gap-1.5">
-          <StatusLabel status={thread.status} />
-          {isResolving && (
-            <span className="inline-flex items-center gap-1 rounded bg-indigo-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-400">
-              <svg
-                className="h-2.5 w-2.5 animate-spin"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path strokeLinecap="round" d="M12 3v3m0 12v3M3 12h3m12 0h3" />
-              </svg>
-              resolving
-            </span>
-          )}
-          <span className="font-mono text-[10px] text-[var(--ink-ghost)]">
-            {thread.messages.length}
+        <div className="flex items-center gap-2">
+          <StatusDot status={thread.status} />
+          <SeverityBadge
+            severity={"severity" in thread ? thread.severity : undefined}
+          />
+          <span className="min-w-0 truncate text-[11px] text-[var(--ink-muted)]">
+            {threadLabel(thread)}
           </span>
-          <svg
-            width="10"
-            height="10"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-            className={`text-[var(--ink-ghost)] transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
-          >
-            <path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z" />
-          </svg>
-        </span>
+          <span className="ml-auto flex items-center gap-1.5">
+            <StatusLabel status={thread.status} />
+            {isResolving && (
+              <span className="inline-flex items-center gap-1 rounded bg-indigo-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-400">
+                <svg
+                  className="h-2.5 w-2.5 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    d="M12 3v3m0 12v3M3 12h3m12 0h3"
+                  />
+                </svg>
+                resolving
+              </span>
+            )}
+            <span className="font-mono text-[10px] text-[var(--ink-ghost)]">
+              {thread.messages.length}
+            </span>
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              className={`text-[var(--ink-ghost)] transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+            >
+              <path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z" />
+            </svg>
+          </span>
+        </div>
       </button>
 
       {/* Expanded content */}
       {isExpanded && (
         <div className="border-t border-[var(--border-subtle)]">
+          {/* Analytics labels for resolved threads */}
+          {(thread.status === "resolved" || thread.status === "approved") &&
+            "labels" in thread &&
+            thread.labels &&
+            Object.keys(thread.labels).length > 0 && (
+              <div className="bg-[var(--canvas)]/30 px-3 py-2">
+                <AnalyticsLabels labels={thread.labels} />
+              </div>
+            )}
+
           {/* Status actions bar */}
-          <div className="bg-[var(--canvas)]/50 flex items-center px-3 py-1.5">
+          <div className="bg-[var(--canvas)]/50 flex items-center gap-2 px-3 py-1.5">
+            {onSeverityChange && (
+              <SeveritySelector
+                current={"severity" in thread ? thread.severity : undefined}
+                onChange={(sev) => onSeverityChange(thread.id, sev)}
+              />
+            )}
             <StatusActions
               currentStatus={thread.status}
               onStatusChange={handleStatusChange}

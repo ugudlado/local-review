@@ -21,6 +21,7 @@ export interface DiffInlineThreadProps {
     threadId: string,
     status: "open" | "resolved" | "approved",
   ) => void;
+  onSeverityChange?: (threadId: string, severity: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -80,8 +81,10 @@ function SeverityBadge({
   if (!severity || isResolved) return null;
 
   const severityStyles: Record<string, string> = {
-    blocking: "bg-[var(--accent-amber)]/15 text-[var(--accent-amber)]",
-    suggestion: "bg-[var(--accent-blue)]/15 text-[var(--accent-blue)]",
+    critical: "bg-[var(--accent-rose)]/15 text-[var(--accent-rose)]",
+    improvement: "bg-[var(--accent-blue)]/15 text-[var(--accent-blue)]",
+    style: "bg-[var(--canvas-overlay)] text-[var(--ink-muted)]",
+    question: "bg-[var(--accent-amber)]/15 text-[var(--accent-amber)]",
   };
   const styles =
     severityStyles[severity] ??
@@ -154,10 +157,18 @@ function ReplyRow({ message }: { message: ReviewMessage }) {
 // DiffInlineThread — main export
 // ---------------------------------------------------------------------------
 
+const SEVERITY_OPTIONS = [
+  "critical",
+  "improvement",
+  "style",
+  "question",
+] as const;
+
 export function DiffInlineThread({
   thread,
   onReply,
   onStatusChange,
+  onSeverityChange,
 }: DiffInlineThreadProps) {
   const [draft, setDraft] = useState("");
   const [showReplyBox, setShowReplyBox] = useState(false);
@@ -168,26 +179,26 @@ export function DiffInlineThread({
 
   // Determine severity-based styles
   const severity = thread.severity;
-  const isBlocking = severity === "blocking" && !isResolved;
+  const isCritical = severity === "critical" && !isResolved;
 
   // Left border color
   let borderColor = "var(--accent-blue)";
   if (isResolved) borderColor = "var(--ink-ghost)";
-  else if (isBlocking) borderColor = "var(--accent-amber)";
+  else if (isCritical) borderColor = "var(--accent-rose)";
 
   // Background
-  const bgStyle: React.CSSProperties = isBlocking
+  const bgStyle: React.CSSProperties = isCritical
     ? { background: "linear-gradient(to right, #25221e, #222228)" }
     : {};
   let bgColor = "var(--canvas-elevated)";
   if (isResolved) bgColor = "var(--canvas-raised)";
-  else if (isBlocking) bgColor = "transparent";
+  else if (isCritical) bgColor = "transparent";
 
   // Arrow color matches card background
   let arrowColor = "#2a2a31"; // canvas-elevated
   if (isResolved)
     arrowColor = "#222228"; // canvas-raised
-  else if (isBlocking) arrowColor = "#25221e"; // warm gradient start
+  else if (isCritical) arrowColor = "#25221e"; // warm gradient start
 
   // Handle reply submit
   const handleReplySubmit = () => {
@@ -279,6 +290,20 @@ export function DiffInlineThread({
               >
                 {isResolved ? "Reopen" : "Resolve"}
               </button>
+            )}
+            {onSeverityChange && !isResolved && (
+              <select
+                value={severity ?? "improvement"}
+                onChange={(e) => onSeverityChange(thread.id, e.target.value)}
+                className="rounded bg-transparent px-1 py-0.5 text-[11px] outline-none transition-colors hover:bg-[var(--canvas-overlay)]"
+                style={{ color: "var(--ink-muted)" }}
+              >
+                {SEVERITY_OPTIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
         </div>

@@ -258,6 +258,16 @@ export function ReviewPage({
     usePortal?: boolean;
   } | null>(null);
 
+  // Derive featureId from the selected source branch when not provided via props.
+  // Convention: branch "feature/FEATURE-ID" → featureId "FEATURE-ID".
+  const effectiveFeatureId = useMemo(() => {
+    if (featureId) return featureId;
+    if (sourceBranch?.startsWith("feature/")) {
+      return sourceBranch.replace("feature/", "");
+    }
+    return "";
+  }, [featureId, sourceBranch]);
+
   const [diffMode, setDiffMode] = useState<"split" | "unified">("unified");
   const [paletteOpen, setPaletteOpen] = useState(false);
 
@@ -290,7 +300,7 @@ export function ReviewPage({
     reviewVerdict,
     setReviewVerdict,
   } = useReviewSession({
-    featureId: featureId ?? "",
+    featureId: effectiveFeatureId,
     sourceBranch,
     targetBranch,
     selectedWorktree,
@@ -331,6 +341,8 @@ export function ReviewPage({
           side: thread.side,
         },
         status: thread.status,
+        severity:
+          (thread.severity as SessionReviewThread["severity"]) ?? "improvement",
         messages: thread.messages,
         lastUpdatedAt: thread.lastUpdatedAt,
       };
@@ -553,6 +565,19 @@ export function ReviewPage({
     });
   }, []);
 
+  /** Called when reviewer changes thread severity via inline selector. */
+  const handleSeverityChange = useCallback(
+    (threadId: string, severity: string) => {
+      const now = new Date().toISOString();
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.id === threadId ? { ...t, severity, lastUpdatedAt: now } : t,
+        ),
+      );
+    },
+    [setThreads],
+  );
+
   /** Called when the compose widget submits a new thread. */
   const handleComposeSubmit = useCallback(
     (
@@ -585,6 +610,7 @@ export function ReviewPage({
           anchor.side,
         ),
         status: "open",
+        severity: "improvement", // auto-triage will reclassify
         messages: [message],
         lastUpdatedAt: now,
       };
@@ -684,9 +710,7 @@ export function ReviewPage({
     setReviewVerdict(REVIEW_VERDICT.Approved);
   };
 
-  const handleRequestChanges = () => {
-    setReviewVerdict(REVIEW_VERDICT.ChangesRequested);
-    // Trigger resolve directly — the daemon is already warm from cold-start
+  const triggerResolve = () => {
     if (featureId) {
       featureApi.triggerResolve(featureId, "code").catch((err) => {
         setStatus(
@@ -694,6 +718,11 @@ export function ReviewPage({
         );
       });
     }
+  };
+
+  const handleRequestChanges = () => {
+    setReviewVerdict(REVIEW_VERDICT.ChangesRequested);
+    triggerResolve();
   };
 
   // Inject verdict into FeatureNavBar when embedded
@@ -710,6 +739,8 @@ export function ReviewPage({
             else handleRequestChanges();
           }}
           openThreadCount={pendingCount}
+          featureId={featureId ?? undefined}
+          onRetryResolve={triggerResolve}
         />
       </div>,
     );
@@ -885,6 +916,8 @@ export function ReviewPage({
                 else handleRequestChanges();
               }}
               openThreadCount={pendingCount}
+              featureId={featureId ?? undefined}
+              onRetryResolve={triggerResolve}
             />
           </div>
         )}
@@ -1018,6 +1051,7 @@ export function ReviewPage({
                             onStatusChange={(threadId, newStatus) =>
                               updateThreadStatus(threadId, newStatus)
                             }
+                            onSeverityChange={handleSeverityChange}
                           />
                         </div>
                       ))}

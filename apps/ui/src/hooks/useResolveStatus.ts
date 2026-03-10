@@ -131,12 +131,13 @@ export function useResolveStatus(): ResolveStatus {
 
     const unsubFailed = wsOn("review:resolve-failed", (raw) => {
       const data = raw as { featureId: string; error: string };
+      clearFadeTimer();
       setStatus({
         state: "failed",
         featureId: data.featureId,
         error: data.error,
       });
-      startFadeTimer();
+      // No fade timer — failure persists until user retries or new resolve starts
     });
 
     return () => {
