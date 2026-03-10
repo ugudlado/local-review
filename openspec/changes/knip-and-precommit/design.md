@@ -13,12 +13,14 @@ The project is a pnpm monorepo with two workspaces (`apps/ui` — Vite/React, `a
 - `pnpm type-check` added to pre-commit hook
 - Server ESLint with TypeScript-aware rules
 - Server files covered in lint-staged
+- Both UI and server ESLint upgraded to `recommendedTypeChecked` with promise rules
 
 ### Non-Goals
 
 - Knip in the pre-commit hot path
 - Strict "zero warnings" enforcement (informational output is fine)
 - Custom knip plugins or reporters
+- Enabling `no-unsafe-*` rules (too noisy; type safety covered by `tsc`)
 
 ## Technical Design
 
@@ -79,18 +81,105 @@ pnpm type-check
 
 `pnpm type-check` runs `tsc --noEmit` across both `tsconfig.app.json` and `tsconfig.node.json` (UI) plus the server tsconfig. All type errors block the commit.
 
+**`apps/ui/eslint.config.js` — updated rules section**
+
+Upgrade from `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` and add `projectService: true`. Add type-unaware and type-aware rule additions, disable noisy unsafe rules:
+
+```js
+export default tseslint.config(
+  { ignores: ["dist", "node_modules"] },
+  {
+    extends: [
+      js.configs.recommended,
+      ...tseslint.configs.recommendedTypeChecked,
+    ],
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        projectService: true, // auto-discovers tsconfig.json files
+      },
+    },
+    plugins: { "react-hooks": reactHooks, "react-refresh": reactRefresh },
+    rules: {
+      // --- React ---
+      ...reactHooks.configs.recommended.rules,
+      "react-hooks/set-state-in-effect": "off",
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true },
+      ],
+
+      // --- Dead code ---
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+      "no-unreachable": "error",
+
+      // --- Code quality ---
+      "no-nested-ternary": "warn",
+      eqeqeq: ["error", "always"],
+      "no-console": ["warn", { allow: ["warn", "error"] }],
+
+      // --- TypeScript (type-unaware) ---
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/consistent-type-imports": [
+        "warn",
+        { prefer: "type-imports" },
+      ],
+      "@typescript-eslint/no-non-null-assertion": "warn",
+      "@typescript-eslint/prefer-nullish-coalescing": "warn",
+      "@typescript-eslint/prefer-optional-chain": "warn",
+      "@typescript-eslint/no-duplicate-enum-values": "error",
+
+      // --- TypeScript (type-aware, from recommendedTypeChecked) ---
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/require-await": "warn",
+      "@typescript-eslint/no-unnecessary-type-assertion": "warn",
+
+      // --- Disable noisy rules (type safety covered by tsc) ---
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
+    },
+  },
+);
+```
+
 **`apps/server/eslint.config.js`**
+
+Same `recommendedTypeChecked` upgrade. No React plugins. Uses same rule set minus React-specific ones:
 
 ```js
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  js.configs.recommended,
-  ...tseslint.configs.recommended,
+  { ignores: ["dist/**"] },
   {
+    extends: [
+      js.configs.recommended,
+      ...tseslint.configs.recommendedTypeChecked,
+    ],
+    files: ["**/*.ts"],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+      },
+    },
     rules: {
-      "@typescript-eslint/no-explicit-any": "warn",
+      // --- Dead code ---
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
@@ -99,15 +188,34 @@ export default tseslint.config(
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+
+      // --- TypeScript (type-unaware) ---
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-non-null-assertion": "warn",
+      "@typescript-eslint/prefer-nullish-coalescing": "warn",
+      "@typescript-eslint/prefer-optional-chain": "warn",
+      "@typescript-eslint/no-duplicate-enum-values": "error",
+
+      // --- TypeScript (type-aware) ---
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/no-misused-promises": "error",
+      "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/require-await": "warn",
+      "@typescript-eslint/no-unnecessary-type-assertion": "warn",
+
+      // --- Disable noisy unsafe rules ---
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/restrict-template-expressions": "off",
     },
-  },
-  {
-    ignores: ["dist/**"],
   },
 );
 ```
 
-Mirrors the pragmatic style of `apps/ui/eslint.config.js`. No type-aware rules (no `parserOptions.project`) to keep it fast — type errors are caught by `tsc` in pre-commit anyway.
+**Why `projectService: true` instead of `project: './tsconfig.json'`**: The modern API (typescript-eslint v8+) uses `projectService` which auto-discovers tsconfig files and is faster. No need to specify paths manually in a monorepo.
 
 ### Data Flow
 
@@ -116,9 +224,11 @@ git commit
     │
     ▼
 lint-staged
-    ├── apps/ui/src/**/*.{ts,tsx}   → ESLint (UI) + Prettier
-    ├── apps/server/src/**/*.ts     → ESLint (server) + Prettier  [NEW]
+    ├── apps/ui/src/**/*.{ts,tsx}   → ESLint (type-aware) + Prettier  [UPGRADED]
+    ├── apps/server/src/**/*.ts     → ESLint (type-aware) + Prettier  [NEW]
     └── **/*.{json,css,html,md}    → Prettier
+         catches: no-floating-promises, no-misused-promises,
+                  await-thenable, prefer-optional-chain, etc.
     │
     ▼
 pnpm type-check                                                    [NEW]
@@ -145,12 +255,13 @@ pnpm knip                                                          [NEW]
 
 ## Risks & Trade-offs
 
-| Risk                                             | Mitigation                                                           |
-| ------------------------------------------------ | -------------------------------------------------------------------- |
-| Pre-commit now ~5–8s slower                      | Acceptable — catches real errors. Type-check is the main addition.   |
-| Knip false positives on `apps/ui/src/server/`    | Covered by ignore rule                                               |
-| Server ESLint rules too strict for Hono patterns | Start with minimal rules; tighten incrementally                      |
-| `pnpm type-check` slow on first run (cold cache) | tsc incremental cache (`tsconfig.tsbuildinfo`) speeds up repeat runs |
+| Risk                                                        | Mitigation                                                           |
+| ----------------------------------------------------------- | -------------------------------------------------------------------- |
+| Pre-commit now ~8–12s slower (type-aware lint + type-check) | Acceptable — catches real promise/type bugs agents commonly produce  |
+| Knip false positives on `apps/ui/src/server/`               | Covered by ignore rule                                               |
+| `no-floating-promises` fires on existing UI code            | T007-equivalent pass needed for UI too — triage and fix or suppress  |
+| `pnpm type-check` slow on first run (cold cache)            | tsc incremental cache (`tsconfig.tsbuildinfo`) speeds up repeat runs |
+| `projectService: true` slower than `project: path`          | Acceptable tradeoff — auto-discovery is simpler in a monorepo        |
 
 ## Open Questions
 

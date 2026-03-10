@@ -63,20 +63,56 @@
 - **Files**: `apps/server/src/**/*.ts` (as needed)
 - **Depends on**: T005, T006
 
-## Phase 4: Documentation + Verification
+## Phase 4: Type-aware ESLint Hardening
 
-### T008 — Update CLAUDE.md with new commands
+### T008 — Upgrade UI ESLint to recommendedTypeChecked
+
+- In `apps/ui/eslint.config.js`, replace `tseslint.configs.recommended` with `tseslint.configs.recommendedTypeChecked`
+- Add `parserOptions: { projectService: true }` to `languageOptions`
+- Add new rules per design: `no-floating-promises` (error), `no-misused-promises` (error), `await-thenable` (error), `require-await` (warn), `no-unnecessary-type-assertion` (warn)
+- Add type-unaware additions: `no-non-null-assertion` (warn), `prefer-nullish-coalescing` (warn), `prefer-optional-chain` (warn), `no-duplicate-enum-values` (error)
+- Disable noisy unsafe rules: `no-unsafe-assignment`, `no-unsafe-member-access`, `no-unsafe-argument`, `no-unsafe-return`, `no-unsafe-call`, `restrict-template-expressions` → all `"off"`
+- **Files**: `apps/ui/eslint.config.js`
+
+### T009 — Fix type-aware lint errors in existing UI code
+
+- Run `pnpm -C apps/ui lint` and triage errors surfaced by new type-aware rules
+- Focus on: unawaited promises in event handlers and useEffect callbacks
+- Use `void asyncFn()` to explicitly discard promise where intentional (satisfies `no-floating-promises`)
+- **Files**: `apps/ui/src/**/*.{ts,tsx}` (as needed)
+- **Depends on**: T008
+
+### T010 — Upgrade server ESLint to recommendedTypeChecked
+
+- In `apps/server/eslint.config.js` (created in T005), upgrade to `recommendedTypeChecked`
+- Add same rule set as UI (minus React-specific rules)
+- Add `parserOptions: { projectService: true }`
+- **Files**: `apps/server/eslint.config.js`
+- **Depends on**: T005, T008 (consistency — do UI first)
+
+### T011 — Fix type-aware lint errors in existing server code
+
+- Run `pnpm -C apps/server lint` and fix errors from type-aware rules
+- Likely: unawaited Hono route handlers, unneeded type assertions
+- **Files**: `apps/server/src/**/*.ts` (as needed)
+- **Depends on**: T010
+
+## Phase 5: Documentation + Verification
+
+### T012 — Update CLAUDE.md with new commands
 
 - Add `pnpm knip` and `pnpm knip:fix` to the Commands section
 - Note that knip is run at feature-complete time (not pre-commit)
-- Add server lint to the Code Quality section
+- Add `pnpm lint` (both workspaces) to the Code Quality section
+- Note type-aware ESLint rules and the key ones to know (`no-floating-promises`)
 - **Files**: `CLAUDE.md`
 
-### T009 — End-to-end verification
+### T013 — End-to-end verification
 
 - Stage a file with a type error → confirm pre-commit blocks
-- Stage a server file with `any` type → confirm lint-staged blocks
+- Stage a file with an unawaited promise → confirm `no-floating-promises` blocks
+- Stage a server file with unused variable → confirm lint-staged blocks
 - Run `pnpm knip` → confirm both workspaces scanned, no false positives
-- Run `pnpm knip:fix` in dry-run mode → confirm it would remove flagged exports
+- Run `pnpm knip:fix` → confirm it would remove flagged exports
 - **Files**: none (verification only)
-- **Depends on**: T001–T008
+- **Depends on**: T001–T012
