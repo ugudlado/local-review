@@ -6,7 +6,7 @@ import {
   useParams,
   useSearchParams,
 } from "react-router-dom";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Dashboard from "./pages/Dashboard";
 import SpecReviewPage from "./pages/SpecReviewPage";
 import TasksPage from "./pages/TasksPage";
@@ -88,6 +88,18 @@ function StandaloneReviewPage() {
   const worktree = params.get("worktree") ?? undefined;
   const { features } = useFeatures();
 
+  // Fetch the server's default worktree (detects which worktree the server runs from)
+  const [serverWorktree, setServerWorktree] = useState<string | null>(null);
+  useEffect(() => {
+    if (source || worktree) return; // URL params take precedence
+    void fetch("/api/context")
+      .then((r) => r.json())
+      .then((ctx: { currentWorktree?: string }) => {
+        if (ctx.currentWorktree) setServerWorktree(ctx.currentWorktree);
+      })
+      .catch(() => {});
+  }, [source, worktree]);
+
   // Try to find a feature whose branch matches the source param or worktree path
   const matchedFeature = useMemo(() => {
     if (!features.length) return null;
@@ -99,11 +111,16 @@ function StandaloneReviewPage() {
       const byWorktree = features.find((f) => f.worktreePath === worktree);
       if (byWorktree) return byWorktree;
     }
+    // Match server's current worktree (handles running from a feature worktree)
+    if (serverWorktree) {
+      const byServer = features.find((f) => f.worktreePath === serverWorktree);
+      if (byServer) return byServer;
+    }
     // Fallback: if only one non-main feature exists, use it
     const nonMain = features.filter((f) => f.branch !== "main");
     if (nonMain.length === 1) return nonMain[0];
     return null;
-  }, [features, source, worktree]);
+  }, [features, source, worktree, serverWorktree]);
 
   return (
     <ReviewPage
