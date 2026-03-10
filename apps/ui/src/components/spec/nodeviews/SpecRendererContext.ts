@@ -27,6 +27,7 @@ export interface SpecRendererContextValue {
     threadId: string,
     status: "open" | "resolved" | "approved",
   ) => void;
+  onSeverityChange?: (threadId: string, severity: string) => void;
   onComposeSubmit?: (text: string) => void;
   onComposeCancel?: () => void;
   composingSelectedText?: string;

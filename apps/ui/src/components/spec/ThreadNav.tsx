@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import type { ReviewThread, SpecBlockAnchor } from "../../types/sessions";
+import { THREAD_SEVERITY } from "../../types/constants";
 import type { AnchorMap } from "../../utils/specAnchoring";
 import { relativeTime } from "../../utils/timeFormat";
 
@@ -49,22 +50,27 @@ function ThreadNavCard({
   let dotColor: string;
   if (thread.status === "resolved" || thread.status === "approved") {
     dotColor = "text-accent-emerald";
-  } else if (thread.severity === "blocking") {
-    dotColor = "text-accent-amber";
+  } else if (thread.severity === THREAD_SEVERITY.Critical) {
+    dotColor = "text-accent-rose";
   } else {
     dotColor = "text-accent-blue";
   }
 
-  // Severity badge
+  // Severity badge — show for all severities except default (improvement)
   const showBadge =
     thread.status !== "resolved" &&
     thread.status !== "approved" &&
-    (thread.severity === "blocking" || thread.severity === "suggestion");
+    thread.severity !== undefined &&
+    thread.severity !== THREAD_SEVERITY.Improvement;
 
+  const severityBadgeMap: Record<string, string> = {
+    [THREAD_SEVERITY.Critical]: "bg-accent-rose/15 text-accent-rose",
+    [THREAD_SEVERITY.Style]: "bg-canvas-overlay text-ink-muted",
+    [THREAD_SEVERITY.Question]: "bg-accent-amber/15 text-accent-amber",
+  };
   const badgeClasses =
-    thread.severity === "blocking"
-      ? "bg-accent-amber/15 text-accent-amber"
-      : "bg-accent-blue/15 text-accent-blue";
+    severityBadgeMap[thread.severity ?? ""] ??
+    "bg-accent-blue/15 text-accent-blue";
 
   return (
     <div

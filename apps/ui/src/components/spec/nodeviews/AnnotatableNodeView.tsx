@@ -36,6 +36,7 @@ export function AnnotatableNodeView({
     onCompose,
     onReply,
     onThreadStatusChange,
+    onSeverityChange,
     onComposeSubmit,
     onComposeCancel,
     composingSelectedText,
@@ -149,6 +150,7 @@ export function AnnotatableNodeView({
               thread={thread}
               onReply={onReply}
               onStatusChange={onThreadStatusChange}
+              onSeverityChange={onSeverityChange}
             />
           ))}
         </div>

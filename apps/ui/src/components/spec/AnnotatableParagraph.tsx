@@ -18,6 +18,7 @@ export interface AnnotatableParagraphProps {
     threadId: string,
     status: "open" | "resolved" | "approved",
   ) => void;
+  onSeverityChange?: (threadId: string, severity: string) => void;
   isComposing?: boolean;
   /** Called when the compose box submits */
   onComposeSubmit?: (text: string) => void;
@@ -44,6 +45,7 @@ export function AnnotatableParagraph({
   onCompose,
   onReply,
   onThreadStatusChange,
+  onSeverityChange,
   isComposing = false,
   onComposeSubmit,
   onComposeCancel,
@@ -162,6 +164,7 @@ export function AnnotatableParagraph({
               isResolving={resolvingIds.has(thread.id)}
               onReply={onReply}
               onStatusChange={onThreadStatusChange}
+              onSeverityChange={onSeverityChange}
             />
           ))}
         </div>
