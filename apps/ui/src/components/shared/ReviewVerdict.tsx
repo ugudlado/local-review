@@ -94,6 +94,8 @@ export interface ReviewVerdictProps {
   disabled?: boolean;
   /** Feature ID used to match resolve status events to this session. */
   featureId?: string;
+  /** Callback to re-trigger thread resolution (retry after failure or re-resolve open threads). */
+  onRetryResolve?: () => void;
 }
 
 export function ReviewVerdict({
@@ -102,6 +104,7 @@ export function ReviewVerdict({
   openThreadCount,
   disabled = false,
   featureId,
+  onRetryResolve,
 }: ReviewVerdictProps) {
   const isApproved = verdict === "approved";
   const isChangesRequested = verdict === "changes_requested";
@@ -231,10 +234,38 @@ export function ReviewVerdict({
         </span>
       )}
       {hasFailed && (
-        <span className="text-xs text-red-400" title={resolveStatus.error}>
-          Resolve failed
+        <span className="flex items-center gap-1.5 text-xs text-red-400">
+          <span title={resolveStatus.error}>Resolve failed</span>
+          {onRetryResolve && (
+            <button
+              type="button"
+              onClick={onRetryResolve}
+              className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-medium text-red-300 hover:bg-red-500/25"
+            >
+              Retry
+            </button>
+          )}
         </span>
       )}
+      {/* Re-resolve button: shown when idle with open threads and verdict is changes_requested */}
+      {!isResolving &&
+        !justCompleted &&
+        !hasFailed &&
+        verdict === "changes_requested" &&
+        openThreadCount > 0 &&
+        onRetryResolve && (
+          <button
+            type="button"
+            onClick={onRetryResolve}
+            className="inline-flex items-center gap-1 rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-300 hover:bg-blue-500/25"
+            title={`Re-resolve ${openThreadCount} open thread${openThreadCount === 1 ? "" : "s"}`}
+          >
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 1 1-1.489.178A5.5 5.5 0 0 0 8 2.5Z" />
+            </svg>
+            Resolve {openThreadCount} thread{openThreadCount === 1 ? "" : "s"}
+          </button>
+        )}
       {(showLog ||
         (isResolving &&
           resolveStatus.state === "resolving" &&
