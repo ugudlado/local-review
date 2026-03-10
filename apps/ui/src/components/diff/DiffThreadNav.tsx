@@ -1,14 +1,15 @@
 import { useMemo } from "react";
 import type { ReviewThread } from "../../services/localReviewApi";
-import type { ThreadSeverity } from "../../types/sessions";
+import { THREAD_SEVERITY, type ThreadSeverity } from "../../types/sessions";
 import { relativeTime } from "../../utils/timeFormat";
 import { shortPath, lineLabel } from "../../utils/diffUtils";
 import { useResolveStatus } from "../../hooks/useResolveStatus";
 import { KeyboardHint } from "../shared/KeyboardHint";
+import { SectionLabel } from "../shared/SectionLabel";
 
-/** Extended thread with optional severity (may come from adapted threads). */
-type ThreadWithSeverity = ReviewThread & {
-  severity?: ThreadSeverity;
+/** Extended thread with optional severity (may come from adapted threads or legacy API). */
+type ThreadWithSeverity = Omit<ReviewThread, "severity"> & {
+  severity?: ThreadSeverity | string;
 };
 
 // ---------------------------------------------------------------------------
@@ -49,22 +50,31 @@ function ThreadNavCard({
     dotColor = "text-[var(--accent-blue)] animate-pulse";
   } else if (thread.status === "resolved" || thread.status === "approved") {
     dotColor = "text-[var(--accent-emerald)]";
-  } else if (thread.severity === "blocking") {
-    dotColor = "text-[var(--accent-amber)]";
+  } else if (thread.severity === THREAD_SEVERITY.Critical) {
+    dotColor = "text-[var(--accent-rose)]";
   } else {
     dotColor = "text-[var(--accent-blue)]";
   }
 
-  // Severity badge
+  // Severity badge — show for all severities except default (improvement)
   const showBadge =
     thread.status !== "resolved" &&
     thread.status !== "approved" &&
-    (thread.severity === "blocking" || thread.severity === "suggestion");
+    thread.severity !== undefined &&
+    thread.severity !== null &&
+    thread.severity !== THREAD_SEVERITY.Improvement;
 
+  const severityBadgeClasses: Record<string, string> = {
+    [THREAD_SEVERITY.Critical]:
+      "bg-[var(--accent-rose)]/15 text-[var(--accent-rose)]",
+    [THREAD_SEVERITY.Style]:
+      "bg-[var(--canvas-overlay)] text-[var(--ink-muted)]",
+    [THREAD_SEVERITY.Question]:
+      "bg-[var(--accent-amber)]/15 text-[var(--accent-amber)]",
+  };
   const badgeClasses =
-    thread.severity === "blocking"
-      ? "bg-[var(--accent-amber)]/15 text-[var(--accent-amber)]"
-      : "bg-[var(--accent-blue)]/15 text-[var(--accent-blue)]";
+    severityBadgeClasses[thread.severity ?? ""] ??
+    "bg-[var(--accent-blue)]/15 text-[var(--accent-blue)]";
 
   return (
     <div
@@ -109,6 +119,36 @@ function ThreadNavCard({
         {author && " \u00B7 "}
         {time}
       </p>
+
+      {/* Row 4: analytics labels for resolved threads */}
+      {(thread.status === "resolved" || thread.status === "approved") &&
+        thread.labels &&
+        Object.keys(thread.labels).length > 0 && (
+          <div className="mt-1 flex flex-wrap gap-1">
+            {thread.labels.severity && (
+              <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[8px] font-medium text-blue-300">
+                {thread.labels.severity === "improvement"
+                  ? "Improvement"
+                  : thread.labels.severity === "critical"
+                    ? "Critical"
+                    : thread.labels.severity === "style"
+                      ? "Style"
+                      : thread.labels.severity}
+              </span>
+            )}
+            {thread.labels.model && (
+              <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-[8px] font-medium text-indigo-300">
+                {thread.labels.model.includes("sonnet")
+                  ? "Sonnet"
+                  : thread.labels.model.includes("opus")
+                    ? "Opus"
+                    : thread.labels.model.includes("haiku")
+                      ? "Haiku"
+                      : thread.labels.model}
+              </span>
+            )}
+          </div>
+        )}
     </div>
   );
 }
@@ -116,34 +156,6 @@ function ThreadNavCard({
 // ---------------------------------------------------------------------------
 // DiffThreadNav — slim 240px right panel for quick thread navigation
 // ---------------------------------------------------------------------------
-
-function SectionLabel({
-  label,
-  count,
-  variant,
-}: {
-  label: string;
-  count: number;
-  variant: "open" | "resolved";
-}) {
-  const badgeColors =
-    variant === "open"
-      ? "bg-[var(--accent-amber-dim)] text-[var(--accent-amber)]"
-      : "bg-[var(--accent-emerald-dim)] text-[var(--accent-emerald)]";
-
-  return (
-    <div className="flex items-center gap-2 px-3 py-1.5">
-      <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--ink-muted)]">
-        {label}
-      </span>
-      <span
-        className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${badgeColors}`}
-      >
-        {count}
-      </span>
-    </div>
-  );
-}
 
 export function DiffThreadNav({
   threads,
@@ -210,7 +222,12 @@ export function DiffThreadNav({
       {/* Single scrollable list with Open / Resolved sections */}
       <div className="flex-1 overflow-y-auto">
         {/* Open section */}
-        <SectionLabel label="Open" count={openThreads.length} variant="open" />
+        <SectionLabel
+          label="Open"
+          count={openThreads.length}
+          variant="open"
+          sticky={false}
+        />
         {openThreads.length === 0 ? (
           <p className="px-3 pb-3 text-[12px] text-[var(--ink-ghost)]">
             All threads resolved
@@ -234,6 +251,7 @@ export function DiffThreadNav({
               label="Resolved"
               count={resolvedThreads.length}
               variant="resolved"
+              sticky={false}
             />
             {resolvedThreads.map((thread) => (
               <ThreadNavCard

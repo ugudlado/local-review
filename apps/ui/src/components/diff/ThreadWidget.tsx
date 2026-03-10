@@ -26,11 +26,7 @@ export interface ComposeWidgetProps {
   startLineNumber?: number;
   side: "old" | "new";
   filePath: string;
-  onSubmit: (
-    anchor: DiffLineAnchor,
-    text: string,
-    severity?: ThreadSeverity,
-  ) => void;
+  onSubmit: (anchor: DiffLineAnchor, text: string) => void;
   onClose: () => void;
   /** Quoted text from text selection to show in compose box. */
   quotedText?: string;
@@ -50,7 +46,7 @@ export function ComposeWidget({
   quotedText,
 }: ComposeWidgetProps) {
   const handleSubmit = useCallback(
-    (text: string, severity?: ThreadSeverity) => {
+    (text: string) => {
       const startLine = startLineNumber ?? lineNumber;
       const isRange = startLine !== lineNumber;
       const anchor: DiffLineAnchor = {
@@ -64,7 +60,7 @@ export function ComposeWidget({
         lineEnd: isRange ? lineNumber : undefined,
         side,
       };
-      onSubmit(anchor, text, severity);
+      onSubmit(anchor, text);
     },
     [lineNumber, startLineNumber, side, filePath, onSubmit],
   );
@@ -94,6 +90,7 @@ export interface ThreadDisplayProps {
     threadId: string,
     status: "open" | "resolved" | "approved",
   ) => void;
+  onSeverityChange?: (threadId: string, severity: ThreadSeverity) => void;
 }
 
 /**
@@ -104,6 +101,7 @@ export function ThreadDisplay({
   threads,
   onReply,
   onStatusChange,
+  onSeverityChange,
 }: ThreadDisplayProps) {
   const resolveStatus = useResolveStatus();
   const resolvingIds = new Set(
@@ -125,6 +123,7 @@ export function ThreadDisplay({
           isResolving={resolvingIds.has(thread.id)}
           onReply={onReply}
           onStatusChange={onStatusChange}
+          onSeverityChange={onSeverityChange}
         />
       ))}
     </div>
