@@ -91,6 +91,13 @@ export function ThreadProgressRing({
     <div
       className={`group/ring relative inline-flex items-center justify-center ${className}`}
       style={{ width: size, height: size }}
+      tabIndex={0}
+      role="img"
+      aria-label={
+        isEmpty
+          ? "No threads"
+          : `${resolvedClamped} of ${total} threads resolved`
+      }
     >
       <svg
         viewBox={`0 0 ${size} ${size}`}
@@ -190,7 +197,7 @@ export function ThreadProgressRing({
 
       {/* Hover tooltip */}
       <div
-        className="pointer-events-none absolute z-50 opacity-0 transition-opacity group-hover/ring:opacity-100"
+        className="pointer-events-none absolute z-50 opacity-0 transition-opacity group-focus-within/ring:opacity-100 group-hover/ring:opacity-100"
         style={{
           top: "calc(100% + 6px)",
           left: "50%",

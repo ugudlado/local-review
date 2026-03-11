@@ -41,6 +41,7 @@ import { ShortcutHelp } from "../components/shared/ShortcutHelp";
 import { CommandPalette } from "../components/shared/CommandPalette";
 import { ThreadProgressRing } from "../components/shared/ThreadProgressRing";
 import { featureApi } from "../services/featureApi";
+import { useFeatures } from "../hooks/useFeaturesContext";
 
 /** Style applied to the keyboard-focused thread (j/k navigation). */
 const focusedThreadStyle: React.CSSProperties = {
@@ -229,6 +230,7 @@ export function ReviewPage({
   sourceBranch: sourceBranchProp,
   embedded,
 }: ReviewPageProps = {}) {
+  const { refresh: refreshFeatures } = useFeatures();
   const [repoContext, setRepoContext] = useState<RepoContext | null>(null);
   const [selectedWorktree, setSelectedWorktree] = useState(worktreePath ?? "");
   const [sourceBranch, setSourceBranch] = useState(sourceBranchProp ?? "");
@@ -307,6 +309,7 @@ export function ReviewPage({
     targetBranch,
     selectedWorktree,
     viewKey,
+    onSessionSaved: refreshFeatures,
   });
 
   const selectedFile =
@@ -901,7 +904,13 @@ export function ReviewPage({
             size={28}
             thickness={3}
           />
-          <span>{pendingCount > 0 ? `${pendingCount} open` : "all clear"}</span>
+          <span>
+            {pendingCount > 0
+              ? `${pendingCount} open`
+              : resolvedCount > 0
+                ? "all clear"
+                : "0 threads"}
+          </span>
         </div>
 
         {/* Copy branch name */}
