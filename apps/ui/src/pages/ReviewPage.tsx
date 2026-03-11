@@ -396,20 +396,19 @@ export function ReviewPage({
     ? (hunksByFile.get(selectedFile.path) ?? [])
     : [];
 
-  const pendingCount = useMemo(
-    () => threads.filter((t) => t.status === THREAD_STATUS.Open).length,
-    [threads],
-  );
-
-  const resolvedCount = useMemo(
-    () =>
-      threads.filter(
-        (t) =>
-          t.status === THREAD_STATUS.Resolved ||
-          t.status === THREAD_STATUS.Approved,
-      ).length,
-    [threads],
-  );
+  const { pendingCount, resolvedCount } = useMemo(() => {
+    let pending = 0;
+    let resolved = 0;
+    for (const t of threads) {
+      if (t.status === THREAD_STATUS.Open) pending++;
+      else if (
+        t.status === THREAD_STATUS.Resolved ||
+        t.status === THREAD_STATUS.Approved
+      )
+        resolved++;
+    }
+    return { pendingCount: pending, resolvedCount: resolved };
+  }, [threads]);
 
   const unresolvedThreadCountByFile = useMemo(() => {
     const map = new Map<string, number>();

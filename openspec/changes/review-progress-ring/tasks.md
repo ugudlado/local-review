@@ -69,13 +69,13 @@
 
 ## Phase 4: Polish & Build
 
-- [ ] T-15 Rebuild UI dist (depends: T-14)
+- [x] T-15 Rebuild UI dist (depends: T-14)
   - **Why**: NF1 — UI dist must be committed for zero-build install
   - **Files**: `apps/ui/dist/`
   - **Done when**: `pnpm -C apps/ui build` succeeds, dist updated
 
-- [ ] T-16 Run lint, type-check, and format (depends: T-15)
+- [x] T-16 Run lint, type-check, and format (depends: T-15)
   - **Why**: Code quality gate
   - **Done when**: `pnpm lint && pnpm type-check && pnpm format --check` all pass
 
-- [ ] T-17 Review checkpoint (phase gate)
+- [~] T-17 Review checkpoint (phase gate)

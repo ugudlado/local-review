@@ -12,6 +12,9 @@ export interface ThreadProgressRingProps {
 // Gap between segments in degrees
 const SEGMENT_GAP_DEG = 2;
 
+const SEGMENT_TRANSITION =
+  "stroke-dasharray 0.45s cubic-bezier(0.4, 0, 0.2, 1), stroke-dashoffset 0.45s cubic-bezier(0.4, 0, 0.2, 1)";
+
 export function ThreadProgressRing({
   resolved,
   open,
@@ -20,22 +23,25 @@ export function ThreadProgressRing({
   showCenter = false,
   className = "",
 }: ThreadProgressRingProps) {
-  const total = Math.max(0, resolved) + Math.max(0, open);
+  const resolvedClamped = Math.max(0, resolved);
+  const openClamped = Math.max(0, open);
+  const total = resolvedClamped + openClamped;
   const isEmpty = total === 0;
   const isComplete = !isEmpty && open === 0;
 
-  const center = size / 2;
-  const radius = (size - thickness) / 2;
-  const circumference = 2 * Math.PI * radius;
+  const ring = useMemo(() => {
+    const center = size / 2;
+    const radius = (size - thickness) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const gapPx = (SEGMENT_GAP_DEG / 360) * circumference;
+    const hasBothSegments = resolvedClamped > 0 && openClamped > 0;
+    const totalGap = hasBothSegments ? gapPx * 2 : 0;
 
-  // Gap in pixels on the circumference
-  const gapPx = (SEGMENT_GAP_DEG / 360) * circumference;
-  const hasBothSegments = resolved > 0 && open > 0;
-  const totalGap = hasBothSegments ? gapPx * 2 : 0;
-
-  const { resolvedDash, resolvedOffset, openDash, openOffset } = useMemo(() => {
     if (isEmpty) {
       return {
+        center,
+        radius,
+        circumference,
         resolvedDash: 0,
         resolvedOffset: 0,
         openDash: 0,
@@ -43,55 +49,48 @@ export function ThreadProgressRing({
       };
     }
 
-    const resolvedFraction = Math.max(0, resolved) / total;
-    const openFraction = Math.max(0, open) / total;
-
     const resolvedLen =
-      resolvedFraction * circumference - (hasBothSegments ? gapPx : 0);
+      (resolvedClamped / total) * circumference - (hasBothSegments ? gapPx : 0);
     const openLen =
-      openFraction * circumference - (hasBothSegments ? gapPx : 0);
+      (openClamped / total) * circumference - (hasBothSegments ? gapPx : 0);
 
     return {
+      center,
+      radius,
+      circumference,
       resolvedDash: Math.max(0, resolvedLen),
-      // Start at top (offset = 0 with -90deg rotation)
       resolvedOffset: 0,
       openDash: Math.max(0, openLen),
-      // Open segment starts after resolved segment + gap
+      // Open segment starts after resolved + gap
       openOffset: -(
         resolvedLen +
         totalGap / 2 +
         (hasBothSegments ? gapPx / 2 : 0)
       ),
     };
-  }, [
-    resolved,
-    open,
-    total,
-    circumference,
-    gapPx,
-    hasBothSegments,
-    totalGap,
-    isEmpty,
-  ]);
+  }, [resolvedClamped, openClamped, total, isEmpty, size, thickness]);
 
-  const percentage = isEmpty
-    ? 0
-    : Math.round((Math.max(0, resolved) / total) * 100);
-
+  const percentage = isEmpty ? 0 : Math.round((resolvedClamped / total) * 100);
   const centerColor = isComplete
     ? "var(--accent-emerald)"
     : "var(--accent-amber)";
-
   const labelText = isEmpty
     ? "no threads"
     : isComplete
       ? "complete"
       : "resolved";
   const centerText = isEmpty ? "—" : `${percentage}%`;
-
-  // Font sizes scale with ring size
   const pctFontSize = Math.max(6, Math.round(size * 0.28));
   const labelFontSize = Math.max(4, Math.round(size * 0.18));
+
+  const tooltipRows = [
+    {
+      color: "var(--accent-emerald)",
+      label: "Resolved",
+      count: resolvedClamped,
+    },
+    { color: "var(--accent-amber)", label: "Open", count: openClamped },
+  ];
 
   return (
     <div
@@ -107,9 +106,9 @@ export function ThreadProgressRing({
       >
         {/* Background track */}
         <circle
-          cx={center}
-          cy={center}
-          r={radius}
+          cx={ring.center}
+          cy={ring.center}
+          r={ring.radius}
           fill="none"
           stroke="var(--ink-ghost)"
           strokeWidth={thickness}
@@ -118,41 +117,33 @@ export function ThreadProgressRing({
 
         {!isEmpty && (
           <>
-            {/* Resolved segment (emerald) */}
-            {resolved > 0 && (
+            {resolvedClamped > 0 && (
               <circle
-                cx={center}
-                cy={center}
-                r={radius}
+                cx={ring.center}
+                cy={ring.center}
+                r={ring.radius}
                 fill="none"
                 stroke="var(--accent-emerald)"
                 strokeWidth={thickness}
                 strokeLinecap="round"
-                strokeDasharray={`${resolvedDash} ${circumference}`}
-                strokeDashoffset={resolvedOffset}
-                style={{
-                  transition:
-                    "stroke-dasharray 0.45s cubic-bezier(0.4, 0, 0.2, 1), stroke-dashoffset 0.45s cubic-bezier(0.4, 0, 0.2, 1)",
-                }}
+                strokeDasharray={`${ring.resolvedDash} ${ring.circumference}`}
+                strokeDashoffset={ring.resolvedOffset}
+                style={{ transition: SEGMENT_TRANSITION }}
               />
             )}
 
-            {/* Open segment (amber) */}
-            {open > 0 && (
+            {openClamped > 0 && (
               <circle
-                cx={center}
-                cy={center}
-                r={radius}
+                cx={ring.center}
+                cy={ring.center}
+                r={ring.radius}
                 fill="none"
                 stroke="var(--accent-amber)"
                 strokeWidth={thickness}
                 strokeLinecap="round"
-                strokeDasharray={`${openDash} ${circumference}`}
-                strokeDashoffset={openOffset}
-                style={{
-                  transition:
-                    "stroke-dasharray 0.45s cubic-bezier(0.4, 0, 0.2, 1), stroke-dashoffset 0.45s cubic-bezier(0.4, 0, 0.2, 1)",
-                }}
+                strokeDasharray={`${ring.openDash} ${ring.circumference}`}
+                strokeDashoffset={ring.openOffset}
+                style={{ transition: SEGMENT_TRANSITION }}
               />
             )}
           </>
@@ -161,9 +152,9 @@ export function ThreadProgressRing({
         {/* Glow pulse ring at 100% complete */}
         {isComplete && (
           <circle
-            cx={center}
-            cy={center}
-            r={radius}
+            cx={ring.center}
+            cy={ring.center}
+            r={ring.radius}
             fill="none"
             stroke="var(--accent-emerald)"
             strokeWidth={thickness * 2}
@@ -173,7 +164,6 @@ export function ThreadProgressRing({
         )}
       </svg>
 
-      {/* Center text (when showCenter) */}
       {showCenter && (
         <div
           className="absolute inset-0 flex flex-col items-center justify-center"
@@ -233,60 +223,36 @@ export function ThreadProgressRing({
           Thread Progress
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 8,
-            }}
-          >
-            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: "var(--accent-emerald)",
-                  flexShrink: 0,
-                  display: "inline-block",
-                }}
-              />
-              <span style={{ color: "var(--ink-faint)" }}>Resolved</span>
-            </span>
-            <span
-              style={{ color: "var(--ink-base, #e6e6e6)", fontWeight: 600 }}
+          {tooltipRows.map(({ color, label, count }) => (
+            <div
+              key={label}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+              }}
             >
-              {Math.max(0, resolved)}
-            </span>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 8,
-            }}
-          >
-            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: color,
+                    flexShrink: 0,
+                    display: "inline-block",
+                  }}
+                />
+                <span style={{ color: "var(--ink-faint)" }}>{label}</span>
+              </span>
               <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: "var(--accent-amber)",
-                  flexShrink: 0,
-                  display: "inline-block",
-                }}
-              />
-              <span style={{ color: "var(--ink-faint)" }}>Open</span>
-            </span>
-            <span
-              style={{ color: "var(--ink-base, #e6e6e6)", fontWeight: 600 }}
-            >
-              {Math.max(0, open)}
-            </span>
-          </div>
+                style={{ color: "var(--ink-base, #e6e6e6)", fontWeight: 600 }}
+              >
+                {count}
+              </span>
+            </div>
+          ))}
         </div>
         {total > 0 && (
           <>
