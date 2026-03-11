@@ -50,22 +50,22 @@
 
 ## Phase 3: Embed Integrations
 
-- [ ] T-11 Embed 28px ring in ReviewPage toolbar (depends: T-10)
+- [x] T-11 Embed 28px ring in ReviewPage toolbar (depends: T-10)
   - **Why**: F9 — Primary embed context
   - **Files**: `apps/ui/src/pages/ReviewPage.tsx`
   - **Done when**: Ring appears after diff stats with divider, shows computed resolved/open from useReviewSession threads using `THREAD_STATUS` constants, "N open" / "all clear" text beside it
 
-- [ ] T-12 Add amber badge to FeatureNavBar Code tab + fix Spec tab badge (depends: T-5)
+- [x] T-12 Add amber badge to FeatureNavBar Code tab + fix Spec tab badge (depends: T-5)
   - **Why**: F10, F13 — Code tab badge using `codeThreadCounts.open`, Spec tab badge using `specThreadCounts.open`
   - **Files**: `apps/ui/src/components/FeatureNavBar.tsx`
   - **Done when**: Code tab shows amber badge with `codeThreadCounts.open` when > 0, Spec tab badge updated from `openThreads` to `specThreadCounts.open`, both match existing styling
 
-- [ ] T-13 Replace FeatureCard thread text with 18px ring (depends: T-10)
+- [x] T-13 Replace FeatureCard thread text with 18px ring (depends: T-10)
   - **Why**: F11 — Dashboard ring embed
   - **Files**: `apps/ui/src/components/dashboard/FeatureCard.tsx`
   - **Done when**: Metrics row shows 18px ThreadProgressRing + "N open" / "all clear" / "0 threads" text with hover tooltip, replaces ThreadIcon + text, uses `codeThreadCounts`
 
-- [ ] T-14 Review checkpoint (phase gate)
+- [~] T-14 Review checkpoint (phase gate)
 
 ## Phase 4: Polish & Build
 
