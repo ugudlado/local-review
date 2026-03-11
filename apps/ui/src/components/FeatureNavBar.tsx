@@ -11,7 +11,6 @@ interface FeatureNavBarProps {
 }
 
 const tabs = [
-  { label: "Spec", path: "spec" },
   { label: "Tasks", path: "tasks" },
   { label: "Code", path: "code" },
 ] as const;
@@ -52,9 +51,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
   );
 
   // Detect active tab segment so we preserve it when switching features
-  // Fall back to "code" for branch features (no spec), "spec" otherwise
-  const defaultFallbackTab =
-    currentFeature && !currentFeature.hasSpec ? "code" : "spec";
+  const defaultFallbackTab = "code";
   const activeTabPath =
     tabs.find((t) => pathname.startsWith(`${basePath}/${t.path}`))?.path ??
     defaultFallbackTab;
@@ -294,13 +291,7 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
             const tabPath = `${basePath}/${tab.path}`;
             const isActive = pathname.startsWith(tabPath);
 
-            // Hide Spec/Tasks tabs when feature has no spec/tasks
-            if (
-              tab.path === "spec" &&
-              currentFeature &&
-              !currentFeature.hasSpec
-            )
-              return null;
+            // Hide Tasks tab when feature has no tasks
             if (
               tab.path === "tasks" &&
               currentFeature &&
@@ -341,15 +332,6 @@ export default function FeatureNavBar({ featureId }: FeatureNavBarProps) {
                   currentFeature.codeThreadCounts.open > 0 && (
                     <span className="bg-accent-amber/15 text-accent-amber rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
                       {currentFeature.codeThreadCounts.open}
-                    </span>
-                  )}
-
-                {/* Spec tab: amber open-thread badge */}
-                {tab.path === "spec" &&
-                  currentFeature &&
-                  currentFeature.specThreadCounts.open > 0 && (
-                    <span className="bg-accent-amber/15 text-accent-amber rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
-                      {currentFeature.specThreadCounts.open}
                     </span>
                   )}
 

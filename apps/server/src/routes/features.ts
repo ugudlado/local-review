@@ -38,30 +38,23 @@ export interface FeatureInfo {
 // ---------------------------------------------------------------------------
 
 function deriveFeatureStatus(
-  specSession: Session,
   codeSession: Session,
-  hasSpec: boolean,
+  hasOpenspecArtifacts: boolean,
 ): FeatureStatus {
   if (codeSession) {
     const codeVerdict = codeSession.reviewVerdict;
     if (codeVerdict === "changes_requested") return "code";
+    if (codeVerdict === "approved") return "complete";
     return "code_review";
   }
 
-  if (specSession) {
-    const specVerdict = specSession.verdict;
-    if (specVerdict === "approved") return "code";
-    if (specVerdict === "changes_requested") return "design";
-    return "design_review";
-  }
-
-  if (hasSpec) return "design";
+  if (hasOpenspecArtifacts) return "design";
 
   return "new";
 }
 
 function parseTaskProgress(content: string): { done: number; total: number } {
-  const checkboxes = content.match(/- \[[x→~ ]\] T\d+/gi) ?? [];
+  const checkboxes = content.match(/- \[[x→~ ]\] T-?\d+/gi) ?? [];
   const done = checkboxes.filter((c) => /- \[[x~]\]/i.test(c)).length;
   return { done, total: checkboxes.length };
 }
@@ -139,62 +132,64 @@ export function createFeaturesRoute(repoRoot: string): Hono {
       await Promise.all(
         gitState.worktrees.slice(1).map(async (wt) => {
           const featureId = path.basename(wt.path);
-          const specSessionPath = path.join(
-            sessionsDir,
-            `${featureId}-spec.json`,
-          );
           const codeSessionPath = path.join(
             sessionsDir,
             `${featureId}-code.json`,
           );
-          const specMdPath = path.join(
+          const openspecDir = path.join(
             wt.path,
-            "specs",
-            "active",
+            "openspec",
+            "changes",
             featureId,
-            "spec.md",
           );
-          const tasksMdPath = path.join(
-            wt.path,
-            "specs",
-            "active",
-            featureId,
-            "tasks.md",
-          );
+          const proposalMdPath = path.join(openspecDir, "proposal.md");
+          const specMdPath = path.join(openspecDir, "spec.md");
+          const designMdPath = path.join(openspecDir, "design.md");
+          const tasksMdPath = path.join(openspecDir, "tasks.md");
 
           const [
-            specSession,
             codeSession,
+            hasProposal,
             hasSpec,
+            hasDesign,
             tasksContent,
             lastActivity,
           ] = await Promise.all([
-            readJsonSession(specSessionPath),
             readJsonSession(codeSessionPath),
+            fs
+              .access(proposalMdPath)
+              .then(() => true)
+              .catch(() => false),
             fs
               .access(specMdPath)
               .then(() => true)
               .catch(() => false),
+            fs
+              .access(designMdPath)
+              .then(() => true)
+              .catch(() => false),
             fs.readFile(tasksMdPath, "utf-8").catch(() => null),
             getLastActivity([
+              proposalMdPath,
               specMdPath,
+              designMdPath,
               tasksMdPath,
-              specSessionPath,
               codeSessionPath,
             ]),
           ]);
+          const hasOpenspecArtifacts = hasProposal || hasSpec || hasDesign;
           const hasTasks = tasksContent !== null;
 
           features.push({
             id: featureId,
             worktreePath: wt.path,
             branch: wt.branch,
-            status: deriveFeatureStatus(specSession, codeSession, hasSpec),
-            hasSpec,
+            status: deriveFeatureStatus(codeSession, hasOpenspecArtifacts),
+            hasSpec: hasOpenspecArtifacts,
             hasTasks,
             taskProgress: parseTaskProgress(tasksContent ?? ""),
             codeThreadCounts: countSessionThreads(codeSession),
-            specThreadCounts: countSessionThreads(specSession),
+            specThreadCounts: { open: 0, resolved: 0 },
             lastActivity,
             filesChanged: countFilesChanged(codeSession),
             sourceType: "worktree",
@@ -272,7 +267,7 @@ export function createFeaturesRoute(repoRoot: string): Hono {
             id: slug,
             worktreePath: repoRoot,
             branch: branchName,
-            status: deriveFeatureStatus(null, codeSession, false),
+            status: deriveFeatureStatus(codeSession, false),
             hasSpec: false,
             hasTasks: false,
             taskProgress: { done: 0, total: 0 },

@@ -25,14 +25,16 @@ function parseTasksMarkdown(markdown: string): {
 
   for (const line of lines) {
     if (/^##\s+Status Legend/.test(line)) break;
-    const phaseMatch = line.match(/^###\s+(.+)$/);
+    const phaseMatch = line.match(/^##\s+(.+)$/);
     if (phaseMatch) {
       if (currentPhase) phases.push(currentPhase);
       currentPhase = { name: phaseMatch[1].trim(), tasks: [] };
       continue;
     }
     if (currentPhase) {
-      const taskMatch = line.match(/^\s*-\s+\[([^\]]*)\]\s+(T\d+):\s+(.+)$/);
+      const taskMatch = line.match(
+        /^\s*-\s+\[([^\]]*)\]\s+(T-?\d+)[:\s]\s*(.+)$/,
+      );
       if (taskMatch) {
         const marker = taskMatch[1];
         const status =
@@ -73,15 +75,8 @@ export function createTasksRoute(repoRoot: string): Hono {
 
     const wtPath = findWorktreePath(featureId);
     const tasksFilePath = wtPath
-      ? path.join(wtPath, "specs", "active", featureId, "tasks.md")
-      : path.join(
-          repoRoot,
-          "specs",
-          "archived",
-          featureId,
-          featureId,
-          "tasks.md",
-        );
+      ? path.join(wtPath, "openspec", "changes", featureId, "tasks.md")
+      : path.join(repoRoot, "specs", "archived", featureId, "tasks.md");
 
     let tasksContent: string;
     try {
@@ -114,8 +109,8 @@ export function createTasksRoute(repoRoot: string): Hono {
 
     const tasksFilePath = path.join(
       wtPath,
-      "specs",
-      "active",
+      "openspec",
+      "changes",
       featureId,
       "tasks.md",
     );

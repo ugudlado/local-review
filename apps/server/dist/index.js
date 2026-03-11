@@ -7780,23 +7780,18 @@ function createSessionsRoute(repoRoot2, broadcast3) {
 }
 
 // src/routes/features.ts
-function deriveFeatureStatus(specSession, codeSession, hasSpec) {
+function deriveFeatureStatus(codeSession, hasOpenspecArtifacts) {
   if (codeSession) {
     const codeVerdict = codeSession.reviewVerdict;
     if (codeVerdict === "changes_requested") return "code";
+    if (codeVerdict === "approved") return "complete";
     return "code_review";
   }
-  if (specSession) {
-    const specVerdict = specSession.verdict;
-    if (specVerdict === "approved") return "code";
-    if (specVerdict === "changes_requested") return "design";
-    return "design_review";
-  }
-  if (hasSpec) return "design";
+  if (hasOpenspecArtifacts) return "design";
   return "new";
 }
 function parseTaskProgress(content) {
-  const checkboxes = content.match(/- \[[x→~ ]\] T\d+/gi) ?? [];
+  const checkboxes = content.match(/- \[[x→~ ]\] T-?\d+/gi) ?? [];
   const done = checkboxes.filter((c) => /- \[[x~]\]/i.test(c)).length;
   return { done, total: checkboxes.length };
 }
@@ -7853,57 +7848,53 @@ function createFeaturesRoute(repoRoot2) {
       await Promise.all(
         gitState.worktrees.slice(1).map(async (wt) => {
           const featureId = path5.basename(wt.path);
-          const specSessionPath = path5.join(
-            sessionsDir2,
-            `${featureId}-spec.json`
-          );
           const codeSessionPath = path5.join(
             sessionsDir2,
             `${featureId}-code.json`
           );
-          const specMdPath = path5.join(
+          const openspecDir = path5.join(
             wt.path,
-            "specs",
-            "active",
-            featureId,
-            "spec.md"
+            "openspec",
+            "changes",
+            featureId
           );
-          const tasksMdPath = path5.join(
-            wt.path,
-            "specs",
-            "active",
-            featureId,
-            "tasks.md"
-          );
+          const proposalMdPath = path5.join(openspecDir, "proposal.md");
+          const specMdPath = path5.join(openspecDir, "spec.md");
+          const designMdPath = path5.join(openspecDir, "design.md");
+          const tasksMdPath = path5.join(openspecDir, "tasks.md");
           const [
-            specSession,
             codeSession,
+            hasProposal,
             hasSpec,
+            hasDesign,
             tasksContent,
             lastActivity
           ] = await Promise.all([
-            readJsonSession(specSessionPath),
             readJsonSession(codeSessionPath),
+            fs4.access(proposalMdPath).then(() => true).catch(() => false),
             fs4.access(specMdPath).then(() => true).catch(() => false),
+            fs4.access(designMdPath).then(() => true).catch(() => false),
             fs4.readFile(tasksMdPath, "utf-8").catch(() => null),
             getLastActivity([
+              proposalMdPath,
               specMdPath,
+              designMdPath,
               tasksMdPath,
-              specSessionPath,
               codeSessionPath
             ])
           ]);
+          const hasOpenspecArtifacts = hasProposal || hasSpec || hasDesign;
           const hasTasks = tasksContent !== null;
           features.push({
             id: featureId,
             worktreePath: wt.path,
             branch: wt.branch,
-            status: deriveFeatureStatus(specSession, codeSession, hasSpec),
-            hasSpec,
+            status: deriveFeatureStatus(codeSession, hasOpenspecArtifacts),
+            hasSpec: hasOpenspecArtifacts,
             hasTasks,
             taskProgress: parseTaskProgress(tasksContent ?? ""),
             codeThreadCounts: countSessionThreads(codeSession),
-            specThreadCounts: countSessionThreads(specSession),
+            specThreadCounts: { open: 0, resolved: 0 },
             lastActivity,
             filesChanged: countFilesChanged(codeSession),
             sourceType: "worktree"
@@ -7958,7 +7949,7 @@ function createFeaturesRoute(repoRoot2) {
             id: slug,
             worktreePath: repoRoot2,
             branch: branchName,
-            status: deriveFeatureStatus(null, codeSession, false),
+            status: deriveFeatureStatus(codeSession, false),
             hasSpec: false,
             hasTasks: false,
             taskProgress: { done: 0, total: 0 },
@@ -8128,14 +8119,16 @@ function parseTasksMarkdown(markdown) {
   let currentPhase = null;
   for (const line of lines) {
     if (/^##\s+Status Legend/.test(line)) break;
-    const phaseMatch = line.match(/^###\s+(.+)$/);
+    const phaseMatch = line.match(/^##\s+(.+)$/);
     if (phaseMatch) {
       if (currentPhase) phases.push(currentPhase);
       currentPhase = { name: phaseMatch[1].trim(), tasks: [] };
       continue;
     }
     if (currentPhase) {
-      const taskMatch = line.match(/^\s*-\s+\[([^\]]*)\]\s+(T\d+):\s+(.+)$/);
+      const taskMatch = line.match(
+        /^\s*-\s+\[([^\]]*)\]\s+(T-?\d+)[:\s]\s*(.+)$/
+      );
       if (taskMatch) {
         const marker = taskMatch[1];
         const status = marker === "x" || marker === "~" ? "done" : marker === "\u2192" ? "in_progress" : "pending";
@@ -8165,14 +8158,7 @@ function createTasksRoute(repoRoot2) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
     const wtPath = findWorktreePath(featureId);
-    const tasksFilePath = wtPath ? path7.join(wtPath, "specs", "active", featureId, "tasks.md") : path7.join(
-      repoRoot2,
-      "specs",
-      "archived",
-      featureId,
-      featureId,
-      "tasks.md"
-    );
+    const tasksFilePath = wtPath ? path7.join(wtPath, "openspec", "changes", featureId, "tasks.md") : path7.join(repoRoot2, "specs", "archived", featureId, "tasks.md");
     let tasksContent;
     try {
       tasksContent = await fs6.readFile(tasksFilePath, "utf-8");
@@ -8198,8 +8184,8 @@ function createTasksRoute(repoRoot2) {
     }
     const tasksFilePath = path7.join(
       wtPath,
-      "specs",
-      "active",
+      "openspec",
+      "changes",
       featureId,
       "tasks.md"
     );
