@@ -4,9 +4,11 @@
   "ignore": ["apps/ui/src/server/**"],
   "workspaces": {
     "apps/ui": {
+      "entry": ["src/main.tsx"],
       "project": ["src/**/*.{ts,tsx}"]
     },
     "apps/server": {
+      "entry": ["src/index.ts"],
       "project": ["src/**/*.ts"]
     }
   }
