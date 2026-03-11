@@ -27,7 +27,7 @@ export function ThreadProgressRing({
   const openClamped = Math.max(0, open);
   const total = resolvedClamped + openClamped;
   const isEmpty = total === 0;
-  const isComplete = !isEmpty && open === 0;
+  const isComplete = !isEmpty && openClamped === 0;
 
   const ring = useMemo(() => {
     const center = size / 2;
@@ -35,7 +35,6 @@ export function ThreadProgressRing({
     const circumference = 2 * Math.PI * radius;
     const gapPx = (SEGMENT_GAP_DEG / 360) * circumference;
     const hasBothSegments = resolvedClamped > 0 && openClamped > 0;
-    const totalGap = hasBothSegments ? gapPx * 2 : 0;
 
     if (isEmpty) {
       return {
@@ -61,12 +60,8 @@ export function ThreadProgressRing({
       resolvedDash: Math.max(0, resolvedLen),
       resolvedOffset: 0,
       openDash: Math.max(0, openLen),
-      // Open segment starts after resolved + gap
-      openOffset: -(
-        resolvedLen +
-        totalGap / 2 +
-        (hasBothSegments ? gapPx / 2 : 0)
-      ),
+      // Open segment starts after resolved + one gap
+      openOffset: hasBothSegments ? -(resolvedLen + gapPx) : 0,
     };
   }, [resolvedClamped, openClamped, total, isEmpty, size, thickness]);
 

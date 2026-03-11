@@ -93,7 +93,12 @@ export default function FeatureCard({
   const statusConfig = getStatusConfig(feature.status);
   const { done, total } = feature.taskProgress;
   const progressPct = total > 0 ? Math.round((done / total) * 100) : 0;
-  const hasOpenThreads = feature.codeThreadCounts.open > 0;
+  // Dashboard aggregates both sessions for the summary ring
+  const totalOpen =
+    feature.codeThreadCounts.open + feature.specThreadCounts.open;
+  const totalResolved =
+    feature.codeThreadCounts.resolved + feature.specThreadCounts.resolved;
+  const hasOpenThreads = totalOpen > 0;
   const accentClass = STATUS_ACCENT[feature.status] ?? "";
 
   return (
@@ -165,15 +170,15 @@ export default function FeatureCard({
           className={`flex items-center gap-1 text-xs ${hasOpenThreads ? "text-yellow-400" : "text-slate-500"}`}
         >
           <ThreadProgressRing
-            resolved={feature.codeThreadCounts.resolved}
-            open={feature.codeThreadCounts.open}
+            resolved={totalResolved}
+            open={totalOpen}
             size={18}
             thickness={2.5}
           />
           <span>
-            {feature.codeThreadCounts.open > 0
-              ? `${feature.codeThreadCounts.open} open`
-              : feature.codeThreadCounts.resolved > 0
+            {totalOpen > 0
+              ? `${totalOpen} open`
+              : totalResolved > 0
                 ? "all clear"
                 : "0 threads"}
           </span>
