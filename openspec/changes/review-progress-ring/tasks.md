@@ -26,27 +26,27 @@
 
 ## Phase 2: ThreadProgressRing Component
 
-- [ ] T-6 Create `ThreadProgressRing` component with SVG ring rendering (depends: T-5)
+- [x] T-6 Create `ThreadProgressRing` component with SVG ring rendering (depends: T-5)
   - **Why**: F1, F2, F5, F6 — Core ring rendering with segments, empty state, animations
   - **Files**: `apps/ui/src/components/shared/ThreadProgressRing.tsx`
   - **Done when**: Component renders resolved/open segments with correct proportions, stroke-dasharray math matches prototype, empty state shows ghost track, transitions animate on prop changes. Existing `ProgressRing.tsx` is untouched.
 
-- [ ] T-7 Add center text (percentage + label) to ThreadProgressRing (depends: T-6)
+- [x] T-7 Add center text (percentage + label) to ThreadProgressRing (depends: T-6)
   - **Why**: F3, F4 — Center display with adaptive color and label
   - **Files**: `apps/ui/src/components/shared/ThreadProgressRing.tsx`
   - **Done when**: `showCenter` prop renders percentage with emerald/amber color, "resolved"/"complete" label, em-dash for empty state
 
-- [ ] T-8 Add auto-glow animation to ThreadProgressRing (depends: T-6)
+- [x] T-8 Add auto-glow animation to ThreadProgressRing (depends: T-6)
   - **Why**: F7 — Visual celebration at 100%
   - **Files**: `apps/ui/src/components/shared/ThreadProgressRing.tsx`
   - **Done when**: Emerald pulse keyframe activates automatically when `open === 0 && resolved > 0` — no prop needed
 
-- [ ] T-9 Add hover tooltip to ThreadProgressRing (depends: T-6)
+- [x] T-9 Add hover tooltip to ThreadProgressRing (depends: T-6)
   - **Why**: F8 — Per-status breakdown on hover
   - **Files**: `apps/ui/src/components/shared/ThreadProgressRing.tsx`
   - **Done when**: CSS-triggered tooltip shows resolved/open rows with colored dots, counts, total. Styled with --canvas-elevated, --border, --shadow-lg.
 
-- [ ] T-10 Review checkpoint (phase gate)
+- [~] T-10 Review checkpoint (phase gate)
 
 ## Phase 3: Embed Integrations
 
