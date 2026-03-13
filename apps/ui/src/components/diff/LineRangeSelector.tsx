@@ -304,7 +304,6 @@ export function LineRangeSelector({
     getLineFromRow,
     highlightRange,
     clearSelection,
-    clearSelection,
     updateSelection,
     onComment,
   ]);

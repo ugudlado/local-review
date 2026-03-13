@@ -58,8 +58,8 @@ function Avatar({
     <div
       className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium"
       style={{
-        background: "var(--canvas-overlay)",
-        color: "var(--ink)",
+        background: "var(--bg-overlay)",
+        color: "var(--text-primary)",
       }}
     >
       {initials(author)}
@@ -83,12 +83,12 @@ function SeverityBadge({
   const severityStyles: Record<string, string> = {
     critical: "bg-[var(--accent-rose)]/15 text-[var(--accent-rose)]",
     improvement: "bg-[var(--accent-blue)]/15 text-[var(--accent-blue)]",
-    style: "bg-[var(--canvas-overlay)] text-[var(--ink-muted)]",
+    style: "bg-[var(--bg-overlay)] text-[var(--text-secondary)]",
     question: "bg-[var(--accent-amber)]/15 text-[var(--accent-amber)]",
   };
   const styles =
     severityStyles[severity] ??
-    "bg-[var(--canvas-overlay)] text-[var(--ink-muted)]";
+    "bg-[var(--bg-overlay)] text-[var(--text-secondary)]";
 
   return (
     <span className={`rounded px-1.5 py-0.5 text-[10px] ${styles}`}>
@@ -123,13 +123,13 @@ function PointerArrow({ bgColor }: { bgColor: string }) {
 
 function ReplyRow({ message }: { message: ReviewMessage }) {
   return (
-    <div className="flex gap-2" style={{ color: "var(--ink)" }}>
+    <div className="flex gap-2" style={{ color: "var(--text-primary)" }}>
       <Avatar author={message.author} authorType={message.authorType} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           <span
             className="text-[12px] font-medium"
-            style={{ color: "var(--ink)" }}
+            style={{ color: "var(--text-primary)" }}
           >
             {message.author}
           </span>
@@ -138,13 +138,16 @@ function ReplyRow({ message }: { message: ReviewMessage }) {
               AI
             </span>
           )}
-          <span className="text-[10px]" style={{ color: "var(--ink-muted)" }}>
+          <span
+            className="text-[10px]"
+            style={{ color: "var(--text-secondary)" }}
+          >
             {relativeTime(message.createdAt)}
           </span>
         </div>
         <div
           className="prose-review mt-0.5 text-[13px] leading-[1.6]"
-          style={{ color: "var(--ink)" }}
+          style={{ color: "var(--text-primary)" }}
         >
           <Markdown remarkPlugins={remarkPlugins}>{message.text}</Markdown>
         </div>
@@ -183,15 +186,15 @@ export function DiffInlineThread({
 
   // Left border color
   let borderColor = "var(--accent-blue)";
-  if (isResolved) borderColor = "var(--ink-ghost)";
+  if (isResolved) borderColor = "var(--text-muted)";
   else if (isCritical) borderColor = "var(--accent-rose)";
 
   // Background
   const bgStyle: React.CSSProperties = isCritical
     ? { background: "linear-gradient(to right, #25221e, #222228)" }
     : {};
-  let bgColor = "var(--canvas-elevated)";
-  if (isResolved) bgColor = "var(--canvas-raised)";
+  let bgColor = "var(--bg-elevated)";
+  if (isResolved) bgColor = "var(--bg-surface)";
   else if (isCritical) bgColor = "transparent";
 
   // Arrow color matches card background
@@ -213,7 +216,7 @@ export function DiffInlineThread({
     <div
       style={{
         margin: "8px -8px",
-        color: "var(--ink)",
+        color: "var(--text-primary)",
         background: "transparent",
       }}
     >
@@ -234,7 +237,7 @@ export function DiffInlineThread({
           backgroundColor: bgColor,
           boxShadow: "0 2px 12px rgba(0,0,0,0.35)",
           opacity: isResolved ? 0.65 : 1,
-          color: "var(--ink)",
+          color: "var(--text-primary)",
           ...bgStyle,
         }}
       >
@@ -251,7 +254,7 @@ export function DiffInlineThread({
           {firstMessage && (
             <span
               className="text-[13px] font-medium"
-              style={{ color: "var(--ink)" }}
+              style={{ color: "var(--text-primary)" }}
             >
               {firstMessage.author}
             </span>
@@ -262,7 +265,10 @@ export function DiffInlineThread({
 
           {/* Timestamp */}
           {firstMessage && (
-            <span className="text-[11px]" style={{ color: "var(--ink-muted)" }}>
+            <span
+              className="text-[11px]"
+              style={{ color: "var(--text-secondary)" }}
+            >
               {relativeTime(firstMessage.createdAt)}
             </span>
           )}
@@ -273,8 +279,8 @@ export function DiffInlineThread({
               <button
                 type="button"
                 onClick={() => setShowReplyBox((v) => !v)}
-                className="rounded px-2 py-1 text-[12px] transition-colors hover:bg-[var(--canvas-overlay)]"
-                style={{ color: "var(--ink-muted)" }}
+                className="rounded px-2 py-1 text-[12px] transition-colors hover:bg-[var(--bg-overlay)]"
+                style={{ color: "var(--text-secondary)" }}
               >
                 Reply
               </button>
@@ -285,8 +291,8 @@ export function DiffInlineThread({
                 onClick={() =>
                   onStatusChange(thread.id, isResolved ? "open" : "resolved")
                 }
-                className="rounded px-2 py-1 text-[12px] transition-colors hover:bg-[var(--canvas-overlay)]"
-                style={{ color: "var(--ink-muted)" }}
+                className="rounded px-2 py-1 text-[12px] transition-colors hover:bg-[var(--bg-overlay)]"
+                style={{ color: "var(--text-secondary)" }}
               >
                 {isResolved ? "Reopen" : "Resolve"}
               </button>
@@ -295,8 +301,8 @@ export function DiffInlineThread({
               <select
                 value={severity ?? "improvement"}
                 onChange={(e) => onSeverityChange(thread.id, e.target.value)}
-                className="rounded bg-transparent px-1 py-0.5 text-[11px] outline-none transition-colors hover:bg-[var(--canvas-overlay)]"
-                style={{ color: "var(--ink-muted)" }}
+                className="rounded bg-transparent px-1 py-0.5 text-[11px] outline-none transition-colors hover:bg-[var(--bg-overlay)]"
+                style={{ color: "var(--text-secondary)" }}
               >
                 {SEVERITY_OPTIONS.map((s) => (
                   <option key={s} value={s}>
@@ -312,7 +318,7 @@ export function DiffInlineThread({
         {firstMessage && (
           <div
             className="prose-review mt-1.5 text-[14px] leading-[1.6]"
-            style={{ color: "var(--ink)" }}
+            style={{ color: "var(--text-primary)" }}
           >
             <Markdown remarkPlugins={remarkPlugins}>
               {firstMessage.text}
@@ -324,7 +330,7 @@ export function DiffInlineThread({
         {replies.length > 0 && (
           <div
             className="ml-8 mt-2 space-y-2 border-l-2 pl-3 pt-2"
-            style={{ borderColor: "var(--border)" }}
+            style={{ borderColor: "var(--border-default)" }}
           >
             {replies.map((reply) => (
               <ReplyRow key={reply.id} message={reply} />
@@ -336,7 +342,7 @@ export function DiffInlineThread({
         {showReplyBox && (
           <div
             className="mt-2 border-t pt-2"
-            style={{ borderColor: "var(--border)" }}
+            style={{ borderColor: "var(--border-default)" }}
           >
             <textarea
               rows={2}
@@ -350,8 +356,8 @@ export function DiffInlineThread({
               placeholder="Reply... (Cmd+Enter to send)"
               className="w-full resize-none rounded-md px-2.5 py-1.5 text-[12px] outline-none ring-1 ring-[var(--border)] transition-shadow focus:ring-[var(--accent-blue)]"
               style={{
-                background: "var(--canvas)",
-                color: "var(--ink)",
+                background: "var(--bg-base)",
+                color: "var(--text-primary)",
               }}
             />
             <div className="mt-1 flex justify-end gap-2">
@@ -361,8 +367,8 @@ export function DiffInlineThread({
                   setShowReplyBox(false);
                   setDraft("");
                 }}
-                className="rounded px-2 py-1 text-[12px] transition-colors hover:bg-[var(--canvas-overlay)]"
-                style={{ color: "var(--ink-muted)" }}
+                className="rounded px-2 py-1 text-[12px] transition-colors hover:bg-[var(--bg-overlay)]"
+                style={{ color: "var(--text-secondary)" }}
               >
                 Cancel
               </button>
