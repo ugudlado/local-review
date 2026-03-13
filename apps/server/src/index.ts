@@ -61,7 +61,7 @@ app.route("/api/features", createSpecRoute(repoRoot));
 app.route("/api/features", createTasksRoute(repoRoot));
 
 // Resolver daemon management
-app.post("/api/resolver/cold-start", async (c) => {
+app.post("/api/resolver/cold-start", (c) => {
   void resolverColdStart(repoRoot);
   return c.json({ ok: true, message: "Cold-start initiated" });
 });
@@ -69,10 +69,7 @@ app.get("/api/resolver/status", (c) => {
   return c.json(resolverStatus());
 });
 app.post("/api/resolver/resolve", async (c) => {
-  const { featureId, sessionType } = (await c.req.json()) as {
-    featureId: string;
-    sessionType: "code" | "spec";
-  };
+  const { featureId, sessionType } = await c.req.json();
   const suffix = sessionType === "code" ? "-code.json" : "-spec.json";
   const sessionFile = path.join(sessionsDir, `${featureId}${suffix}`);
 

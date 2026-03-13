@@ -255,7 +255,7 @@ export function createContextRoute(repoRoot: string): Hono {
   const app = new Hono();
 
   // GET /context
-  app.get("/context", async (c) => {
+  app.get("/context", (c) => {
     const requestedWorktree = c.req.query("worktree") ?? null;
     const _requestedSource = c.req.query("source") ?? null;
     const requestedTarget = c.req.query("target") ?? null;

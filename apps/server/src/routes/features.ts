@@ -168,12 +168,9 @@ export function createFeaturesRoute(repoRoot: string): Hono {
               ]),
             ]);
             codeSession = results[0];
-            hasOpenspecArtifacts =
-              (results[1] as boolean) ||
-              (results[2] as boolean) ||
-              (results[3] as boolean);
-            tasksContent = results[4] as string | null;
-            lastActivity = results[5] as string | null;
+            hasOpenspecArtifacts = results[1] || results[2] || results[3];
+            tasksContent = results[4];
+            lastActivity = results[5];
           } else {
             [codeSession, lastActivity] = await Promise.all([
               readJsonSession(codeSessionPath),

@@ -104,7 +104,7 @@ export function createSpecRoute(repoRoot: string): Hono {
     }
 
     const diagramName = c.req.param("name");
-    if (!diagramName || !diagramName.endsWith(".drawio")) {
+    if (!diagramName?.endsWith(".drawio")) {
       return c.json({ error: "Only .drawio files are allowed" }, 400);
     }
     if (

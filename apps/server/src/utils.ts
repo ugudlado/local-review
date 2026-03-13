@@ -31,13 +31,27 @@ export async function findOpenspecChangeDir(
 ): Promise<string | null> {
   const changesDir = path.join(wtPath, "openspec", "changes");
 
-  // Fast path: exact match
+  // Fast path: exact match on full feature ID
   const exactDir = path.join(changesDir, featureId);
   try {
     const stat = await fs.stat(exactDir);
     if (stat.isDirectory()) return exactDir;
   } catch {
-    // Not found — scan below
+    // Not found — try slug below
+  }
+
+  // Fast path: slug match (strip leading date "YYYY-MM-DD-" or "XX-NNN-" Linear prefix)
+  const slugMatch =
+    featureId.match(/^\d{4}-\d{2}-\d{2}-(.+)$/) ??
+    featureId.match(/^[A-Z]+-\d+-(.+)$/);
+  if (slugMatch) {
+    const slugDir = path.join(changesDir, slugMatch[1]);
+    try {
+      const stat = await fs.stat(slugDir);
+      if (stat.isDirectory()) return slugDir;
+    } catch {
+      // Not found — scan below
+    }
   }
 
   // Scan subdirectories in parallel for matching .openspec.yaml feature-id
@@ -51,7 +65,7 @@ export async function findOpenspecChangeDir(
           try {
             const content = await fs.readFile(yamlPath, "utf-8");
             const match = content.match(/^feature-id:\s*(.+)$/m);
-            if (match && match[1].trim() === featureId) {
+            if (match?.[1].trim() === featureId) {
               return path.join(changesDir, entry.name);
             }
           } catch {

@@ -190,7 +190,7 @@ export function createTasksRoute(repoRoot: string): Hono {
         "utf-8",
       );
       const modeMatch = yamlContent.match(/^mode:\s*(.+)$/m);
-      if (modeMatch && modeMatch[1].trim().toLowerCase() === "tdd") {
+      if (modeMatch?.[1].trim().toLowerCase() === "tdd") {
         developmentMode = "TDD";
       }
     } catch {

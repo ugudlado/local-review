@@ -126,7 +126,7 @@ function registerSessionCRUD(
     await ensureSessionsDir();
     const filePath = path.join(sessionsDir, `${featureId}${fileSuffix}`);
 
-    const session = (await c.req.json()) as Record<string, unknown>;
+    const session = await c.req.json<Record<string, unknown>>();
 
     await fs.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
 
@@ -181,7 +181,7 @@ function registerSessionCRUD(
       return c.json({ error: "Thread not found" }, 404);
     }
 
-    const patch = (await c.req.json()) as PatchPayload;
+    const patch = await c.req.json<PatchPayload>();
 
     const updatedThread = { ...threads[threadIndex] };
     if (patch.status !== undefined) {

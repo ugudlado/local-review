@@ -7473,7 +7473,7 @@ async function buildCommitList(worktreePath, requestedTarget, requestedSource, l
 }
 function createContextRoute(repoRoot2) {
   const app2 = new Hono2();
-  app2.get("/context", async (c) => {
+  app2.get("/context", (c) => {
     const requestedWorktree = c.req.query("worktree") ?? null;
     const _requestedSource = c.req.query("source") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
@@ -7638,6 +7638,15 @@ async function findOpenspecChangeDir(wtPath, featureId) {
     if (stat4.isDirectory()) return exactDir;
   } catch {
   }
+  const slugMatch = featureId.match(/^\d{4}-\d{2}-\d{2}-(.+)$/) ?? featureId.match(/^[A-Z]+-\d+-(.+)$/);
+  if (slugMatch) {
+    const slugDir = path3.join(changesDir, slugMatch[1]);
+    try {
+      const stat4 = await fs3.stat(slugDir);
+      if (stat4.isDirectory()) return slugDir;
+    } catch {
+    }
+  }
   try {
     const entries = await fs3.readdir(changesDir, { withFileTypes: true });
     const results = await Promise.all(
@@ -7646,7 +7655,7 @@ async function findOpenspecChangeDir(wtPath, featureId) {
         try {
           const content = await fs3.readFile(yamlPath, "utf-8");
           const match2 = content.match(/^feature-id:\s*(.+)$/m);
-          if (match2 && match2[1].trim() === featureId) {
+          if (match2?.[1].trim() === featureId) {
             return path3.join(changesDir, entry.name);
           }
         } catch {
@@ -7931,37 +7940,42 @@ function createFeaturesRoute(repoRoot2) {
           });
         })
       );
-      const archivedDir = path5.join(repoRoot2, "specs", "archived");
-      try {
-        const archivedEntries = await fs5.readdir(archivedDir, {
-          withFileTypes: true
-        });
-        for (const entry of archivedEntries) {
-          if (!entry.isDirectory()) continue;
-          const archivedId = entry.name;
-          if (features.some((f) => f.id === archivedId)) continue;
-          const [hasSpec, hasTasks] = await Promise.all([
-            fs5.access(path5.join(archivedDir, archivedId, "spec.md")).then(() => true).catch(() => false),
-            fs5.access(path5.join(archivedDir, archivedId, "tasks.md")).then(() => true).catch(() => false)
-          ]);
-          if (hasSpec || hasTasks) {
-            features.push({
-              id: archivedId,
-              worktreePath: repoRoot2,
-              branch: "main",
-              status: "complete",
-              hasSpec,
-              hasTasks,
-              taskProgress: { done: 0, total: 0 },
-              codeThreadCounts: { open: 0, resolved: 0 },
-              specThreadCounts: { open: 0, resolved: 0 },
-              lastActivity: null,
-              filesChanged: 0,
-              sourceType: "worktree"
-            });
+      const archivedDirs = [
+        path5.join(repoRoot2, "specs", "archived"),
+        path5.join(repoRoot2, "openspec", "changes", "archive")
+      ];
+      for (const archivedDir of archivedDirs) {
+        try {
+          const archivedEntries = await fs5.readdir(archivedDir, {
+            withFileTypes: true
+          });
+          for (const entry of archivedEntries) {
+            if (!entry.isDirectory()) continue;
+            const archivedId = entry.name;
+            if (features.some((f) => f.id === archivedId)) continue;
+            const [hasSpec, hasTasks] = await Promise.all([
+              fs5.access(path5.join(archivedDir, archivedId, "spec.md")).then(() => true).catch(() => false),
+              fs5.access(path5.join(archivedDir, archivedId, "tasks.md")).then(() => true).catch(() => false)
+            ]);
+            if (hasSpec || hasTasks) {
+              features.push({
+                id: archivedId,
+                worktreePath: repoRoot2,
+                branch: "main",
+                status: "complete",
+                hasSpec,
+                hasTasks,
+                taskProgress: { done: 0, total: 0 },
+                codeThreadCounts: { open: 0, resolved: 0 },
+                specThreadCounts: { open: 0, resolved: 0 },
+                lastActivity: null,
+                filesChanged: 0,
+                sourceType: "worktree"
+              });
+            }
           }
+        } catch {
         }
-      } catch {
       }
       const existingSlugs = new Set(features.map((f) => f.id));
       const branchesToProcess = gitState.unmergedBranches.map((branchName) => ({
@@ -8083,7 +8097,7 @@ function createSpecRoute(repoRoot2) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
     const diagramName = c.req.param("name");
-    if (!diagramName || !diagramName.endsWith(".drawio")) {
+    if (!diagramName?.endsWith(".drawio")) {
       return c.json({ error: "Only .drawio files are allowed" }, 400);
     }
     if (diagramName.includes("/") || diagramName.includes("\\") || diagramName.includes("..")) {
@@ -8237,13 +8251,25 @@ function createTasksRoute(repoRoot2) {
         tasksFilePath = path7.join(openspecDir, "tasks.md");
       }
     } else {
-      tasksFilePath = path7.join(
-        repoRoot2,
-        "specs",
-        "archived",
-        featureId,
-        "tasks.md"
-      );
+      const archivedPaths = [
+        path7.join(repoRoot2, "specs", "archived", featureId, "tasks.md"),
+        path7.join(
+          repoRoot2,
+          "openspec",
+          "changes",
+          "archive",
+          featureId,
+          "tasks.md"
+        )
+      ];
+      for (const p of archivedPaths) {
+        try {
+          await fs7.access(p);
+          tasksFilePath = p;
+          break;
+        } catch {
+        }
+      }
     }
     if (!tasksFilePath) {
       return c.json({ error: "tasks.md not found" }, 404);
@@ -8263,7 +8289,7 @@ function createTasksRoute(repoRoot2) {
         "utf-8"
       );
       const modeMatch = yamlContent.match(/^mode:\s*(.+)$/m);
-      if (modeMatch && modeMatch[1].trim().toLowerCase() === "tdd") {
+      if (modeMatch?.[1].trim().toLowerCase() === "tdd") {
         developmentMode = "TDD";
       }
     } catch {
@@ -10078,7 +10104,7 @@ app.route("/api", createContextRoute(repoRoot));
 app.route("/api/features", createSessionsRoute(repoRoot, broadcast2));
 app.route("/api/features", createSpecRoute(repoRoot));
 app.route("/api/features", createTasksRoute(repoRoot));
-app.post("/api/resolver/cold-start", async (c) => {
+app.post("/api/resolver/cold-start", (c) => {
   void coldStart(repoRoot);
   return c.json({ ok: true, message: "Cold-start initiated" });
 });
