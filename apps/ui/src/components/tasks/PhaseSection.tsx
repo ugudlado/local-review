@@ -7,17 +7,26 @@ export interface PhaseSectionProps {
 }
 
 export function PhaseSection({ phase }: PhaseSectionProps) {
+  // Auto-expand phases when 100% complete to avoid empty page
   const [collapsed, setCollapsed] = useState(false);
 
   const doneCount = phase.tasks.filter((t) => t.status === "done").length;
   const totalCount = phase.tasks.length;
+  const inProgress = phase.tasks.filter(
+    (t) => t.status === "in_progress",
+  ).length;
 
   return (
     <div
       className="hover:shadow-[0_2px_12px_rgba(0,0,0,0.2)]"
       style={{
-        backgroundColor: "var(--canvas-raised)",
-        border: "1px solid var(--border)",
+        backgroundColor: "var(--bg-base)",
+        borderLeft:
+          doneCount === totalCount
+            ? "3px solid var(--accent-emerald)"
+            : inProgress > 0
+              ? "3px solid var(--accent-blue)"
+              : "3px solid var(--border-default)",
         borderRadius: 8,
         marginBottom: 16,
         overflow: "hidden",
@@ -27,14 +36,14 @@ export function PhaseSection({ phase }: PhaseSectionProps) {
       {/* Header — clickable to collapse */}
       <div
         onClick={() => setCollapsed((c) => !c)}
-        className="hover:bg-[var(--canvas-elevated)]"
+        className="rounded-sm border-l-4 border-emerald-500 bg-zinc-800/40 px-3 py-2 hover:bg-[var(--bg-elevated)]"
         style={{
           display: "flex",
           alignItems: "center",
           gap: 10,
-          padding: "14px 18px",
           cursor: "pointer",
           transition: "background-color 0.15s ease",
+          borderBottom: "1px solid var(--border-muted)",
         }}
       >
         {/* Chevron */}
@@ -44,7 +53,7 @@ export function PhaseSection({ phase }: PhaseSectionProps) {
           viewBox="0 0 12 12"
           fill="none"
           style={{
-            color: "var(--ink-faint)",
+            color: "var(--text-tertiary)",
             transition: "transform 0.2s ease",
             transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
             flexShrink: 0,
@@ -61,45 +70,18 @@ export function PhaseSection({ phase }: PhaseSectionProps) {
 
         {/* Phase name */}
         <span
+          className="text-sm font-semibold uppercase tracking-wide text-slate-200"
           style={{
-            fontFamily: "'Newsreader', serif",
-            fontSize: 16,
-            fontWeight: 500,
-            color: "var(--ink)",
             flex: 1,
           }}
         >
           {phase.name}
         </span>
 
-        {/* Mini progress bar */}
-        <div
-          style={{
-            width: 80,
-            height: 4,
-            backgroundColor: "var(--border)",
-            borderRadius: 2,
-            overflow: "hidden",
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              width: `${phase.progress}%`,
-              height: "100%",
-              backgroundColor: "var(--accent-emerald)",
-              borderRadius: 2,
-              transition: "width 0.4s ease",
-            }}
-          />
-        </div>
-
         {/* Count */}
         <span
+          className={`rounded bg-zinc-800 px-2 py-0.5 font-mono text-xs ${doneCount === totalCount ? "text-emerald-400" : "text-zinc-400"}`}
           style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 12,
-            color: "var(--ink-muted)",
             flexShrink: 0,
           }}
         >

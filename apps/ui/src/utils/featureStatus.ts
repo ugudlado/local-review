@@ -12,9 +12,9 @@ export interface StatusConfig {
 
 const STATUS_MAP: Record<FeatureStatus, StatusConfig> = {
   new: {
-    label: "New",
-    color: "text-slate-400",
-    bgColor: "bg-slate-700/50",
+    label: "Active",
+    color: "text-blue-300",
+    bgColor: "bg-blue-500/20",
     defaultTab: "code",
   },
   design: {

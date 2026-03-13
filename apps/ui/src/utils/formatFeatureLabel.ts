@@ -9,7 +9,30 @@ export function formatFeatureLabel(id: string): string {
   const date = match[1];
   const name = match[2]
     .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .map((w) => {
+      // Keep all-caps acronyms like UI, API, CSS, HTML uppercase
+      const upper = w.toUpperCase();
+      if (
+        [
+          "UI",
+          "API",
+          "CSS",
+          "HTML",
+          "JSON",
+          "XML",
+          "REST",
+          "HTTP",
+          "HTTPS",
+          "SQL",
+          "URL",
+          "UUID",
+        ].includes(upper)
+      ) {
+        return upper;
+      }
+      // Otherwise title-case the word
+      return w.charAt(0).toUpperCase() + w.slice(1);
+    })
     .join(" ");
   return `${date} — ${name}`;
 }

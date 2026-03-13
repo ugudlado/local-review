@@ -15,15 +15,13 @@ import { useTree } from "@headless-tree/react";
 export function FileIcon({ status }: { status: DiffFile["status"] }) {
   if (status === "A")
     return (
-      <span className="font-mono text-[10px] font-bold text-[var(--accent-emerald)]">
+      <span className="font-mono text-[10px] font-bold text-emerald-400">
         A
       </span>
     );
   if (status === "D")
     return (
-      <span className="font-mono text-[10px] font-bold text-[var(--accent-rose)]">
-        D
-      </span>
+      <span className="font-mono text-[10px] font-bold text-red-400">D</span>
     );
   if (status === "M")
     return (
@@ -32,7 +30,7 @@ export function FileIcon({ status }: { status: DiffFile["status"] }) {
       </span>
     );
   return (
-    <span className="font-mono text-[10px] font-bold text-[var(--ink-muted)]">
+    <span className="font-mono text-[10px] font-bold text-[var(--text-secondary)]">
       R
     </span>
   );
@@ -67,6 +65,8 @@ interface FileSidebarProps {
   keyboardSelectedIndex?: number;
   /** Ref to attach to the sidebar <aside> element for focus detection. */
   sidebarRef?: React.RefObject<HTMLElement | null>;
+  /** Override sidebar width in pixels. Defaults to 208 (w-52). */
+  width?: number;
 }
 
 export function FileSidebar({
@@ -89,6 +89,7 @@ export function FileSidebar({
   hideOverviewTab = false,
   keyboardSelectedIndex,
   sidebarRef,
+  width,
 }: FileSidebarProps) {
   // Build tree data structure from flat file list for headless-tree
   const treeData = useMemo(() => {
@@ -216,18 +217,19 @@ export function FileSidebar({
     <aside
       ref={sidebarRef as React.RefObject<HTMLElement>}
       tabIndex={0}
-      className="flex w-64 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--canvas-raised)] outline-none"
+      className="flex shrink-0 flex-col border-r border-[var(--border-default)] bg-[var(--bg-surface)] outline-none"
+      style={{ width: width ?? 208 }}
     >
       {/* Tab switcher (hidden when overview tab is disabled) */}
       {!hideOverviewTab && (
-        <div className="flex border-b border-[var(--border)]">
+        <div className="flex border-b border-[var(--border-default)]">
           <button
             type="button"
             onClick={() => onTabChange?.("files")}
             className={`flex-1 py-1.5 text-[11px] font-medium ${
               leftTab === "files"
-                ? "border-b-2 border-[var(--accent-blue)] text-[var(--ink)]"
-                : "text-[var(--ink-faint)] hover:text-[var(--ink)]"
+                ? "border-b-2 border-[var(--accent-blue)] text-[var(--text-primary)]"
+                : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
             }`}
           >
             Files
@@ -237,8 +239,8 @@ export function FileSidebar({
             onClick={() => onTabChange?.("overview")}
             className={`flex-1 py-1.5 text-[11px] font-medium ${
               leftTab === "overview"
-                ? "border-b-2 border-[var(--accent-blue)] text-[var(--ink)]"
-                : "text-[var(--ink-faint)] hover:text-[var(--ink)]"
+                ? "border-b-2 border-[var(--accent-blue)] text-[var(--text-primary)]"
+                : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
             }`}
           >
             Overview{pendingCount > 0 ? ` (${pendingCount})` : ""}
@@ -248,14 +250,14 @@ export function FileSidebar({
 
       {leftTab === "files" && (
         <>
-          <div className="flex items-center justify-between border-b border-[var(--border)] px-3 py-2">
+          <div className="flex items-center justify-between border-b border-[var(--border-default)] px-3 py-2">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-faint)]">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
                 Files
               </span>
               <KeyboardHint label="↑↓" />
             </div>
-            <label className="flex items-center gap-1 text-[10px] text-[var(--ink-faint)] hover:text-[var(--ink)]">
+            <label className="flex items-center gap-1 text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
               <input
                 type="checkbox"
                 checked={showFolderTree}
@@ -268,7 +270,7 @@ export function FileSidebar({
 
           <div ref={fileListRef} className="flex-1 overflow-auto py-1">
             {visibleFiles.length === 0 && (
-              <p className="px-4 py-6 text-xs text-[var(--ink-ghost)]">
+              <p className="px-4 py-6 text-xs text-[var(--text-muted)]">
                 No changed files
               </p>
             )}
@@ -288,7 +290,7 @@ export function FileSidebar({
                         {...item.getProps()}
                         key={item.getId()}
                         type="button"
-                        className="stagger-fade-in flex w-full items-center gap-1.5 px-3 py-1 text-left text-xs text-[var(--ink-faint)] hover:bg-[var(--canvas-elevated)] hover:text-[var(--ink-muted)]"
+                        className="stagger-fade-in flex w-full items-center gap-1.5 px-3 py-1 text-left text-xs text-[var(--text-tertiary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-secondary)]"
                         style={{
                           paddingLeft: `${12 + level * 14}px`,
                           animationDelay: `${index * 50}ms`,
@@ -307,41 +309,62 @@ export function FileSidebar({
                   const focused = item.isFocused();
                   const unresolved =
                     unresolvedThreadCountByFile.get(file.path) ?? 0;
+                  const changeCount = changeCountByFile.get(file.path) ?? 0;
+                  const fileNameColor =
+                    changeCount > 20
+                      ? "var(--text-primary)"
+                      : file.status === "A"
+                        ? "var(--accent-emerald)"
+                        : file.status === "D"
+                          ? "var(--accent-rose)"
+                          : undefined;
+                  const fileNameWeight = changeCount > 20 ? "font-medium" : "";
+                  const fileNameClass = "";
                   return (
-                    <button
-                      {...item.getProps()}
-                      key={item.getId()}
-                      type="button"
-                      data-file-index={fileIndexMap.get(file.path)}
-                      title={file.path}
-                      className={`stagger-fade-in sidebar-item flex w-full items-center justify-between gap-1 py-1 text-left text-xs transition-colors ${selected ? "bg-[var(--accent-blue-dim)] text-[var(--ink)]" : "text-[var(--ink-muted)] hover:bg-[var(--canvas-elevated)] hover:text-[var(--ink)]"}`}
-                      style={{
-                        paddingLeft: `${12 + level * 14}px`,
-                        paddingRight: "12px",
-                        animationDelay: `${index * 50}ms`,
-                        ...(focused && !selected
-                          ? {
-                              outline: "1px solid var(--accent-blue)",
-                              outlineOffset: "-1px",
-                            }
-                          : {}),
-                      }}
-                    >
-                      <div className="flex min-w-0 items-center gap-1.5">
-                        <FileIcon status={file.status} />
-                        <span className="truncate font-mono">{data.name}</span>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-1">
-                        {unresolved > 0 && (
-                          <span className="rounded-full bg-[var(--accent-amber-dim)] px-1.5 text-[10px] text-[var(--accent-amber)]">
-                            {unresolved}
+                    <div key={item.getId()}>
+                      <button
+                        {...item.getProps()}
+                        type="button"
+                        data-file-index={fileIndexMap.get(file.path)}
+                        title={file.path}
+                        className={`stagger-fade-in sidebar-item group flex w-full items-center justify-between gap-1 py-1 text-left text-xs transition-colors ${selected ? "bg-[var(--accent-blue-dim)] text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"}`}
+                        style={{
+                          paddingLeft: `${8 + level * 10}px`,
+                          paddingRight: "12px",
+                          animationDelay: `${index * 50}ms`,
+                          ...(focused && !selected
+                            ? {
+                                outline: "1px solid var(--accent-blue)",
+                                outlineOffset: "-1px",
+                              }
+                            : {}),
+                        }}
+                      >
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <FileIcon status={file.status} />
+                          <span
+                            className={`min-w-0 truncate font-mono ${fileNameWeight} ${fileNameClass}`}
+                            style={{ color: fileNameColor }}
+                          >
+                            {data.name}
                           </span>
+                        </div>
+                        {(unresolved > 0 || changeCount > 0) && (
+                          <div className="flex shrink-0 items-center gap-1">
+                            {unresolved > 0 && (
+                              <span className="rounded-full bg-[var(--accent-amber-dim)] px-1.5 text-[10px] text-[var(--accent-amber)]">
+                                {unresolved}
+                              </span>
+                            )}
+                            {changeCount > 0 && (
+                              <span className="text-[10px] text-[var(--text-muted)]">
+                                {changeCount}
+                              </span>
+                            )}
+                          </div>
                         )}
-                        <span className="text-[10px] text-[var(--ink-ghost)]">
-                          {changeCountByFile.get(file.path) ?? 0}
-                        </span>
-                      </div>
-                    </button>
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -353,41 +376,56 @@ export function FileSidebar({
                 const keyboardActive = keyboardSelectedIndex === index;
                 const unresolved =
                   unresolvedThreadCountByFile.get(file.path) ?? 0;
+                const changeCount = changeCountByFile.get(file.path) ?? 0;
+                const fileNameColor =
+                  changeCount > 20
+                    ? "var(--text-primary)"
+                    : file.status === "A"
+                      ? "var(--accent-emerald)"
+                      : file.status === "D"
+                        ? "var(--accent-rose)"
+                        : undefined;
+                const fileNameWeight = changeCount > 20 ? "font-medium" : "";
+                const fileNameClass = "";
                 return (
-                  <button
-                    key={file.path}
-                    type="button"
-                    data-file-index={index}
-                    onClick={() => onFileSelect(file.path)}
-                    title={file.path}
-                    className={`stagger-fade-in sidebar-item flex w-full items-center justify-between gap-1 px-3 py-1 text-left text-xs transition-colors ${active ? "bg-[var(--accent-blue-dim)] text-[var(--ink)]" : "text-[var(--ink-muted)] hover:bg-[var(--canvas-elevated)] hover:text-[var(--ink)]"}`}
-                    style={{
-                      animationDelay: `${index * 50}ms`,
-                      ...(keyboardActive && !active
-                        ? {
-                            outline: "1px solid var(--accent-blue)",
-                            outlineOffset: "-1px",
-                          }
-                        : {}),
-                    }}
-                  >
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <FileIcon status={file.status} />
-                      <span className="truncate font-mono">
-                        {fileName(file.path)}
-                      </span>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      {unresolved > 0 && (
-                        <span className="rounded-full bg-[var(--accent-amber-dim)] px-1.5 text-[10px] text-[var(--accent-amber)]">
-                          {unresolved}
+                  <div key={file.path}>
+                    <button
+                      type="button"
+                      data-file-index={index}
+                      onClick={() => onFileSelect(file.path)}
+                      title={file.path}
+                      className={`stagger-fade-in sidebar-item flex w-full items-center justify-between gap-1 px-3 py-1 text-left text-xs transition-colors ${active ? "bg-[var(--accent-blue-dim)] text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"}`}
+                      style={{
+                        animationDelay: `${index * 50}ms`,
+                        ...(keyboardActive && !active
+                          ? {
+                              outline: "1px solid var(--accent-blue)",
+                              outlineOffset: "-1px",
+                            }
+                          : {}),
+                      }}
+                    >
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <FileIcon status={file.status} />
+                        <span
+                          className={`truncate font-mono ${fileNameWeight} ${fileNameClass}`}
+                          style={{ color: fileNameColor }}
+                        >
+                          {fileName(file.path)}
                         </span>
-                      )}
-                      <span className="text-[10px] text-[var(--ink-ghost)]">
-                        {changeCountByFile.get(file.path) ?? 0}
-                      </span>
-                    </div>
-                  </button>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {unresolved > 0 && (
+                          <span className="rounded-full bg-[var(--accent-amber-dim)] px-1.5 text-[10px] text-[var(--accent-amber)]">
+                            {unresolved}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-[var(--text-muted)]">
+                          {changeCount}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
                 );
               })}
           </div>
