@@ -43,9 +43,13 @@ const STATUS_LABEL_COLOR: Record<FeatureStatus, string> = {
 
 export interface PipelineDotsProps {
   status: FeatureStatus;
+  showLabel?: boolean;
 }
 
-export default function PipelineDots({ status }: PipelineDotsProps) {
+export default function PipelineDots({
+  status,
+  showLabel = true,
+}: PipelineDotsProps) {
   const currentIndex = STAGES.indexOf(status);
   const isComplete = status === "complete";
 
@@ -66,11 +70,13 @@ export default function PipelineDots({ status }: PipelineDotsProps) {
 
         return <div key={stage} className={dotClass} />;
       })}
-      <span
-        className={`ml-1.5 text-[10px] font-medium ${STATUS_LABEL_COLOR[status]}`}
-      >
-        {STAGE_LABELS[status]}
-      </span>
+      {showLabel && (
+        <span
+          className={`ml-1.5 text-[10px] font-medium ${STATUS_LABEL_COLOR[status]}`}
+        >
+          {STAGE_LABELS[status]}
+        </span>
+      )}
     </div>
   );
 }
