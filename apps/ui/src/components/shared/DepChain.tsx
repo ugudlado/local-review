@@ -12,7 +12,7 @@ interface DepChainProps {
 const DOT_COLOR: Record<DotStatus, string> = {
   done: "var(--accent-emerald)",
   current: "var(--accent-blue)",
-  pending: "var(--ink-ghost)",
+  pending: "var(--text-muted)",
 };
 
 export function DepChain({ dots }: DepChainProps) {
@@ -35,7 +35,7 @@ export function DepChain({ dots }: DepChainProps) {
               style={{
                 width: 12,
                 height: 1,
-                backgroundColor: "var(--ink-ghost)",
+                backgroundColor: "var(--text-muted)",
                 flexShrink: 0,
               }}
             />

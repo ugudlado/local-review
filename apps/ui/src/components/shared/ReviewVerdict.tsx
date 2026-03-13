@@ -51,7 +51,7 @@ function ResolveRunLog({
   };
 
   return (
-    <div className="mt-1.5 max-h-32 overflow-y-auto rounded-md bg-[var(--canvas)] p-2 ring-1 ring-[var(--border-subtle)]">
+    <div className="mt-1.5 max-h-32 overflow-y-auto rounded-md bg-[var(--bg-base)] p-2 ring-1 ring-[var(--border-muted)]">
       {log.map((entry) => (
         <div
           key={entry.threadId}
@@ -60,8 +60,8 @@ function ResolveRunLog({
           <span className={outcomeColor[entry.outcome]}>
             {outcomeIcon[entry.outcome]}
           </span>
-          <span className="text-[var(--ink-muted)]">{entry.filePath}</span>
-          <span className="text-[var(--ink-ghost)]">L{entry.line}</span>
+          <span className="text-[var(--text-secondary)]">{entry.filePath}</span>
+          <span className="text-[var(--text-muted)]">L{entry.line}</span>
           <span className={`ml-auto ${outcomeColor[entry.outcome]}`}>
             {entry.outcome === "clarification"
               ? "needs clarification"
@@ -72,9 +72,9 @@ function ResolveRunLog({
       {pending.map((t) => (
         <div
           key={t.id}
-          className="flex items-center gap-2 py-0.5 font-mono text-[10px] text-[var(--ink-ghost)]"
+          className="flex items-center gap-2 py-0.5 font-mono text-[10px] text-[var(--text-muted)]"
         >
-          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--ink-ghost)]" />
+          <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--text-muted)]" />
           <span>{t.filePath}</span>
           <span>L{t.line}</span>
           <span className="ml-auto">waiting...</span>
@@ -216,7 +216,7 @@ export function ReviewVerdict({
             </svg>
             Resolving {resolveStatus.resolved}/{resolveStatus.threadCount}
           </span>
-          <div className="h-1 w-16 overflow-hidden rounded-full bg-[var(--canvas-overlay)]">
+          <div className="h-1 w-16 overflow-hidden rounded-full bg-[var(--bg-overlay)]">
             <div
               className="h-full rounded-full bg-[var(--accent-blue)] transition-all duration-500"
               style={{
@@ -236,7 +236,7 @@ export function ReviewVerdict({
             <button
               type="button"
               onClick={() => setShowLog((prev) => !prev)}
-              className="ml-1.5 text-[var(--ink-ghost)] underline decoration-dotted hover:text-[var(--ink-muted)]"
+              className="ml-1.5 text-[var(--text-muted)] underline decoration-dotted hover:text-[var(--text-secondary)]"
             >
               {showLog ? "hide log" : "show log"}
             </button>

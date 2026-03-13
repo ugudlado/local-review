@@ -26,7 +26,7 @@ export function ProgressRing({ percentage, size = 80 }: ProgressRingProps) {
           cy={40}
           r={32}
           fill="none"
-          stroke="var(--border)"
+          stroke="var(--border-default)"
           strokeWidth={6}
         />
         {/* Progress arc */}

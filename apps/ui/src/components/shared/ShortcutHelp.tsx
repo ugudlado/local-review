@@ -36,8 +36,8 @@ export function ShortcutHelp({ open, onClose, shortcuts }: ShortcutHelpProps) {
       <div
         className="relative z-10 w-full max-w-sm overflow-hidden rounded-xl shadow-xl"
         style={{
-          background: "var(--canvas-raised)",
-          border: "1px solid var(--border)",
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border-default)",
           boxShadow:
             "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
         }}
@@ -46,11 +46,11 @@ export function ShortcutHelp({ open, onClose, shortcuts }: ShortcutHelpProps) {
         {/* Header */}
         <div
           className="flex items-center justify-between px-5 py-4"
-          style={{ borderBottom: "1px solid var(--border-subtle)" }}
+          style={{ borderBottom: "1px solid var(--border-muted)" }}
         >
           <h2
             className="text-xs font-semibold uppercase tracking-widest"
-            style={{ color: "var(--ink-faint)" }}
+            style={{ color: "var(--text-tertiary)" }}
           >
             Keyboard Shortcuts
           </h2>
@@ -72,7 +72,7 @@ export function ShortcutHelp({ open, onClose, shortcuts }: ShortcutHelpProps) {
               >
                 <span
                   className="text-[13px]"
-                  style={{ color: "var(--ink-muted)" }}
+                  style={{ color: "var(--text-secondary)" }}
                 >
                   {s.description}
                 </span>
@@ -90,9 +90,9 @@ export function ShortcutHelp({ open, onClose, shortcuts }: ShortcutHelpProps) {
         {/* Footer */}
         <div
           className="px-5 py-3"
-          style={{ borderTop: "1px solid var(--border-subtle)" }}
+          style={{ borderTop: "1px solid var(--border-muted)" }}
         >
-          <p className="text-[11px]" style={{ color: "var(--ink-ghost)" }}>
+          <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
             Press{" "}
             <kbd
               className="rounded px-1 py-px font-mono text-[10px]"

@@ -112,7 +112,7 @@ export function ThreadProgressRing({
           cy={ring.center}
           r={ring.radius}
           fill="none"
-          stroke="var(--ink-ghost)"
+          stroke="var(--text-muted)"
           strokeWidth={thickness}
           opacity={0.35}
         />
@@ -176,7 +176,7 @@ export function ThreadProgressRing({
               fontSize: pctFontSize,
               fontWeight: 700,
               fontFamily: "'JetBrains Mono', monospace",
-              color: isEmpty ? "var(--ink-ghost)" : centerColor,
+              color: isEmpty ? "var(--text-muted)" : centerColor,
               lineHeight: 1,
             }}
           >
@@ -185,7 +185,7 @@ export function ThreadProgressRing({
           <span
             style={{
               fontSize: labelFontSize,
-              color: "var(--ink-faint)",
+              color: "var(--text-tertiary)",
               lineHeight: 1,
               textTransform: "lowercase",
             }}
@@ -203,8 +203,8 @@ export function ThreadProgressRing({
           left: "50%",
           transform: "translateX(-50%)",
           minWidth: 130,
-          background: "var(--canvas-elevated)",
-          border: "1px solid var(--border)",
+          background: "var(--bg-elevated)",
+          border: "1px solid var(--border-default)",
           boxShadow: "var(--shadow-lg)",
           borderRadius: 6,
           padding: "6px 8px",
@@ -214,7 +214,7 @@ export function ThreadProgressRing({
       >
         <div
           style={{
-            color: "var(--ink-faint)",
+            color: "var(--text-tertiary)",
             fontSize: 9,
             fontWeight: 600,
             letterSpacing: "0.06em",
@@ -246,11 +246,9 @@ export function ThreadProgressRing({
                     display: "inline-block",
                   }}
                 />
-                <span style={{ color: "var(--ink-faint)" }}>{label}</span>
+                <span style={{ color: "var(--text-tertiary)" }}>{label}</span>
               </span>
-              <span
-                style={{ color: "var(--ink-base, #e6e6e6)", fontWeight: 600 }}
-              >
+              <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
                 {count}
               </span>
             </div>
@@ -261,7 +259,7 @@ export function ThreadProgressRing({
             <div
               style={{
                 height: 1,
-                background: "var(--border)",
+                background: "var(--border-default)",
                 margin: "5px 0",
               }}
             />
@@ -272,10 +270,8 @@ export function ThreadProgressRing({
                 gap: 8,
               }}
             >
-              <span style={{ color: "var(--ink-faint)" }}>Total</span>
-              <span
-                style={{ color: "var(--ink-base, #e6e6e6)", fontWeight: 600 }}
-              >
+              <span style={{ color: "var(--text-tertiary)" }}>Total</span>
+              <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
                 {total}
               </span>
             </div>

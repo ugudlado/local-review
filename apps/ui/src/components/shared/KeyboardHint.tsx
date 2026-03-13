@@ -6,9 +6,9 @@ const FADE_THRESHOLD = 5;
 
 /** Shared inline styles for `<kbd>` elements across the app. */
 export const kbdStyle: React.CSSProperties = {
-  background: "var(--canvas-elevated)",
-  border: "1px solid var(--border)",
-  color: "var(--ink-ghost)",
+  background: "var(--bg-elevated)",
+  border: "1px solid var(--border-default)",
+  color: "var(--text-muted)",
   boxShadow: "0 1px 0 rgba(255,255,255,0.04)",
 };
 
