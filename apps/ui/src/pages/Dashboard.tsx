@@ -223,7 +223,7 @@ export default function Dashboard() {
                         <div key={feature.id}>
                           {isFirstActive && (
                             <div className="mb-2 flex items-center gap-3">
-                              <span className="border-l-4 border-blue-500 pl-2 font-mono text-xs font-semibold uppercase tracking-widest text-zinc-400">
+                              <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
                                 Active · {activeCount}
                               </span>
                               <div className="flex-1 border-t border-slate-700/60" />
@@ -231,7 +231,7 @@ export default function Dashboard() {
                           )}
                           {isFirstCompleted && (
                             <div className="mb-2 mt-3 flex items-center gap-3">
-                              <span className="border-l-4 border-zinc-700 pl-2 font-mono text-[11px] font-semibold uppercase tracking-widest text-zinc-600">
+                              <span className="text-[11px] font-semibold uppercase tracking-widest text-zinc-600">
                                 Completed · {completedCount}
                               </span>
                               <div className="flex-1 border-t border-slate-700/60" />
@@ -247,9 +247,9 @@ export default function Dashboard() {
                     {!showAllCompleted && completedCount > 5 && (
                       <button
                         onClick={() => setShowAllCompleted(true)}
-                        className="mt-1 flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-zinc-700 py-2.5 font-mono text-xs uppercase tracking-widest text-zinc-500 transition-colors hover:border-zinc-500 hover:text-zinc-300"
+                        className="mt-1 text-left text-xs text-zinc-600 transition-colors hover:text-zinc-400"
                       >
-                        Show {completedCount - 5} more completed features
+                        ↓ Show {completedCount - 5} more
                       </button>
                     )}
                   </div>

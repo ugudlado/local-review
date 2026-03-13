@@ -81,18 +81,47 @@ export function TaskTimeline({ taskProgress }: TaskTimelineProps) {
         >
           {featureId}
         </div>
-        {/* Stats row */}
-        <div className="mt-1 font-mono text-xs text-slate-400">
-          {total} total ·{" "}
-          <span className="font-semibold text-emerald-400">{completed}</span>{" "}
-          <span className="text-emerald-400">done</span>
+        {/* Stats + inline legend row */}
+        <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
+          <span className="tabular-nums">{total} total</span>
+          <span className="flex items-center gap-1.5">
+            <svg
+              width={10}
+              height={10}
+              viewBox="0 0 10 10"
+              fill="none"
+              className="text-emerald-400"
+            >
+              <path
+                d="M2 5.5L4 7.5L8 3"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span className="text-emerald-400">{completed} done</span>
+          </span>
           {inProgress > 0 && (
-            <>
-              {" "}
-              · <span className="text-blue-400">{inProgress}</span> in progress
-            </>
+            <span className="flex items-center gap-1.5">
+              <svg
+                width={8}
+                height={10}
+                viewBox="0 0 8 10"
+                fill="currentColor"
+                className="text-blue-400"
+              >
+                <path d="M1 1v8l6-4z" />
+              </svg>
+              <span className="text-blue-400">{inProgress} in progress</span>
+            </span>
           )}
-          {remaining > 0 && <> · {remaining} remaining</>}
+          {remaining > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block h-3.5 w-3.5 rounded-full border border-[var(--text-muted)]" />
+              <span>{remaining} pending</span>
+            </span>
+          )}
         </div>
         {/* Thin progress bar */}
         <div
@@ -118,106 +147,6 @@ export function TaskTimeline({ taskProgress }: TaskTimelineProps) {
             }}
           />
         </div>
-      </div>
-
-      {/* Status legend */}
-      <div
-        style={{
-          display: "flex",
-          gap: 16,
-          marginBottom: 20,
-          flexWrap: "wrap",
-        }}
-      >
-        {(
-          [
-            {
-              color: "var(--accent-emerald)",
-              bg: "rgba(52,211,153,0.15)",
-              icon: (
-                <svg width={10} height={10} viewBox="0 0 10 10" fill="none">
-                  <path
-                    d="M2 5.5L4 7.5L8 3"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              ),
-              label: "Done",
-            },
-            {
-              color: "var(--accent-blue)",
-              bg: "rgba(96,165,250,0.15)",
-              icon: (
-                <svg
-                  width={8}
-                  height={10}
-                  viewBox="0 0 8 10"
-                  fill="currentColor"
-                >
-                  <path d="M1 1v8l6-4z" />
-                </svg>
-              ),
-              label: "In progress",
-            },
-            {
-              color: "var(--text-muted)",
-              bg: "var(--bg-elevated)",
-              icon: null,
-              label: "Pending",
-              border: "1.5px solid var(--text-muted)",
-            },
-            {
-              color: "var(--text-tertiary)",
-              bg: "var(--bg-elevated)",
-              icon: (
-                <svg
-                  width={10}
-                  height={2}
-                  viewBox="0 0 10 2"
-                  fill="currentColor"
-                >
-                  <rect width={10} height={2} rx={1} />
-                </svg>
-              ),
-              label: "Skipped",
-            },
-          ] as Array<{
-            color: string;
-            bg: string;
-            icon: React.ReactNode;
-            label: string;
-            border?: string;
-          }>
-        ).map(({ color, bg, icon, label, border }) => (
-          <div
-            key={label}
-            style={{ display: "flex", alignItems: "center", gap: 6 }}
-          >
-            <span
-              style={{
-                width: 16,
-                height: 16,
-                borderRadius: "50%",
-                backgroundColor: bg,
-                color,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                border,
-                boxSizing: "border-box",
-              }}
-            >
-              {icon}
-            </span>
-            <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
-              {label}
-            </span>
-          </div>
-        ))}
       </div>
 
       {/* Phase sections */}
