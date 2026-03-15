@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 import type { FeatureInfo } from "../../services/featureApi";
 import { relativeTime } from "../../utils/timeFormat";
 import { FLAGS } from "../../config/app";
@@ -164,11 +165,13 @@ function StatusPill({ status }: { status: FeatureStatus }) {
   const pill = STATUS_PILL[status];
   return (
     <div>
-      <span
-        className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.05em] ${pill.bg} ${pill.text}`}
+      <Badge
+        variant="secondary"
+        className={`cursor-default rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.05em] ${pill.bg} ${pill.text}`}
+        style={{ pointerEvents: "none" }}
       >
         {pill.label}
-      </span>
+      </Badge>
     </div>
   );
 }

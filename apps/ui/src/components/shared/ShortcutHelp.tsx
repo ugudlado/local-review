@@ -1,3 +1,10 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { kbdStyle } from "./KeyboardHint";
 
 interface Shortcut {
@@ -23,57 +30,36 @@ const defaultShortcuts: Shortcut[] = [
 ];
 
 export function ShortcutHelp({ open, onClose, shortcuts }: ShortcutHelpProps) {
-  if (!open) return null;
-
   const items = shortcuts ?? defaultShortcuts;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      onClick={onClose}
-    >
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
-      <div
-        className="relative z-10 w-full max-w-sm overflow-hidden rounded-xl shadow-xl"
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        className="w-full max-w-sm overflow-hidden border-[var(--border-default)] bg-[var(--bg-surface)] p-0"
         style={{
-          background: "var(--bg-surface)",
-          border: "1px solid var(--border-default)",
           boxShadow:
             "0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 py-4"
-          style={{ borderBottom: "1px solid var(--border-muted)" }}
-        >
-          <h2
-            className="text-xs font-semibold uppercase tracking-widest"
-            style={{ color: "var(--text-tertiary)" }}
-          >
+        <DialogHeader className="border-b border-[var(--border-muted)] px-5 py-4">
+          <DialogTitle className="text-xs font-semibold uppercase tracking-widest text-[var(--text-tertiary)]">
             Keyboard Shortcuts
-          </h2>
-          <kbd
-            className="rounded px-1.5 py-0.5 font-mono text-[10px]"
-            style={kbdStyle}
-          >
-            ?
-          </kbd>
-        </div>
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            List of keyboard shortcuts available on this page
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Shortcut rows */}
         <div className="px-5 py-3">
           <div className="space-y-1">
             {items.map((s) => (
               <div
-                key={s.key}
+                key={`${s.key}-${s.description}`}
                 className="flex items-center justify-between py-1.5"
               >
-                <span
-                  className="text-[13px]"
-                  style={{ color: "var(--text-secondary)" }}
-                >
+                <span className="text-[13px] text-[var(--text-secondary)]">
                   {s.description}
                 </span>
                 <kbd
@@ -88,11 +74,8 @@ export function ShortcutHelp({ open, onClose, shortcuts }: ShortcutHelpProps) {
         </div>
 
         {/* Footer */}
-        <div
-          className="px-5 py-3"
-          style={{ borderTop: "1px solid var(--border-muted)" }}
-        >
-          <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+        <div className="border-t border-[var(--border-muted)] px-5 py-3">
+          <p className="text-[11px] text-[var(--text-muted)]">
             Press{" "}
             <kbd
               className="rounded px-1 py-px font-mono text-[10px]"
@@ -110,7 +93,7 @@ export function ShortcutHelp({ open, onClose, shortcuts }: ShortcutHelpProps) {
             to dismiss
           </p>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

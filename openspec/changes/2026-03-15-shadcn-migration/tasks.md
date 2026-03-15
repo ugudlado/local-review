@@ -1,8 +1,8 @@
 # Tasks: shadcn/ui Migration + Tailwind v4 Upgrade
 
-## Phase 1: Foundation
+## [x] Phase 1: Foundation
 
-### T-1: Set up path aliases and shadcn utility
+### [x] T-1: Set up path aliases and shadcn utility
 
 **Why**: shadcn components require `@/` import alias and the `cn()` utility function. This is the prerequisite for all other tasks.
 
@@ -20,7 +20,7 @@
 
 ---
 
-### T-2: Upgrade Tailwind CSS v3 to v4
+### [x] T-2: Upgrade Tailwind CSS v3 to v4
 
 **Why**: R7 requires migrating from Tailwind v3 (JS config + PostCSS) to Tailwind v4 (CSS-first config + Vite plugin). shadcn v3.x (latest) requires Tailwind v4. This must complete before any shadcn component work.
 
@@ -45,7 +45,7 @@
 
 ---
 
-### T-3: Install shadcn dependencies and create components.json
+### [x] T-3: Install shadcn dependencies and create components.json
 
 **Why**: Core dependencies (clsx, tailwind-merge, class-variance-authority) and `components.json` config are needed before any shadcn component can be added. Uses shadcn v3.x (latest) targeting Tailwind v4.
 
@@ -63,7 +63,7 @@
 
 ---
 
-### T-4: Add shadcn CSS variables to theme (oklch)
+### [x] T-4: Add shadcn CSS variables to theme (oklch)
 
 **Why**: R2 requires mapping existing CSS vars to shadcn's oklch-based theming system. All shadcn components reference these variables. They must be registered via `@theme inline` for Tailwind v4.
 
@@ -81,9 +81,9 @@
 
 ---
 
-## Phase 2: Shared Components
+## [x] Phase 2: Shared Components
 
-### T-5: Add shadcn Button component and migrate ComposeBox
+### [x] T-5: Add shadcn Button component and migrate ComposeBox
 
 **Why**: Button is the most foundational shadcn component. ComposeBox has two inline `<button>` elements (Cancel, Comment) that are prime candidates for Button replacement. This validates the shadcn setup end-to-end.
 
@@ -101,7 +101,7 @@
 
 ---
 
-### T-6: Add shadcn Badge and migrate SectionLabel + FeatureRow StatusPill
+### [x] T-6: Add shadcn Badge and migrate SectionLabel + FeatureRow StatusPill
 
 **Why**: Badge provides consistent badge styling. SectionLabel uses an inline badge span for counts, and FeatureRow's StatusPill is a badge pattern. Both are simple swaps.
 
@@ -119,7 +119,7 @@
 
 ---
 
-### T-7: Add shadcn Skeleton and migrate SkeletonRow
+### [x] T-7: Add shadcn Skeleton and migrate SkeletonRow
 
 **Why**: SkeletonRow uses a hand-rolled SkeletonPulse component. shadcn Skeleton provides the same pulse animation with proper accessibility attributes.
 
@@ -136,7 +136,7 @@
 
 ---
 
-### T-8: Add shadcn Dialog and migrate ShortcutHelp
+### [x] T-8: Add shadcn Dialog and migrate ShortcutHelp
 
 **Why**: ShortcutHelp is a modal dialog with backdrop, focus trapping is missing. shadcn Dialog provides proper accessibility (focus trap, ARIA attributes, Esc to close).
 
@@ -155,9 +155,9 @@
 
 ---
 
-## Phase 3: Layout and Navigation
+## [x] Phase 3: Layout and Navigation
 
-### T-9: Add shadcn Command and migrate CommandPalette
+### [x] T-9: Add shadcn Command and migrate CommandPalette
 
 **Why**: CommandPalette is ~180 lines of custom keyboard navigation, filtering, and group rendering. cmdk (via shadcn Command) handles all of this natively with superior accessibility and fuzzy matching.
 
@@ -178,7 +178,7 @@
 
 ---
 
-### T-10: Add shadcn Popover and migrate FeatureNavBar dropdown
+### [x] T-10: Add shadcn Popover and migrate FeatureNavBar dropdown
 
 **Why**: FeatureNavBar has a hand-built dropdown with click-outside detection (~30 lines of useEffect). shadcn Popover handles positioning, click-outside, and focus management.
 
@@ -198,7 +198,7 @@
 
 ---
 
-### T-11: Validate keyboard shortcut integration with Radix overlays
+### [x] T-11: Validate keyboard shortcut integration with Radix overlays
 
 **Why**: The `useKeyboardReview` hook registers global listeners for Escape, Cmd+K, j/k, r, o, and `?`. Radix Dialog (ShortcutHelp), Command (CommandPalette), and Popover (FeatureNavBar) all introduce their own focus traps and Escape handling. If these are not tested together, global shortcuts may fire inside overlays (e.g., pressing `j` in the Command input triggers "next thread") or Escape may not close the correct layer.
 
@@ -221,9 +221,9 @@
 
 ---
 
-## Phase 4: Dashboard and Error Handling
+## [x] Phase 4: Dashboard and Error Handling
 
-### T-12: Migrate ErrorBoundary fallback to use shadcn Alert + Button
+### [x] T-12: Migrate ErrorBoundary fallback to use shadcn Alert + Button
 
 **Why**: ErrorBoundary's fallback UI has two inline buttons (Try Again, Refresh). Using shadcn Alert for the error message and Button for actions ensures consistent styling and accessibility.
 
@@ -241,9 +241,9 @@
 
 ---
 
-## Phase 5: Review and Tasks
+## [x] Phase 5: Review and Tasks
 
-### T-13: Migrate ReviewVerdict buttons to shadcn Button
+### [x] T-13: Migrate ReviewVerdict buttons to shadcn Button
 
 **Why**: ReviewVerdict has a request-changes toggle button plus action buttons (Retry, Re-resolve). There is no Approve button -- the component controls the request-changes path only. Using shadcn Button with variants ensures consistent styling across these controls.
 
@@ -262,7 +262,7 @@
 
 ---
 
-### T-14: Add shadcn Collapsible and migrate PhaseSection + TaskRow
+### [x] T-14: Add shadcn Collapsible and migrate PhaseSection + TaskRow
 
 **Why**: PhaseSection and TaskRow both manage expand/collapse state manually. shadcn Collapsible provides animated collapse with proper accessibility (aria-expanded).
 
@@ -283,7 +283,7 @@
 
 ---
 
-### T-15: Add shadcn ToggleGroup and migrate OverviewTab filter pills
+### [x] T-15: Add shadcn ToggleGroup and migrate OverviewTab filter pills
 
 **Why**: OverviewTab has filter pill buttons (All, Open, Resolved, Outdated) that behave as a single-select toggle group. shadcn ToggleGroup provides this with proper ARIA.
 
@@ -303,9 +303,9 @@
 
 ---
 
-## Phase 6: Cleanup
+## [x] Phase 6: Cleanup
 
-### T-16: Add shadcn Textarea and complete ComposeBox migration
+### [x] T-16: Add shadcn Textarea and complete ComposeBox migration
 
 **Why**: ComposeBox uses an inline `<textarea>` with custom auto-resize. shadcn Textarea provides consistent styling. The auto-resize logic stays in ComposeBox.
 
@@ -323,7 +323,7 @@
 
 ---
 
-### T-17: Remove unused hand-rolled styles and verify all pages
+### [x] T-17: Remove unused hand-rolled styles and verify all pages
 
 **Why**: After migration, some CSS utility classes, inline styles, and the deleted config files may leave orphaned references. Clean up and do a final verification pass.
 
@@ -348,7 +348,7 @@
 
 ---
 
-### T-18: Update imports to use `@/` path alias consistently
+### [x] T-18: Update imports to use `@/` path alias consistently
 
 **Why**: With the `@/` alias set up in T-1, migrated files should use `@/` imports for consistency with shadcn conventions. This is optional but improves codebase consistency.
 
@@ -404,7 +404,7 @@ T-1 (aliases) ───┐
                   │                 T-18 (Import consistency)
 ```
 
-## Phase Gate Criteria
+## [x] Phase Gate Criteria
 
 | Phase                 | Tasks              | Gate                                                                                                                             |
 | --------------------- | ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |

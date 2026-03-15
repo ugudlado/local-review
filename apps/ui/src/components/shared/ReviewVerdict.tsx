@@ -17,6 +17,7 @@ import {
   type ThreadLogEntry,
   type ThreadInfo,
 } from "../../hooks/useResolveStatus";
+import { Button } from "@/components/ui/button";
 
 // ---------------------------------------------------------------------------
 // ResolveRunLog — scrollable log of per-thread resolve outcomes
@@ -134,8 +135,9 @@ export function ReviewVerdict({
   return (
     <div className="flex items-center gap-2">
       {/* Request Changes button */}
-      <button
+      <Button
         type="button"
+        variant="ghost"
         disabled={disabled}
         onClick={() => onVerdictChange("changes_requested")}
         className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all duration-200 ${requestChangesClass} `}
@@ -146,7 +148,7 @@ export function ReviewVerdict({
           </svg>
         )}
         {isChangesRequested ? "Changes Requested" : "Request Changes"}
-      </button>
+      </Button>
 
       {/* Ready to merge hint */}
       {isApproved && !isResolving && (
@@ -194,13 +196,15 @@ export function ReviewVerdict({
             ? `, ${String(resolveStatus.clarifications)} need clarification`
             : ""}
           {resolveStatus.log.length > 0 && (
-            <button
+            <Button
               type="button"
+              variant="link"
+              size="xs"
               onClick={() => setShowLog((prev) => !prev)}
-              className="ml-1.5 text-[var(--text-muted)] underline decoration-dotted hover:text-[var(--text-secondary)]"
+              className="ml-1.5 h-auto p-0 text-[var(--text-muted)] underline decoration-dotted hover:text-[var(--text-secondary)]"
             >
               {showLog ? "hide log" : "show log"}
-            </button>
+            </Button>
           )}
         </span>
       )}
@@ -208,13 +212,15 @@ export function ReviewVerdict({
         <span className="flex items-center gap-1.5 text-xs text-red-400">
           <span title={resolveStatus.error}>Resolve failed</span>
           {onRetryResolve && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="xs"
               onClick={onRetryResolve}
               className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] font-medium text-red-300 hover:bg-red-500/25"
             >
               Retry
-            </button>
+            </Button>
           )}
         </span>
       )}
@@ -225,8 +231,10 @@ export function ReviewVerdict({
         verdict === "changes_requested" &&
         openThreadCount > 0 &&
         onRetryResolve && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             onClick={onRetryResolve}
             className="inline-flex items-center gap-1 rounded bg-blue-500/15 px-1.5 py-0.5 text-[10px] font-medium text-blue-300 hover:bg-blue-500/25"
             title={`Re-resolve ${openThreadCount} open thread${openThreadCount === 1 ? "" : "s"}`}
@@ -235,7 +243,7 @@ export function ReviewVerdict({
               <path d="M1.705 8.005a.75.75 0 0 1 .834.656 5.5 5.5 0 0 0 9.592 2.97l-1.204-1.204a.25.25 0 0 1 .177-.427h3.646a.25.25 0 0 1 .25.25v3.646a.25.25 0 0 1-.427.177l-1.38-1.38A7.002 7.002 0 0 1 1.05 8.84a.75.75 0 0 1 .656-.834ZM8 2.5a5.487 5.487 0 0 0-4.131 1.869l1.204 1.204A.25.25 0 0 1 4.896 6H1.25A.25.25 0 0 1 1 5.75V2.104a.25.25 0 0 1 .427-.177l1.38 1.38A7.002 7.002 0 0 1 14.95 7.16a.75.75 0 1 1-1.489.178A5.5 5.5 0 0 0 8 2.5Z" />
             </svg>
             Resolve {openThreadCount} thread{openThreadCount === 1 ? "" : "s"}
-          </button>
+          </Button>
         )}
       {(showLog ||
         (isResolving &&

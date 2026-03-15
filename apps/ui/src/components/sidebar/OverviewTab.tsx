@@ -1,4 +1,5 @@
 import type { ReviewThread } from "../../services/localReviewApi";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 /** Format severity label for display */
 function formatSeverity(severity: string): string {
@@ -77,12 +78,18 @@ export function OverviewTab({
 
   return (
     <div className="flex flex-col gap-2 overflow-y-auto p-2">
-      <div className="flex flex-wrap gap-1">
+      <ToggleGroup
+        type="single"
+        value={overviewFilter}
+        onValueChange={(val) => {
+          if (val) onFilterChange(val as typeof overviewFilter);
+        }}
+        className="flex flex-wrap gap-1"
+      >
         {filterLabels.map(({ key, label }) => (
-          <button
+          <ToggleGroupItem
             key={key}
-            type="button"
-            onClick={() => onFilterChange(key)}
+            value={key}
             className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
               overviewFilter === key
                 ? "bg-[var(--accent-blue)] text-white"
@@ -90,9 +97,9 @@ export function OverviewTab({
             }`}
           >
             {label}
-          </button>
+          </ToggleGroupItem>
         ))}
-      </div>
+      </ToggleGroup>
       <button
         type="button"
         onClick={onReset}
