@@ -90,7 +90,7 @@ export function ComposeBox({
         onKeyDown={handleKeyDown}
         placeholder={`${placeholder} (⌘↵ to submit${onCancel ? ", Esc to cancel" : ""})`}
         autoFocus={autoFocus}
-        className="text-ink placeholder-ink-ghost min-h-[80px] w-full resize-none bg-transparent px-3 py-2.5 text-[14px] outline-none"
+        className="min-h-[80px] w-full resize-none border-none bg-transparent px-3 py-2.5 text-[14px] text-[var(--text-primary)] shadow-none outline-none ring-0 placeholder:text-[var(--text-muted)] focus-visible:border-none focus-visible:ring-0"
       />
       <div className="border-border flex items-center justify-end gap-2 border-t px-3 py-2">
         <div className="flex items-center gap-1">
