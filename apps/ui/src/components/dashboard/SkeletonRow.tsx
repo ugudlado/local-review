@@ -1,12 +1,5 @@
+import { Skeleton } from "@/components/ui/skeleton";
 import { FLAGS } from "../../config/app";
-
-function SkeletonPulse({ className }: { className?: string }) {
-  return (
-    <div
-      className={`animate-pulse rounded bg-slate-700/60 ${className ?? ""}`}
-    />
-  );
-}
 
 export default function SkeletonRow() {
   return (
@@ -16,14 +9,14 @@ export default function SkeletonRow() {
     >
       {/* Col 1: Title + branch */}
       <div className="flex flex-col gap-1.5">
-        <SkeletonPulse className="h-3.5 w-3/5" />
-        <SkeletonPulse className="h-2.5 w-2/5" />
+        <Skeleton className="h-3.5 w-3/5" />
+        <Skeleton className="h-2.5 w-2/5" />
       </div>
 
-      {/* Col 2: Status pill — matches FeatureRow's FLAGS.DEV_WORKFLOW conditional */}
+      {/* Col 2: Status pill */}
       {FLAGS.DEV_WORKFLOW ? (
         <div>
-          <SkeletonPulse className="h-5 w-20 rounded-full" />
+          <Skeleton className="h-5 w-20 rounded-full" />
         </div>
       ) : (
         <div />
@@ -31,15 +24,15 @@ export default function SkeletonRow() {
 
       {/* Col 3: Metrics */}
       <div className="flex flex-col gap-1.5">
-        <SkeletonPulse className="h-2.5 w-16" />
-        <SkeletonPulse className="h-2.5 w-12" />
+        <Skeleton className="h-2.5 w-16" />
+        <Skeleton className="h-2.5 w-12" />
       </div>
 
-      {/* Col 4: Progress bar — matches FeatureRow's FLAGS.DEV_WORKFLOW conditional */}
+      {/* Col 4: Progress bar */}
       {FLAGS.DEV_WORKFLOW ? (
         <div className="flex flex-col gap-1.5">
-          <SkeletonPulse className="h-1 w-full" />
-          <SkeletonPulse className="h-2 w-14" />
+          <Skeleton className="h-1 w-full" />
+          <Skeleton className="h-2 w-14" />
         </div>
       ) : (
         <div />
@@ -47,7 +40,7 @@ export default function SkeletonRow() {
 
       {/* Col 5: Time */}
       <div>
-        <SkeletonPulse className="h-2.5 w-10" />
+        <Skeleton className="h-2.5 w-10" />
       </div>
     </div>
   );

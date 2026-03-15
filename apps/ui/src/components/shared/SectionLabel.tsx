@@ -3,6 +3,8 @@
  * Used in thread navigation and thread panel views
  */
 
+import { Badge } from "@/components/ui/badge";
+
 export interface SectionLabelProps {
   label: string;
   count: number;
@@ -18,8 +20,8 @@ export function SectionLabel({
 }: SectionLabelProps) {
   const badgeColors =
     variant === "open"
-      ? "bg-[var(--accent-amber-dim)] text-[var(--accent-amber)]"
-      : "bg-[var(--accent-emerald-dim)] text-[var(--accent-emerald)]";
+      ? "bg-[var(--accent-amber-dim)] text-[var(--accent-amber)] hover:bg-[var(--accent-amber-dim)]"
+      : "bg-[var(--accent-emerald-dim)] text-[var(--accent-emerald)] hover:bg-[var(--accent-emerald-dim)]";
 
   const stickyClass = sticky ? "sticky top-0 z-10" : "";
 
@@ -31,11 +33,12 @@ export function SectionLabel({
         {label}
       </span>
       {count > 0 && (
-        <span
+        <Badge
+          variant="secondary"
           className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${badgeColors}`}
         >
           {count}
-        </span>
+        </Badge>
       )}
     </div>
   );

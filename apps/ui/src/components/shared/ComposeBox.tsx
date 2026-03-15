@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type KeyboardEvent } from "react";
+import { Button } from "@/components/ui/button";
 
 export interface ComposeBoxProps {
   onSubmit: (text: string) => void;
@@ -93,26 +94,23 @@ export function ComposeBox({
       <div className="border-border flex items-center justify-end gap-2 border-t px-3 py-2">
         <div className="flex items-center gap-1">
           {onCancel && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={onCancel}
-              className="text-ink-muted hover:text-ink hover:bg-canvas-overlay rounded px-3 py-1.5 text-[13px] transition-colors"
+              className="text-ink-muted hover:text-ink hover:bg-canvas-overlay text-[13px]"
             >
               Cancel
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
+          <Button
+            size="sm"
             onClick={handleSubmit}
             disabled={isEmpty}
-            className={`rounded px-3 py-1.5 text-[13px] font-medium transition-colors ${
-              isEmpty
-                ? "bg-canvas-overlay text-ink-faint cursor-not-allowed"
-                : "bg-accent-blue hover:bg-accent-blue/90 text-white"
-            }`}
+            className="bg-accent-blue hover:bg-accent-blue/90 text-[13px] text-white"
           >
             Comment
-          </button>
+          </Button>
         </div>
       </div>
     </div>
