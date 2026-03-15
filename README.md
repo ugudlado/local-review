@@ -1,6 +1,6 @@
 # local-review
 
-GitHub-style local code review plugin for Claude Code. Review diffs in a browser UI, add inline threaded comments, then let Claude resolve them — replying to questions, applying fixes when clear, or asking for clarification when not.
+GitHub-style local code review plugin for Claude Code. Review diffs in a browser UI, add inline threaded comments, track tasks with phased progress, then let Claude resolve threads — replying to questions, applying fixes when clear, or asking for clarification when not.
 
 ## Install
 
@@ -22,13 +22,25 @@ claude plugin install local-review@ugudlado
 /local-review:open
 ```
 
-![Code review UI showing file tree, inline diff with threaded comments, and thread resolution](docs/images/review-ui.png)
+![Code review UI showing file tree, inline diff with threaded comments, and thread panel](docs/images/review-ui.png)
 
 ## Features
 
 ### Review diffs in a browser UI
 
 Browse code changes with syntax highlighting. Click `+` on any line to start a threaded comment, or drag across multiple lines to create multi-line threads.
+
+### Feature dashboard
+
+See all active and completed features at a glance with status badges, thread counts, file counts, and task progress.
+
+![Feature dashboard with active and completed features](docs/images/dashboard.png)
+
+### Task tracking with phased progress
+
+View implementation tasks organized by phase, with status indicators (pending, in progress, done) and expandable task details showing why, files, and verification criteria.
+
+![Task board with phased progress](docs/images/tasks-view.png)
 
 ### Inline thread comments
 
@@ -52,34 +64,52 @@ The `review-resolver` subagent processes each thread independently, deciding whe
 - Reply with explanation → when the comment asks "why"
 - Ask a clarifying question → when context is missing or multiple valid approaches exist
 
+### Keyboard shortcuts
+
+Full keyboard navigation for power users — press `?` for the shortcut help overlay:
+
+- `⌘K` / `Ctrl+K` — Command palette (fuzzy search files, threads, actions)
+- `j` / `k` — Navigate between threads
+- `r` — Resolve focused thread
+- `h` / `l` — Focus sidebar / diff panel
+- `↑` / `↓` — Navigate files (sidebar focused)
+
 ## Commands
 
-| Command                           | Description                                                 |
-| --------------------------------- | ----------------------------------------------------------- |
-| `/local-review:open [session]`    | Open the review UI, optionally load a saved session         |
-| `/local-review:resolve [session]` | Resolve all open threads in the latest or specified session |
+| Command                                | Description                                                 |
+| -------------------------------------- | ----------------------------------------------------------- |
+| `/local-review:open [feature]`         | Open the review UI, optionally navigate to a feature        |
+| `/local-review:resolve [session]`      | Resolve all open threads in the latest or specified session |
+| `/local-review:release-prep [version]` | Prepare a release with changelog, version bump, and git tag |
 
 ## Workflow
 
-1. **Open the UI** — `/local-review:open [session]`
+1. **Open the UI** — `/local-review:open`
    Browse diffs and add threaded comments.
 
-2. **Save the session** — Click "Save Session" in the UI
-   Persists threads to `.review/sessions/*.json`
+2. **Review code** — Click `+` on diff lines to add comments
+   Comments are auto-saved and persist across sessions.
 
-3. **Resolve threads** — `/local-review:resolve [session]`
-   Claude replies to each comment thread.
+3. **Request changes** — Click "Request Changes" in the UI
+   Marks the review as needing changes.
 
-4. **See replies** — Refresh the UI to view Claude's responses inline
+4. **Resolve threads** — `/local-review:resolve`
+   Claude replies to each comment thread with fixes, explanations, or clarifying questions.
+
+5. **See replies** — Refresh the UI to view Claude's responses inline
 
 ## Architecture
 
 The plugin ships with two apps:
 
 - **`apps/server`** — Standalone Hono server (REST API + WebSocket). Built with esbuild into a single bundled `dist/index.js` for zero-install plugin support.
-- **`apps/ui`** — React frontend (Vite + Tailwind). Built dist committed to git, served as static files by the server.
+- **`apps/ui`** — React frontend built with Vite, Tailwind CSS v4, and shadcn/ui components. Built dist committed to git, served as static files by the server.
 
 The `SessionStart` hook auto-starts the server via `node apps/server/dist/index.js` — no `pnpm install` or build step needed after plugin installation.
+
+### UI Component Library
+
+The UI uses [shadcn/ui](https://ui.shadcn.com/) components (new-york style) built on Radix UI primitives for accessibility. Key components: Button, Badge, Skeleton, Dialog, Command (cmdk), Popover, Collapsible, ToggleGroup, Textarea, Alert.
 
 ## Development
 
@@ -96,6 +126,8 @@ pnpm -C apps/server build     # Rebuild server bundle (esbuild)
 pnpm -C apps/ui build         # Build UI for production
 pnpm -C apps/ui test:unit     # Run unit tests
 pnpm type-check               # Type-check all workspaces
+pnpm lint                     # Lint all files (ESLint 9)
+pnpm format                   # Format all files (Prettier + Tailwind plugin)
 ```
 
 For more development details (workspace commands, architecture, gotchas), see [CLAUDE.md](./CLAUDE.md).
