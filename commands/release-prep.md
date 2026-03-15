@@ -68,10 +68,10 @@ cat .claude-plugin/plugin.json
 
 Use Edit to update the version field in-place.
 
-**c) `/Users/spidey/code/claude-marketplace/.claude-plugin/marketplace.json`** — Bump the `"version"` for the `local-review` plugin entry to x.y.z.
+**c) `$HOME/code/claude-marketplace/.claude-plugin/marketplace.json`** — Bump the `"version"` for the `local-review` plugin entry to x.y.z.
 
 ```bash
-cat /Users/spidey/code/claude-marketplace/.claude-plugin/marketplace.json
+cat $HOME/code/claude-marketplace/.claude-plugin/marketplace.json
 ```
 
 Use Edit to update the version field in-place.
@@ -88,7 +88,7 @@ git commit -m "chore: release vx.y.z"
 Then in the marketplace repo, commit the version bump:
 
 ```bash
-cd /Users/spidey/code/claude-marketplace
+cd $HOME/code/claude-marketplace
 git add .claude-plugin/marketplace.json
 git commit -m "chore: bump local-review to vx.y.z"
 ```
@@ -96,7 +96,7 @@ git commit -m "chore: bump local-review to vx.y.z"
 Then tag this repo:
 
 ```bash
-cd /Users/spidey/code/review
+cd $HOME/code/review
 git tag vx.y.z
 ```
 
