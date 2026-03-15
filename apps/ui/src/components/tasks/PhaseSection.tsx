@@ -1,5 +1,10 @@
 import { useState } from "react";
 import type { Phase } from "../../types/sessions";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { TaskRow } from "./TaskRow";
 
 export interface PhaseSectionProps {
@@ -17,7 +22,9 @@ export function PhaseSection({ phase }: PhaseSectionProps) {
   ).length;
 
   return (
-    <div
+    <Collapsible
+      open={!collapsed}
+      onOpenChange={(open) => setCollapsed(!open)}
       className="hover:shadow-[0_2px_12px_rgba(0,0,0,0.2)]"
       style={{
         backgroundColor: "var(--bg-base)",
@@ -34,69 +41,70 @@ export function PhaseSection({ phase }: PhaseSectionProps) {
       }}
     >
       {/* Header — clickable to collapse */}
-      <div
-        onClick={() => setCollapsed((c) => !c)}
-        className="rounded-sm border-l-4 border-emerald-500 bg-zinc-800/40 px-3 py-2 hover:bg-[var(--bg-elevated)]"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          cursor: "pointer",
-          transition: "background-color 0.15s ease",
-          borderBottom: "1px solid var(--border-muted)",
-        }}
-      >
-        {/* Chevron */}
-        <svg
-          width={12}
-          height={12}
-          viewBox="0 0 12 12"
-          fill="none"
+      <CollapsibleTrigger asChild>
+        <div
+          className="rounded-sm border-l-4 border-emerald-500 bg-zinc-800/40 px-3 py-2 hover:bg-[var(--bg-elevated)]"
           style={{
-            color: "var(--text-tertiary)",
-            transition: "transform 0.2s ease",
-            transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
-            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            cursor: "pointer",
+            transition: "background-color 0.15s ease",
+            borderBottom: "1px solid var(--border-muted)",
           }}
         >
-          <path
-            d="M3 4.5L6 7.5L9 4.5"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+          {/* Chevron */}
+          <svg
+            width={12}
+            height={12}
+            viewBox="0 0 12 12"
+            fill="none"
+            style={{
+              color: "var(--text-tertiary)",
+              transition: "transform 0.2s ease",
+              transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
+              flexShrink: 0,
+            }}
+          >
+            <path
+              d="M3 4.5L6 7.5L9 4.5"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
 
-        {/* Phase name */}
-        <span
-          className="text-sm font-semibold uppercase tracking-wide text-slate-200"
-          style={{
-            flex: 1,
-          }}
-        >
-          {phase.name}
-        </span>
+          {/* Phase name */}
+          <span
+            className="text-sm font-semibold uppercase tracking-wide text-slate-200"
+            style={{
+              flex: 1,
+            }}
+          >
+            {phase.name}
+          </span>
 
-        {/* Count */}
-        <span
-          className={`rounded bg-zinc-800 px-2 py-0.5 font-mono text-xs ${doneCount === totalCount ? "text-emerald-400" : "text-zinc-400"}`}
-          style={{
-            flexShrink: 0,
-          }}
-        >
-          {doneCount}/{totalCount}
-        </span>
-      </div>
+          {/* Count */}
+          <span
+            className={`rounded bg-zinc-800 px-2 py-0.5 font-mono text-xs ${doneCount === totalCount ? "text-emerald-400" : "text-zinc-400"}`}
+            style={{
+              flexShrink: 0,
+            }}
+          >
+            {doneCount}/{totalCount}
+          </span>
+        </div>
+      </CollapsibleTrigger>
 
       {/* Body — task list */}
-      {!collapsed && (
+      <CollapsibleContent className="overflow-hidden transition-all">
         <div style={{ padding: "0 18px 14px" }}>
           {phase.tasks.map((task) => (
             <TaskRow key={task.id} task={task} allTasks={phase.tasks} />
           ))}
         </div>
-      )}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

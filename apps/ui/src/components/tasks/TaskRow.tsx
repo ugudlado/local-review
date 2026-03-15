@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { Task, TaskStatus } from "../../types/sessions";
 import { fileName } from "../../utils/diffUtils";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { DepChain } from "../shared/DepChain";
 
 export interface TaskRowProps {
@@ -246,104 +251,109 @@ export function TaskRow({ task, allTasks }: TaskRowProps) {
     : [];
 
   return (
-    <div
+    <Collapsible
+      open={expanded}
+      onOpenChange={setExpanded}
       style={{
         borderBottom: "1px solid var(--border-muted)",
         cursor: "pointer",
       }}
       className="hover:bg-[rgba(96,165,250,0.03)]"
-      onClick={() => setExpanded((e) => !e)}
     >
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          padding: "10px 0",
-          alignItems: "flex-start",
-        }}
-      >
-        {/* Status icon */}
-        <div style={{ paddingTop: 2 }}>
-          <StatusIcon status={task.status} />
-        </div>
-
-        {/* Content */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Title row */}
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 11,
-                color: "var(--text-tertiary)",
-                flexShrink: 0,
-              }}
-            >
-              {task.id}
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 500,
-                color: isDone ? "var(--text-secondary)" : "var(--text-primary)",
-                display: "-webkit-box",
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden",
-                lineHeight: 1.4,
-              }}
-            >
-              {task.description}
-            </span>
+      <CollapsibleTrigger asChild>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            padding: "10px 0",
+            alignItems: "flex-start",
+          }}
+        >
+          {/* Status icon */}
+          <div style={{ paddingTop: 2 }}>
+            <StatusIcon status={task.status} />
           </div>
 
-          {/* Tags row */}
-          {hasTags && (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 6,
-                marginTop: 6,
-              }}
-            >
-              {task.dependencies.map((dep) => (
-                <DependencyTag key={dep} id={dep} />
-              ))}
-              {fileNames.map((f) => (
-                <FileTag key={f} file={f} />
-              ))}
-              {task.parallelizable && <ParallelTag />}
+          {/* Content */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Title row */}
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 11,
+                  color: "var(--text-tertiary)",
+                  flexShrink: 0,
+                }}
+              >
+                {task.id}
+              </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: isDone
+                    ? "var(--text-secondary)"
+                    : "var(--text-primary)",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  lineHeight: 1.4,
+                }}
+              >
+                {task.description}
+              </span>
             </div>
-          )}
 
-          {/* DepChain for in-progress tasks */}
-          {isInProgress && (
-            <div style={{ marginTop: 8 }}>
-              <DepChain dots={buildDepChainDots(task, allTasks)} />
-            </div>
-          )}
+            {/* Tags row */}
+            {hasTags && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 6,
+                  marginTop: 6,
+                }}
+              >
+                {task.dependencies.map((dep) => (
+                  <DependencyTag key={dep} id={dep} />
+                ))}
+                {fileNames.map((f) => (
+                  <FileTag key={f} file={f} />
+                ))}
+                {task.parallelizable && <ParallelTag />}
+              </div>
+            )}
 
-          {/* Expanded details panel */}
-          {expanded && hasDetails && (
-            <div
-              style={{
-                backgroundColor: "var(--bg-base)",
-                border: "1px solid var(--border-muted)",
-                borderRadius: 6,
-                padding: "10px 14px",
-                marginTop: 8,
-              }}
-            >
-              {task.why && <DetailRow label="Why" value={task.why} />}
-              {task.files && <DetailRow label="Files" value={task.files} />}
-              {task.doneWhen && (
-                <DetailRow label="Done" value={task.doneWhen} />
-              )}
-            </div>
-          )}
+            {/* DepChain for in-progress tasks */}
+            {isInProgress && (
+              <div style={{ marginTop: 8 }}>
+                <DepChain dots={buildDepChainDots(task, allTasks)} />
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      </CollapsibleTrigger>
+
+      {/* Expanded details panel */}
+      {hasDetails && (
+        <CollapsibleContent className="overflow-hidden transition-all">
+          <div
+            style={{
+              backgroundColor: "var(--bg-base)",
+              border: "1px solid var(--border-muted)",
+              borderRadius: 6,
+              padding: "10px 14px",
+              marginBottom: 8,
+            }}
+          >
+            {task.why && <DetailRow label="Why" value={task.why} />}
+            {task.files && <DetailRow label="Files" value={task.files} />}
+            {task.doneWhen && <DetailRow label="Done" value={task.doneWhen} />}
+          </div>
+        </CollapsibleContent>
+      )}
+    </Collapsible>
   );
 }
