@@ -76,14 +76,14 @@ var require_node_gyp_build = __commonJS({
     init_cjs_shim();
     var fs10 = __require("fs");
     var path10 = __require("path");
-    var os = __require("os");
+    var os2 = __require("os");
     var runtimeRequire = typeof __webpack_require__ === "function" ? __non_webpack_require__ : __require;
     var vars = process.config && process.config.variables || {};
     var prebuildsOnly = !!process.env.PREBUILDS_ONLY;
     var abi = process.versions.modules;
     var runtime = isElectron() ? "electron" : isNwjs() ? "node-webkit" : "node";
-    var arch = process.env.npm_config_arch || os.arch();
-    var platform = process.env.npm_config_platform || os.platform();
+    var arch = process.env.npm_config_arch || os2.arch();
+    var platform = process.env.npm_config_platform || os2.platform();
     var libc = process.env.LIBC || (isAlpine(platform) ? "musl" : "glibc");
     var armv = process.env.ARM_VERSION || (arch === "arm64" ? "8" : vars.arm_version) || "";
     var uv = (process.versions.uv || "").split(".")[0];
@@ -7613,6 +7613,7 @@ function createContextRoute(repoRoot2) {
 init_cjs_shim();
 import fs5 from "node:fs/promises";
 import path5 from "node:path";
+import os from "node:os";
 
 // src/utils.ts
 init_cjs_shim();
@@ -7817,6 +7818,10 @@ function createSessionsRoute(repoRoot2, broadcast3) {
 }
 
 // src/routes/features.ts
+var HOME = os.homedir();
+function tildefy(p) {
+  return p.startsWith(HOME) ? "~" + p.slice(HOME.length) : p;
+}
 function deriveFeatureStatus(codeSession, hasOpenspecArtifacts) {
   if (codeSession) {
     const codeVerdict = codeSession.reviewVerdict;
@@ -7926,7 +7931,7 @@ function createFeaturesRoute(repoRoot2) {
           const hasTasks = tasksContent !== null;
           features.push({
             id: featureId,
-            worktreePath: wt.path,
+            worktreePath: tildefy(wt.path),
             branch: wt.branch,
             status: deriveFeatureStatus(codeSession, hasOpenspecArtifacts),
             hasSpec: hasOpenspecArtifacts,
@@ -7960,7 +7965,7 @@ function createFeaturesRoute(repoRoot2) {
             if (hasSpec || hasTasks) {
               features.push({
                 id: archivedId,
-                worktreePath: repoRoot2,
+                worktreePath: tildefy(repoRoot2),
                 branch: "main",
                 status: "complete",
                 hasSpec,
@@ -7991,7 +7996,7 @@ function createFeaturesRoute(repoRoot2) {
           ]);
           return {
             id: slug,
-            worktreePath: repoRoot2,
+            worktreePath: tildefy(repoRoot2),
             branch: branchName,
             status: deriveFeatureStatus(codeSession, false),
             hasSpec: false,

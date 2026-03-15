@@ -2,8 +2,14 @@ import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { getGitState } from "../git.js";
+import os from "node:os";
 import { findOpenspecChangeDir } from "../utils.js";
 import { THREAD_STATUS } from "./sessions.js";
+
+const HOME = os.homedir();
+function tildefy(p: string): string {
+  return p.startsWith(HOME) ? "~" + p.slice(HOME.length) : p;
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -181,7 +187,7 @@ export function createFeaturesRoute(repoRoot: string): Hono {
 
           features.push({
             id: featureId,
-            worktreePath: wt.path,
+            worktreePath: tildefy(wt.path),
             branch: wt.branch,
             status: deriveFeatureStatus(codeSession, hasOpenspecArtifacts),
             hasSpec: hasOpenspecArtifacts,
@@ -227,7 +233,7 @@ export function createFeaturesRoute(repoRoot: string): Hono {
             if (hasSpec || hasTasks) {
               features.push({
                 id: archivedId,
-                worktreePath: repoRoot,
+                worktreePath: tildefy(repoRoot),
                 branch: "main",
                 status: "complete",
                 hasSpec,
@@ -271,7 +277,7 @@ export function createFeaturesRoute(repoRoot: string): Hono {
 
           return {
             id: slug,
-            worktreePath: repoRoot,
+            worktreePath: tildefy(repoRoot),
             branch: branchName,
             status: deriveFeatureStatus(codeSession, false),
             hasSpec: false,
