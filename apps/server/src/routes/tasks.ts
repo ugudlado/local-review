@@ -34,6 +34,8 @@ function parseTasksMarkdown(markdown: string): {
 
   for (const line of lines) {
     if (/^##\s+Status Legend/.test(line)) break;
+
+    // Phase heading: "## Phase 1: Foundation"
     const phaseMatch = line.match(/^##\s+(.+)$/);
     if (phaseMatch) {
       if (currentPhase) rawPhases.push(currentPhase);
@@ -41,63 +43,90 @@ function parseTasksMarkdown(markdown: string): {
       lastTask = null;
       continue;
     }
-    if (currentPhase) {
-      const taskMatch = line.match(
-        /^\s*-\s+\[([^\]]*)\]\s+(T-?\d+)[:\s]\s*(.+)$/,
-      );
-      if (taskMatch) {
-        const marker = taskMatch[1];
-        const status =
-          marker === "x" || marker === "~"
-            ? "done"
-            : marker === "→"
-              ? "in_progress"
-              : "pending";
-        let desc = taskMatch[3].trim();
 
-        // Extract [P] parallelizable marker
-        const parallelizable = /\[P\]\s*$/.test(desc);
-        if (parallelizable) desc = desc.replace(/\s*\[P\]\s*$/, "").trim();
+    if (!currentPhase) continue;
 
-        // Extract inline (depends: T-1, T-2) dependencies
-        const dependencies: string[] = [];
-        const depMatch = desc.match(/\(depends:\s*([^)]+)\)/i);
-        if (depMatch) {
-          desc = desc.replace(/\s*\(depends:\s*[^)]+\)/, "").trim();
-          for (const d of depMatch[1].split(",")) {
-            const id = d.trim();
-            if (id) dependencies.push(id);
-          }
+    // Format A (checkbox): "- [x] T-1: Task description"
+    const checkboxMatch = line.match(
+      /^\s*-\s+\[([^\]]*)\]\s+(T-?\d+)[:\s]\s*(.+)$/,
+    );
+    if (checkboxMatch) {
+      const marker = checkboxMatch[1];
+      const status =
+        marker === "x" || marker === "~"
+          ? "done"
+          : marker === "→"
+            ? "in_progress"
+            : "pending";
+      let desc = checkboxMatch[3].trim();
+
+      // Extract [P] parallelizable marker
+      const parallelizable = /\[P\]\s*$/.test(desc);
+      if (parallelizable) desc = desc.replace(/\s*\[P\]\s*$/, "").trim();
+
+      // Extract inline (depends: T-1, T-2) dependencies
+      const dependencies: string[] = [];
+      const depMatch = desc.match(/\(depends:\s*([^)]+)\)/i);
+      if (depMatch) {
+        desc = desc.replace(/\s*\(depends:\s*[^)]+\)/, "").trim();
+        for (const d of depMatch[1].split(",")) {
+          const id = d.trim();
+          if (id) dependencies.push(id);
         }
-
-        lastTask = {
-          id: taskMatch[2],
-          status,
-          description: desc,
-          dependencies,
-          parallelizable,
-        };
-        currentPhase.tasks.push(lastTask);
-        continue;
       }
 
-      // Parse indented metadata lines belonging to the last task
-      if (lastTask) {
-        const whyMatch = line.match(/^\s+-\s+\*\*Why\*\*:\s*(.+)$/);
-        if (whyMatch) {
-          lastTask.why = whyMatch[1].trim();
-          continue;
-        }
-        const filesMatch = line.match(/^\s+-\s+\*\*Files\*\*:\s*(.+)$/);
-        if (filesMatch) {
-          lastTask.files = filesMatch[1].trim();
-          continue;
-        }
-        const doneMatch = line.match(/^\s+-\s+\*\*Done when\*\*:\s*(.+)$/);
-        if (doneMatch) {
-          lastTask.doneWhen = doneMatch[1].trim();
-          continue;
-        }
+      lastTask = {
+        id: checkboxMatch[2],
+        status,
+        description: desc,
+        dependencies,
+        parallelizable,
+      };
+      currentPhase.tasks.push(lastTask);
+      continue;
+    }
+
+    // Format B (heading): "### T-1: Task title" or "### [x] T-1: Task title"
+    const headingMatch = line.match(
+      /^###\s+(?:\[([^\]]*)\]\s+)?(T-?\d+):\s*(.+)$/,
+    );
+    if (headingMatch) {
+      const marker = headingMatch[1] ?? " ";
+      const headingStatus =
+        marker === "x" || marker === "~"
+          ? "done"
+          : marker === "→"
+            ? "in_progress"
+            : "pending";
+      lastTask = {
+        id: headingMatch[2],
+        status: headingStatus,
+        description: headingMatch[3].trim(),
+        dependencies: [],
+        parallelizable: false,
+      };
+      currentPhase.tasks.push(lastTask);
+      continue;
+    }
+
+    // Metadata lines (both formats): indented "- **Key**: value" or standalone "**Key**: value"
+    if (lastTask) {
+      const whyMatch = line.match(/^(?:\s+-\s+)?\*\*Why\*\*:\s*(.+)$/);
+      if (whyMatch) {
+        lastTask.why = whyMatch[1].trim();
+        continue;
+      }
+      const filesMatch = line.match(/^(?:\s+-\s+)?\*\*Files\*\*:\s*(.+)$/);
+      if (filesMatch) {
+        lastTask.files = filesMatch[1].trim();
+        continue;
+      }
+      const doneMatch = line.match(
+        /^(?:\s+-\s+)?\*\*(?:Done when|Verify)\*\*:\s*(.+)$/,
+      );
+      if (doneMatch) {
+        lastTask.doneWhen = doneMatch[1].trim();
+        continue;
       }
     }
   }
