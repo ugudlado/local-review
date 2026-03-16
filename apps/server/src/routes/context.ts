@@ -1,10 +1,18 @@
 import { Hono } from "hono";
+import os from "node:os";
 import type { GitState } from "../git.js";
 import { execFileAsync, execGit, getGitState } from "../git.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Expand leading `~` or `~/` to the user's home directory. */
+function expandTilde(p: string): string {
+  if (p === "~") return os.homedir();
+  if (p.startsWith("~/")) return os.homedir() + p.slice(1);
+  return p;
+}
 
 /** Filter branches to active ones: unmerged, worktree-attached, or main/master. */
 function filterActiveBranches(state: GitState | null): string[] {
@@ -69,7 +77,8 @@ function resolveWorktree(
     };
   }
 
-  const found = worktrees.find((wt) => wt.path === requestedPath);
+  const resolved = expandTilde(requestedPath);
+  const found = worktrees.find((wt) => wt.path === resolved);
   if (!found) {
     throw new Error("Unknown worktree path");
   }
@@ -374,10 +383,10 @@ export function createContextRoute(repoRoot: string): Hono {
   // GET /commit-diff
   app.get("/commit-diff", async (c) => {
     const requestedWorktree = c.req.query("worktree") ?? null;
-    const hash = c.req.query("hash") ?? null;
+    const commit = c.req.query("commit") ?? null;
 
-    if (!hash) {
-      return c.json({ error: "hash is required" }, 400);
+    if (!commit) {
+      return c.json({ error: "commit is required" }, 400);
     }
 
     let selectedWorktree: ReturnType<typeof resolveWorktree>;
@@ -389,7 +398,7 @@ export function createContextRoute(repoRoot: string): Hono {
 
     try {
       const diff = await execGit(
-        ["show", "--no-color", hash],
+        ["show", "--no-color", commit],
         selectedWorktree.path,
       );
       return c.json({ diff });

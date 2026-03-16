@@ -90,6 +90,8 @@ export function useReviewSession({
           if (branchMatches) {
             setThreads((session.threads as unknown as ReviewThread[]) || []);
             setReviewVerdict(session.reviewVerdict ?? null);
+            const meta = session.metadata as { createdAt?: string } | undefined;
+            createdAtRef.current = meta?.createdAt ?? null;
             setStatus(`Loaded session`);
           } else {
             setThreads([]);
@@ -123,6 +125,9 @@ export function useReviewSession({
     localStorage.setItem(`review.summary.${viewKey}`, summaryNotes);
   }, [viewKey, summaryNotes]);
 
+  // Preserve original session creation timestamp across auto-saves.
+  const createdAtRef = useRef<string | null>(null);
+
   // Suppress the next file-watcher update that echoes back our own save.
   const skipNextUpdate = useRef(false);
 
@@ -132,6 +137,10 @@ export function useReviewSession({
     if (threads.length === 0 && reviewVerdict === null) return; // never auto-save empty state
 
     const now = new Date().toISOString();
+    const createdAt = createdAtRef.current ?? now;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    createdAtRef.current = createdAt;
+
     const timer = setTimeout(() => {
       void (async () => {
         skipNextUpdate.current = true;
@@ -144,7 +153,7 @@ export function useReviewSession({
             verdict: reviewVerdict,
             reviewVerdict,
             threads: threads as unknown as SessionReviewThread[],
-            metadata: { createdAt: now, updatedAt: now },
+            metadata: { createdAt, updatedAt: now },
           });
           onSessionSavedRef.current?.();
         } catch {
@@ -207,6 +216,8 @@ export function useReviewSession({
     setThreads([]);
     setSummaryNotes("");
     setReviewVerdict(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    createdAtRef.current = null;
     setStatus("Session reset");
   };
 
