@@ -8,6 +8,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
 import { refreshGitState } from "./git.js";
+import { repoMiddleware } from "./middleware/repo.js";
+import type { AppEnv } from "./types.js";
 import {
   coldStart as resolverColdStart,
   getStatus as resolverStatus,
@@ -50,8 +52,9 @@ setBroadcaster(broadcast);
 // Hono app
 // ---------------------------------------------------------------------------
 
-const app = new Hono();
+const app = new Hono<AppEnv>();
 app.use("*", cors());
+app.use("/api/*", repoMiddleware(repoRoot));
 
 // API routes
 app.route("/api/features", createFeaturesRoute(repoRoot));

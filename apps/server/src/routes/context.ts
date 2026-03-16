@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import os from "node:os";
 import type { GitState } from "../git.js";
 import { execFileAsync, execGit, getGitState } from "../git.js";
+import type { AppEnv } from "../types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -260,11 +261,12 @@ async function buildCommitList(
 // Route factory
 // ---------------------------------------------------------------------------
 
-export function createContextRoute(repoRoot: string): Hono {
-  const app = new Hono();
+export function createContextRoute(_repoRoot: string): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   // GET /context
   app.get("/context", (c) => {
+    const repoRoot = c.get("repoRoot");
     const requestedWorktree = c.req.query("worktree") ?? null;
     const _requestedSource = c.req.query("source") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
@@ -306,6 +308,7 @@ export function createContextRoute(repoRoot: string): Hono {
 
   // GET /diff
   app.get("/diff", async (c) => {
+    const repoRoot = c.get("repoRoot");
     const requestedWorktree = c.req.query("worktree") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
     const requestedSource = c.req.query("source") ?? null;
@@ -344,6 +347,7 @@ export function createContextRoute(repoRoot: string): Hono {
 
   // GET /commits
   app.get("/commits", async (c) => {
+    const repoRoot = c.get("repoRoot");
     const requestedWorktree = c.req.query("worktree") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
     const requestedSource = c.req.query("source") ?? null;
@@ -382,6 +386,7 @@ export function createContextRoute(repoRoot: string): Hono {
 
   // GET /commit-diff
   app.get("/commit-diff", async (c) => {
+    const repoRoot = c.get("repoRoot");
     const requestedWorktree = c.req.query("worktree") ?? null;
     const commit = c.req.query("commit") ?? null;
 

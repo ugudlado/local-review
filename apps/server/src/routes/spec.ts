@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { getGitState } from "../git.js";
+import type { AppEnv } from "../types.js";
 import { findWorktreePath, safeId } from "../utils.js";
 
 /** Resolve the spec.md path: active worktree first, then archived. */
@@ -14,11 +15,12 @@ function resolveSpecPath(featureId: string, repoRoot: string): string | null {
   return path.join(repoRoot, "specs", "archived", featureId, "spec.md");
 }
 
-export function createSpecRoute(repoRoot: string): Hono {
-  const app = new Hono();
+export function createSpecRoute(_repoRoot: string): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   // GET /api/features/:id/spec
   app.get("/:id/spec", async (c) => {
+    const repoRoot = c.get("repoRoot");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
@@ -42,6 +44,7 @@ export function createSpecRoute(repoRoot: string): Hono {
 
   // PUT /api/features/:id/spec
   app.put("/:id/spec", async (c) => {
+    const repoRoot = c.get("repoRoot");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
@@ -139,6 +142,7 @@ export function createSpecRoute(repoRoot: string): Hono {
 
   // GET /api/file
   app.get("/file", async (c) => {
+    const repoRoot = c.get("repoRoot");
     const worktreeParam = c.req.query("worktree");
     const filePath = c.req.query("path");
 

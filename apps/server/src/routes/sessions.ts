@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
+import type { AppEnv } from "../types.js";
 import { safeId } from "../utils.js";
 import type { Broadcaster } from "../watcher.js";
 
@@ -89,10 +90,10 @@ const SESSION_CONFIGS: Record<SessionType, SessionConfig> = {
 // ---------------------------------------------------------------------------
 
 function registerSessionCRUD(
-  app: Hono,
+  app: Hono<AppEnv>,
   config: SessionConfig,
-  sessionsDir: string,
-  ensureSessionsDir: () => Promise<void>,
+  _sessionsDir: string,
+  _ensureSessionsDir: () => Promise<void>,
   sessionType: SessionType,
   broadcast?: Broadcaster,
 ): void {
@@ -100,12 +101,14 @@ function registerSessionCRUD(
 
   // GET
   app.get(`/:id/${pathSegment}`, async (c) => {
+    const repoRoot = c.get("repoRoot");
+    const sessionsDir = path.join(repoRoot, ".review", "sessions");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
-    await ensureSessionsDir();
+    await fs.mkdir(sessionsDir, { recursive: true });
     const filePath = path.join(sessionsDir, `${featureId}${fileSuffix}`);
 
     try {
@@ -118,12 +121,14 @@ function registerSessionCRUD(
 
   // POST (save)
   app.post(`/:id/${pathSegment}`, async (c) => {
+    const repoRoot = c.get("repoRoot");
+    const sessionsDir = path.join(repoRoot, ".review", "sessions");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
-    await ensureSessionsDir();
+    await fs.mkdir(sessionsDir, { recursive: true });
     const filePath = path.join(sessionsDir, `${featureId}${fileSuffix}`);
 
     const session = await c.req.json<Record<string, unknown>>();
@@ -135,12 +140,14 @@ function registerSessionCRUD(
 
   // DELETE
   app.delete(`/:id/${pathSegment}`, async (c) => {
+    const repoRoot = c.get("repoRoot");
+    const sessionsDir = path.join(repoRoot, ".review", "sessions");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
-    await ensureSessionsDir();
+    await fs.mkdir(sessionsDir, { recursive: true });
     const filePath = path.join(sessionsDir, `${featureId}${fileSuffix}`);
 
     try {
@@ -154,13 +161,15 @@ function registerSessionCRUD(
 
   // PATCH thread
   app.patch(`/:id/${pathSegment}/threads/:threadId`, async (c) => {
+    const repoRoot = c.get("repoRoot");
+    const sessionsDir = path.join(repoRoot, ".review", "sessions");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
     const threadId = c.req.param("threadId");
 
-    await ensureSessionsDir();
+    await fs.mkdir(sessionsDir, { recursive: true });
     const filePath = path.join(sessionsDir, `${featureId}${fileSuffix}`);
 
     let sessionContent: string;
@@ -235,25 +244,16 @@ function registerSessionCRUD(
 export function createSessionsRoute(
   repoRoot: string,
   broadcast?: Broadcaster,
-): Hono {
-  const app = new Hono();
-  const sessionsDir = path.join(repoRoot, ".review", "sessions");
-
-  // Ensure sessions directory exists once, not per-request
-  let dirEnsured = false;
-  async function ensureSessionsDir(): Promise<void> {
-    if (dirEnsured) return;
-    await fs.mkdir(sessionsDir, { recursive: true });
-    dirEnsured = true;
-  }
+): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   // Register both code and spec session CRUD
   for (const [type, config] of Object.entries(SESSION_CONFIGS)) {
     registerSessionCRUD(
       app,
       config,
-      sessionsDir,
-      ensureSessionsDir,
+      path.join(repoRoot, ".review", "sessions"),
+      async () => {},
       type as SessionType,
       broadcast,
     );

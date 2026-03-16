@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { getGitState } from "../git.js";
 import os from "node:os";
+import type { AppEnv } from "../types.js";
 import { findOpenspecChangeDir } from "../utils.js";
 import { THREAD_STATUS } from "./sessions.js";
 
@@ -114,11 +115,12 @@ async function readJsonSession(filePath: string): Promise<Session> {
 // Route factory
 // ---------------------------------------------------------------------------
 
-export function createFeaturesRoute(repoRoot: string): Hono {
-  const app = new Hono();
-  const sessionsDir = path.join(repoRoot, ".review", "sessions");
+export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   app.get("/", async (c) => {
+    const repoRoot = c.get("repoRoot");
+    const sessionsDir = path.join(repoRoot, ".review", "sessions");
     try {
       const gitState = getGitState();
       if (!gitState) {
