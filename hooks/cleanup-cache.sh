@@ -4,7 +4,7 @@
 set -euo pipefail
 
 CACHE_DIR="$HOME/.claude/plugins/cache/ugudlado/local-review"
-PLUGINS_JSON="$HOME/.claude/plugins/installed_plugins.json"
+PLUGIN_JSON="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/.claude-plugin/plugin.json"
 LOG_PREFIX="[$(date '+%Y-%m-%d %H:%M:%S')]"
 
 # Exit early if cache directory doesn't exist or has < 2 versions
@@ -17,9 +17,9 @@ if [ "$version_count" -lt 2 ]; then
   exit 0
 fi
 
-# Determine active version from installed_plugins.json
-if [ ! -f "$PLUGINS_JSON" ]; then
-  echo "$LOG_PREFIX WARNING: $PLUGINS_JSON not found, skipping cleanup"
+# Determine active version from our own plugin.json
+if [ ! -f "$PLUGIN_JSON" ]; then
+  echo "$LOG_PREFIX WARNING: plugin.json not found at $PLUGIN_JSON, skipping cleanup"
   exit 0
 fi
 
@@ -27,15 +27,13 @@ active_version=$(python3 -c "
 import json, sys
 try:
     data = json.load(open(sys.argv[1]))
-    entries = data.get('plugins', {}).get('local-review@ugudlado', [])
-    if entries:
-        print(entries[-1]['installPath'].rstrip('/').split('/')[-1])
+    print(data.get('version', ''))
 except Exception:
     pass
-" "$PLUGINS_JSON" 2>/dev/null)
+" "$PLUGIN_JSON" 2>/dev/null)
 
 if [ -z "$active_version" ]; then
-  echo "$LOG_PREFIX WARNING: Could not determine active version, skipping cleanup"
+  echo "$LOG_PREFIX WARNING: Could not read version from plugin.json, skipping cleanup"
   exit 0
 fi
 
