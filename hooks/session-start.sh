@@ -4,6 +4,9 @@ set -euo pipefail
 PORT=37003
 SERVER_ALREADY_RUNNING=false
 
+# Clean up old cached versions (non-blocking)
+"${BASH_SOURCE%/*}/cleanup-cache.sh" >>/tmp/local-review-cleanup.log 2>&1 &
+
 # Check if server is already running
 if lsof -i :"$PORT" -sTCP:LISTEN &>/dev/null; then
   SERVER_ALREADY_RUNNING=true
