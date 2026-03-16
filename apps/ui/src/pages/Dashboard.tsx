@@ -5,6 +5,7 @@ import SkeletonRow from "../components/dashboard/SkeletonRow";
 import EmptyState from "../components/dashboard/EmptyState";
 import { APP_NAME, APP_VERSION } from "../config/app";
 import { FEATURE_STATUS, type FeatureStatus } from "../types/sessions";
+import { useRepoContext } from "../hooks/useRepoContext";
 
 type SortKey = "activity" | "status" | "name";
 
@@ -56,6 +57,7 @@ const SELECT_STYLE = {
 };
 
 export default function Dashboard() {
+  const { repo, repoName } = useRepoContext();
   const [features, setFeatures] = useState<FeatureInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,14 +72,14 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const data = await featureApi.getFeatures();
+      const data = await featureApi.getFeatures(repo);
       setFeatures(data.features);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load features");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [repo]);
 
   useEffect(() => {
     void fetchFeatures();
@@ -134,6 +136,11 @@ export default function Dashboard() {
             <span className="text-xs font-normal text-[var(--text-muted)]">
               v{APP_VERSION}
             </span>
+            {repoName && (
+              <span className="text-sm font-normal text-slate-400">
+                / {repoName}
+              </span>
+            )}
           </h1>
           <button
             onClick={() => {

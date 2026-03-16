@@ -4,6 +4,7 @@ import type { FeatureInfo } from "../../services/featureApi";
 import { relativeTime } from "../../utils/timeFormat";
 import { FLAGS } from "../../config/app";
 import { FEATURE_STATUS, type FeatureStatus } from "../../types/sessions";
+import { useRepoContext, withRepo } from "../../hooks/useRepoContext";
 
 export interface FeatureRowProps {
   feature: FeatureInfo;
@@ -181,6 +182,7 @@ export default function FeatureRow({
   searchQuery = "",
 }: FeatureRowProps) {
   const navigate = useNavigate();
+  const { repo } = useRepoContext();
   const { done, total } = feature.taskProgress;
   const progressPct = total > 0 ? Math.round((done / total) * 100) : 0;
   const totalOpen =
@@ -191,7 +193,7 @@ export default function FeatureRow({
   const accentClass = ROW_ACCENT[feature.status] ?? "border-l-slate-600";
 
   function handleActivate() {
-    void navigate(`/features/${feature.id}`);
+    void navigate(withRepo(`/features/${feature.id}`, repo));
   }
 
   return (
