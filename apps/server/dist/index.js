@@ -76,14 +76,14 @@ var require_node_gyp_build = __commonJS({
     init_cjs_shim();
     var fs10 = __require("fs");
     var path10 = __require("path");
-    var os2 = __require("os");
+    var os3 = __require("os");
     var runtimeRequire = typeof __webpack_require__ === "function" ? __non_webpack_require__ : __require;
     var vars = process.config && process.config.variables || {};
     var prebuildsOnly = !!process.env.PREBUILDS_ONLY;
     var abi = process.versions.modules;
     var runtime = isElectron() ? "electron" : isNwjs() ? "node-webkit" : "node";
-    var arch = process.env.npm_config_arch || os2.arch();
-    var platform = process.env.npm_config_platform || os2.platform();
+    var arch = process.env.npm_config_arch || os3.arch();
+    var platform = process.env.npm_config_platform || os3.platform();
     var libc = process.env.LIBC || (isAlpine(platform) ? "musl" : "glibc");
     var armv = process.env.ARM_VERSION || (arch === "arm64" ? "8" : vars.arm_version) || "";
     var uv = (process.versions.uv || "").split(".")[0];
@@ -7296,6 +7296,12 @@ init_resolver_daemon();
 
 // src/routes/context.ts
 init_cjs_shim();
+import os from "node:os";
+function expandTilde(p) {
+  if (p === "~") return os.homedir();
+  if (p.startsWith("~/")) return os.homedir() + p.slice(1);
+  return p;
+}
 function filterActiveBranches(state2) {
   const localBranches = state2?.localBranches ?? [];
   const unmergedBranches = new Set(state2?.unmergedBranches ?? []);
@@ -7339,7 +7345,8 @@ function resolveWorktree(requestedPath, repoRoot2) {
       isMain: (chosen?.path ?? repoRoot2) === (worktrees[0]?.path ?? repoRoot2)
     };
   }
-  const found = worktrees.find((wt) => wt.path === requestedPath);
+  const resolved = expandTilde(requestedPath);
+  const found = worktrees.find((wt) => wt.path === resolved);
   if (!found) {
     throw new Error("Unknown worktree path");
   }
@@ -7571,9 +7578,9 @@ function createContextRoute(repoRoot2) {
   });
   app2.get("/commit-diff", async (c) => {
     const requestedWorktree = c.req.query("worktree") ?? null;
-    const hash = c.req.query("hash") ?? null;
-    if (!hash) {
-      return c.json({ error: "hash is required" }, 400);
+    const commit = c.req.query("commit") ?? null;
+    if (!commit) {
+      return c.json({ error: "commit is required" }, 400);
     }
     let selectedWorktree;
     try {
@@ -7583,7 +7590,7 @@ function createContextRoute(repoRoot2) {
     }
     try {
       const diff = await execGit(
-        ["show", "--no-color", hash],
+        ["show", "--no-color", commit],
         selectedWorktree.path
       );
       return c.json({ diff });
@@ -7613,7 +7620,7 @@ function createContextRoute(repoRoot2) {
 init_cjs_shim();
 import fs5 from "node:fs/promises";
 import path5 from "node:path";
-import os from "node:os";
+import os2 from "node:os";
 
 // src/utils.ts
 init_cjs_shim();
@@ -7818,7 +7825,7 @@ function createSessionsRoute(repoRoot2, broadcast3) {
 }
 
 // src/routes/features.ts
-var HOME = os.homedir();
+var HOME = os2.homedir();
 function tildefy(p) {
   return p.startsWith(HOME) ? "~" + p.slice(HOME.length) : p;
 }
