@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 1.2.1 — 2026-03-16
+
+- Version display next to app title in Dashboard and ReviewPage headers
+
+* Rename commit-diff API parameter from `hash` to `commit` for consistency with UI
+* Preserve original session `createdAt` timestamp across auto-saves
+
+! Fix tilde path expansion in worktree resolution causing empty diffs in feature code view
+
 ## 1.2.0 — 2026-03-15
 
 ### UI
