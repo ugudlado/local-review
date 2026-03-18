@@ -11,12 +11,7 @@ export function useRepoContext() {
   const repo = searchParams.get("repo");
   const workspace = searchParams.get("workspace");
 
-  // Workspace name takes priority for display, repo path for API calls
-  const repoName =
-    workspace ??
-    (repo ? (repo.split("/").filter(Boolean).pop() ?? repo) : null);
-
-  return { repo, workspace, repoName };
+  return { repo, workspace };
 }
 
 /** Append ?repo= or ?workspace= to a URL path */

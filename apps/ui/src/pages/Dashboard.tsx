@@ -149,7 +149,7 @@ function WorkspaceSwitcher({
 }
 
 export default function Dashboard() {
-  const { repo, workspace, repoName } = useRepoContext();
+  const { repo, workspace } = useRepoContext();
   const workspaces = useWorkspaces();
   const [, setSearchParams] = useSearchParams();
   const [features, setFeatures] = useState<FeatureInfo[]>([]);
@@ -255,9 +255,9 @@ export default function Dashboard() {
             <span className="text-xs font-normal text-slate-600">
               v{APP_VERSION}
             </span>
-            {repoName && !workspaces.length && (
+            {apiRepoName && !workspaces.length && (
               <span className="text-sm font-normal text-slate-400">
-                / {repoName}
+                / {apiRepoName}
               </span>
             )}
           </h1>
