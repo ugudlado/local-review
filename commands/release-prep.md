@@ -56,32 +56,28 @@ WAIT for user approval before writing.
 
 ### 4. Update Files
 
-After approval, update these three files:
+After approval, update all version files:
 
 **a) CHANGELOG.md** — Insert the approved entry below the `# Changelog` heading, above the previous release.
 
-**b) `.claude-plugin/plugin.json`** — Bump the `"version"` field to x.y.z.
+**b) `package.json`** — Bump the root `"version"` field to x.y.z.
 
-```bash
-cat .claude-plugin/plugin.json
-```
+**c) `apps/ui/src/config/app.ts`** — Update `APP_VERSION` to "x.y.z".
 
-Use Edit to update the version field in-place.
+**d) `.claude-plugin/plugin.json`** — Bump the `"version"` field to x.y.z.
 
-**c) `$HOME/code/claude-marketplace/.claude-plugin/marketplace.json`** — Bump the `"version"` for the `local-review` plugin entry to x.y.z.
+**e) `.claude-plugin/marketplace.json`** — Bump the `"version"` for the `local-review` entry to x.y.z.
 
-```bash
-cat $HOME/code/claude-marketplace/.claude-plugin/marketplace.json
-```
+**f) `$HOME/code/claude-marketplace/.claude-plugin/marketplace.json`** — Bump the `"version"` for the `local-review` plugin entry to x.y.z.
 
-Use Edit to update the version field in-place.
+Read each file before editing. Use Edit to update version fields in-place.
 
 ### 5. Commit and Tag
 
 Stage all changed files and commit:
 
 ```bash
-git add CHANGELOG.md .claude-plugin/plugin.json
+git add CHANGELOG.md package.json apps/ui/src/config/app.ts .claude-plugin/plugin.json .claude-plugin/marketplace.json
 git commit -m "chore: release vx.y.z"
 ```
 
@@ -106,6 +102,6 @@ Output:
 
 - Release version
 - Number of changelog entries
-- Files updated (CHANGELOG.md, plugin.json, marketplace.json)
+- Files updated (CHANGELOG.md, package.json, app.ts, plugin.json, marketplace.json x2)
 - Tag name created
 - Remind user to run `git push origin main --tags` in this repo and `git push` in the marketplace repo
