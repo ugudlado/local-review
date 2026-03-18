@@ -74,16 +74,16 @@ var require_constants = __commonJS({
 var require_node_gyp_build = __commonJS({
   "../../node_modules/.pnpm/node-gyp-build@4.8.4/node_modules/node-gyp-build/node-gyp-build.js"(exports, module) {
     init_cjs_shim();
-    var fs10 = __require("fs");
-    var path10 = __require("path");
-    var os3 = __require("os");
+    var fs12 = __require("fs");
+    var path12 = __require("path");
+    var os5 = __require("os");
     var runtimeRequire = typeof __webpack_require__ === "function" ? __non_webpack_require__ : __require;
     var vars = process.config && process.config.variables || {};
     var prebuildsOnly = !!process.env.PREBUILDS_ONLY;
     var abi = process.versions.modules;
     var runtime = isElectron() ? "electron" : isNwjs() ? "node-webkit" : "node";
-    var arch = process.env.npm_config_arch || os3.arch();
-    var platform = process.env.npm_config_platform || os3.platform();
+    var arch = process.env.npm_config_arch || os5.arch();
+    var platform = process.env.npm_config_platform || os5.platform();
     var libc = process.env.LIBC || (isAlpine(platform) ? "musl" : "glibc");
     var armv = process.env.ARM_VERSION || (arch === "arm64" ? "8" : vars.arm_version) || "";
     var uv = (process.versions.uv || "").split(".")[0];
@@ -92,21 +92,21 @@ var require_node_gyp_build = __commonJS({
       return runtimeRequire(load.resolve(dir));
     }
     load.resolve = load.path = function(dir) {
-      dir = path10.resolve(dir || ".");
+      dir = path12.resolve(dir || ".");
       try {
-        var name = runtimeRequire(path10.join(dir, "package.json")).name.toUpperCase().replace(/-/g, "_");
+        var name = runtimeRequire(path12.join(dir, "package.json")).name.toUpperCase().replace(/-/g, "_");
         if (process.env[name + "_PREBUILD"]) dir = process.env[name + "_PREBUILD"];
       } catch (err) {
       }
       if (!prebuildsOnly) {
-        var release = getFirst(path10.join(dir, "build/Release"), matchBuild);
+        var release = getFirst(path12.join(dir, "build/Release"), matchBuild);
         if (release) return release;
-        var debug = getFirst(path10.join(dir, "build/Debug"), matchBuild);
+        var debug = getFirst(path12.join(dir, "build/Debug"), matchBuild);
         if (debug) return debug;
       }
       var prebuild = resolve4(dir);
       if (prebuild) return prebuild;
-      var nearby = resolve4(path10.dirname(process.execPath));
+      var nearby = resolve4(path12.dirname(process.execPath));
       if (nearby) return nearby;
       var target = [
         "platform=" + platform,
@@ -123,26 +123,26 @@ var require_node_gyp_build = __commonJS({
       ].filter(Boolean).join(" ");
       throw new Error("No native build was found for " + target + "\n    loaded from: " + dir + "\n");
       function resolve4(dir2) {
-        var tuples = readdirSync(path10.join(dir2, "prebuilds")).map(parseTuple);
+        var tuples = readdirSync(path12.join(dir2, "prebuilds")).map(parseTuple);
         var tuple = tuples.filter(matchTuple(platform, arch)).sort(compareTuples)[0];
         if (!tuple) return;
-        var prebuilds = path10.join(dir2, "prebuilds", tuple.name);
+        var prebuilds = path12.join(dir2, "prebuilds", tuple.name);
         var parsed = readdirSync(prebuilds).map(parseTags);
         var candidates = parsed.filter(matchTags(runtime, abi));
         var winner = candidates.sort(compareTags(runtime))[0];
-        if (winner) return path10.join(prebuilds, winner.file);
+        if (winner) return path12.join(prebuilds, winner.file);
       }
     };
     function readdirSync(dir) {
       try {
-        return fs10.readdirSync(dir);
+        return fs12.readdirSync(dir);
       } catch (err) {
         return [];
       }
     }
     function getFirst(dir, filter) {
       var files = readdirSync(dir).filter(filter);
-      return files[0] && path10.join(dir, files[0]);
+      return files[0] && path12.join(dir, files[0]);
     }
     function matchBuild(name) {
       return /\.node$/.test(name);
@@ -229,7 +229,7 @@ var require_node_gyp_build = __commonJS({
       return typeof window !== "undefined" && window.process && window.process.type === "renderer";
     }
     function isAlpine(platform2) {
-      return platform2 === "linux" && fs10.existsSync("/etc/alpine-release");
+      return platform2 === "linux" && fs12.existsSync("/etc/alpine-release");
     }
     load.parseTags = parseTags;
     load.matchTags = matchTags;
@@ -3899,8 +3899,8 @@ __export(resolver_daemon_exports, {
   resolve: () => resolve
 });
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import fs2 from "node:fs/promises";
-import path2 from "node:path";
+import fs4 from "node:fs/promises";
+import path4 from "node:path";
 function migrateSeverity(severity) {
   if (!severity) return "improvement";
   const LEGACY_MAP = {
@@ -4011,7 +4011,7 @@ async function buildResolvePrompt(sessionFile, sessionType, featureId, cwd) {
   let openThreadCount = 0;
   let severitySummary = "";
   try {
-    const raw2 = await fs2.readFile(sessionFile, "utf-8");
+    const raw2 = await fs4.readFile(sessionFile, "utf-8");
     const session = JSON.parse(raw2);
     const resolvable = triageThreads(session.threads ?? []);
     openThreadCount = resolvable.length;
@@ -4034,7 +4034,7 @@ Severity breakdown: ${parts.join(", ")}`;
       err
     );
   }
-  const relSessionFile = path2.relative(cwd, sessionFile);
+  const relSessionFile = path4.relative(cwd, sessionFile);
   const triageInstructions = `
 IMPORTANT: Threads are prioritized by severity. Process them in this order:
 1. "critical" threads first (security, correctness, breaking changes)
@@ -4136,7 +4136,7 @@ async function executeResolve(sessionFile, sessionType, featureId, cwd) {
   }
   let resolvableThreads = [];
   try {
-    const raw2 = await fs2.readFile(sessionFile, "utf-8");
+    const raw2 = await fs4.readFile(sessionFile, "utf-8");
     const session = JSON.parse(raw2);
     resolvableThreads = triageThreads(session.threads ?? []);
   } catch (err) {
@@ -4923,10 +4923,10 @@ var createStreamBody = (stream) => {
   });
   return body;
 };
-var getStats = (path10) => {
+var getStats = (path12) => {
   let stats;
   try {
-    stats = statSync(path10);
+    stats = statSync(path12);
   } catch {
   }
   return stats;
@@ -4969,21 +4969,21 @@ var serveStatic = (options = { root: "" }) => {
         return next();
       }
     }
-    let path10 = join(
+    let path12 = join(
       root,
       !optionPath && options.rewriteRequestPath ? options.rewriteRequestPath(filename, c) : filename
     );
-    let stats = getStats(path10);
+    let stats = getStats(path12);
     if (stats && stats.isDirectory()) {
       const indexFile = options.index ?? "index.html";
-      path10 = join(path10, indexFile);
-      stats = getStats(path10);
+      path12 = join(path12, indexFile);
+      stats = getStats(path12);
     }
     if (!stats) {
-      await options.onNotFound?.(path10, c);
+      await options.onNotFound?.(path12, c);
       return next();
     }
-    const mimeType = getMimeType(path10);
+    const mimeType = getMimeType(path12);
     c.header("Content-Type", mimeType || "application/octet-stream");
     if (options.precompressed && (!mimeType || COMPRESSIBLE_CONTENT_TYPE_REGEX.test(mimeType))) {
       const acceptEncodingSet = new Set(
@@ -4993,12 +4993,12 @@ var serveStatic = (options = { root: "" }) => {
         if (!acceptEncodingSet.has(encoding)) {
           continue;
         }
-        const precompressedStats = getStats(path10 + ENCODINGS[encoding]);
+        const precompressedStats = getStats(path12 + ENCODINGS[encoding]);
         if (precompressedStats) {
           c.header("Content-Encoding", encoding);
           c.header("Vary", "Accept-Encoding", { append: true });
           stats = precompressedStats;
-          path10 = path10 + ENCODINGS[encoding];
+          path12 = path12 + ENCODINGS[encoding];
           break;
         }
       }
@@ -5012,7 +5012,7 @@ var serveStatic = (options = { root: "" }) => {
       result = c.body(null);
     } else if (!range) {
       c.header("Content-Length", size.toString());
-      result = c.body(createStreamBody(createReadStream(path10)), 200);
+      result = c.body(createStreamBody(createReadStream(path12)), 200);
     } else {
       c.header("Accept-Ranges", "bytes");
       c.header("Date", stats.birthtime.toUTCString());
@@ -5023,12 +5023,12 @@ var serveStatic = (options = { root: "" }) => {
         end = size - 1;
       }
       const chunksize = end - start + 1;
-      const stream = createReadStream(path10, { start, end });
+      const stream = createReadStream(path12, { start, end });
       c.header("Content-Length", chunksize.toString());
       c.header("Content-Range", `bytes ${start}-${end}/${stats.size}`);
       result = c.body(createStreamBody(stream), 206);
     }
-    await options.onFound?.(path10, c);
+    await options.onFound?.(path12, c);
     return result;
   };
 };
@@ -5172,26 +5172,26 @@ var handleParsingNestedValues = (form, key, value) => {
 
 // ../../node_modules/.pnpm/hono@4.12.5/node_modules/hono/dist/utils/url.js
 init_cjs_shim();
-var splitPath = (path10) => {
-  const paths = path10.split("/");
+var splitPath = (path12) => {
+  const paths = path12.split("/");
   if (paths[0] === "") {
     paths.shift();
   }
   return paths;
 };
 var splitRoutingPath = (routePath) => {
-  const { groups, path: path10 } = extractGroupsFromPath(routePath);
-  const paths = splitPath(path10);
+  const { groups, path: path12 } = extractGroupsFromPath(routePath);
+  const paths = splitPath(path12);
   return replaceGroupMarks(paths, groups);
 };
-var extractGroupsFromPath = (path10) => {
+var extractGroupsFromPath = (path12) => {
   const groups = [];
-  path10 = path10.replace(/\{[^}]+\}/g, (match2, index) => {
+  path12 = path12.replace(/\{[^}]+\}/g, (match2, index) => {
     const mark = `@${index}`;
     groups.push([mark, match2]);
     return mark;
   });
-  return { groups, path: path10 };
+  return { groups, path: path12 };
 };
 var replaceGroupMarks = (paths, groups) => {
   for (let i = groups.length - 1; i >= 0; i--) {
@@ -5248,8 +5248,8 @@ var getPath = (request) => {
       const queryIndex = url.indexOf("?", i);
       const hashIndex = url.indexOf("#", i);
       const end = queryIndex === -1 ? hashIndex === -1 ? void 0 : hashIndex : hashIndex === -1 ? queryIndex : Math.min(queryIndex, hashIndex);
-      const path10 = url.slice(start, end);
-      return tryDecodeURI2(path10.includes("%25") ? path10.replace(/%25/g, "%2525") : path10);
+      const path12 = url.slice(start, end);
+      return tryDecodeURI2(path12.includes("%25") ? path12.replace(/%25/g, "%2525") : path12);
     } else if (charCode === 63 || charCode === 35) {
       break;
     }
@@ -5266,11 +5266,11 @@ var mergePath = (base, sub, ...rest) => {
   }
   return `${base?.[0] === "/" ? "" : "/"}${base}${sub === "/" ? "" : `${base?.at(-1) === "/" ? "" : "/"}${sub?.[0] === "/" ? sub.slice(1) : sub}`}`;
 };
-var checkOptionalParameter = (path10) => {
-  if (path10.charCodeAt(path10.length - 1) !== 63 || !path10.includes(":")) {
+var checkOptionalParameter = (path12) => {
+  if (path12.charCodeAt(path12.length - 1) !== 63 || !path12.includes(":")) {
     return null;
   }
-  const segments = path10.split("/");
+  const segments = path12.split("/");
   const results = [];
   let basePath = "";
   segments.forEach((segment) => {
@@ -5411,9 +5411,9 @@ var HonoRequest = class {
    */
   path;
   bodyCache = {};
-  constructor(request, path10 = "/", matchResult = [[]]) {
+  constructor(request, path12 = "/", matchResult = [[]]) {
     this.raw = request;
-    this.path = path10;
+    this.path = path12;
     this.#matchResult = matchResult;
     this.#validatedData = {};
   }
@@ -6153,8 +6153,8 @@ var Hono = class _Hono {
         return this;
       };
     });
-    this.on = (method, path10, ...handlers) => {
-      for (const p of [path10].flat()) {
+    this.on = (method, path12, ...handlers) => {
+      for (const p of [path12].flat()) {
         this.#path = p;
         for (const m of [method].flat()) {
           handlers.map((handler) => {
@@ -6211,8 +6211,8 @@ var Hono = class _Hono {
    * app.route("/api", app2) // GET /api/user
    * ```
    */
-  route(path10, app2) {
-    const subApp = this.basePath(path10);
+  route(path12, app2) {
+    const subApp = this.basePath(path12);
     app2.routes.map((r) => {
       let handler;
       if (app2.errorHandler === errorHandler) {
@@ -6238,9 +6238,9 @@ var Hono = class _Hono {
    * const api = new Hono().basePath('/api')
    * ```
    */
-  basePath(path10) {
+  basePath(path12) {
     const subApp = this.#clone();
-    subApp._basePath = mergePath(this._basePath, path10);
+    subApp._basePath = mergePath(this._basePath, path12);
     return subApp;
   }
   /**
@@ -6314,7 +6314,7 @@ var Hono = class _Hono {
    * })
    * ```
    */
-  mount(path10, applicationHandler, options) {
+  mount(path12, applicationHandler, options) {
     let replaceRequest;
     let optionHandler;
     if (options) {
@@ -6341,7 +6341,7 @@ var Hono = class _Hono {
       return [c.env, executionContext];
     };
     replaceRequest ||= (() => {
-      const mergedPath = mergePath(this._basePath, path10);
+      const mergedPath = mergePath(this._basePath, path12);
       const pathPrefixLength = mergedPath === "/" ? 0 : mergedPath.length;
       return (request) => {
         const url = new URL(request.url);
@@ -6356,14 +6356,14 @@ var Hono = class _Hono {
       }
       await next();
     };
-    this.#addRoute(METHOD_NAME_ALL, mergePath(path10, "*"), handler);
+    this.#addRoute(METHOD_NAME_ALL, mergePath(path12, "*"), handler);
     return this;
   }
-  #addRoute(method, path10, handler) {
+  #addRoute(method, path12, handler) {
     method = method.toUpperCase();
-    path10 = mergePath(this._basePath, path10);
-    const r = { basePath: this._basePath, path: path10, method, handler };
-    this.router.add(method, path10, [handler, r]);
+    path12 = mergePath(this._basePath, path12);
+    const r = { basePath: this._basePath, path: path12, method, handler };
+    this.router.add(method, path12, [handler, r]);
     this.routes.push(r);
   }
   #handleError(err, c) {
@@ -6376,10 +6376,10 @@ var Hono = class _Hono {
     if (method === "HEAD") {
       return (async () => new Response(null, await this.#dispatch(request, executionCtx, env, "GET")))();
     }
-    const path10 = this.getPath(request, { env });
-    const matchResult = this.router.match(method, path10);
+    const path12 = this.getPath(request, { env });
+    const matchResult = this.router.match(method, path12);
     const c = new Context(request, {
-      path: path10,
+      path: path12,
       matchResult,
       env,
       executionCtx,
@@ -6486,7 +6486,7 @@ init_cjs_shim();
 // ../../node_modules/.pnpm/hono@4.12.5/node_modules/hono/dist/router/reg-exp-router/matcher.js
 init_cjs_shim();
 var emptyParam = [];
-function match(method, path10) {
+function match(method, path12) {
   const matchers = this.buildAllMatchers();
   const match2 = ((method2, path22) => {
     const matcher = matchers[method2] || matchers[METHOD_NAME_ALL];
@@ -6502,7 +6502,7 @@ function match(method, path10) {
     return [matcher[1][index], match3];
   });
   this.match = match2;
-  return match2(method, path10);
+  return match2(method, path12);
 }
 
 // ../../node_modules/.pnpm/hono@4.12.5/node_modules/hono/dist/router/reg-exp-router/node.js
@@ -6619,12 +6619,12 @@ init_cjs_shim();
 var Trie = class {
   #context = { varIndex: 0 };
   #root = new Node();
-  insert(path10, index, pathErrorCheckOnly) {
+  insert(path12, index, pathErrorCheckOnly) {
     const paramAssoc = [];
     const groups = [];
     for (let i = 0; ; ) {
       let replaced = false;
-      path10 = path10.replace(/\{[^}]+\}/g, (m) => {
+      path12 = path12.replace(/\{[^}]+\}/g, (m) => {
         const mark = `@\\${i}`;
         groups[i] = [mark, m];
         i++;
@@ -6635,7 +6635,7 @@ var Trie = class {
         break;
       }
     }
-    const tokens = path10.match(/(?::[^\/]+)|(?:\/\*$)|./g) || [];
+    const tokens = path12.match(/(?::[^\/]+)|(?:\/\*$)|./g) || [];
     for (let i = groups.length - 1; i >= 0; i--) {
       const [mark] = groups[i];
       for (let j = tokens.length - 1; j >= 0; j--) {
@@ -6674,9 +6674,9 @@ var Trie = class {
 // ../../node_modules/.pnpm/hono@4.12.5/node_modules/hono/dist/router/reg-exp-router/router.js
 var nullMatcher = [/^$/, [], /* @__PURE__ */ Object.create(null)];
 var wildcardRegExpCache = /* @__PURE__ */ Object.create(null);
-function buildWildcardRegExp(path10) {
-  return wildcardRegExpCache[path10] ??= new RegExp(
-    path10 === "*" ? "" : `^${path10.replace(
+function buildWildcardRegExp(path12) {
+  return wildcardRegExpCache[path12] ??= new RegExp(
+    path12 === "*" ? "" : `^${path12.replace(
       /\/\*$|([.\\+*[^\]$()])/g,
       (_, metaChar) => metaChar ? `\\${metaChar}` : "(?:|/.*)"
     )}$`
@@ -6698,17 +6698,17 @@ function buildMatcherFromPreprocessedRoutes(routes) {
   );
   const staticMap = /* @__PURE__ */ Object.create(null);
   for (let i = 0, j = -1, len = routesWithStaticPathFlag.length; i < len; i++) {
-    const [pathErrorCheckOnly, path10, handlers] = routesWithStaticPathFlag[i];
+    const [pathErrorCheckOnly, path12, handlers] = routesWithStaticPathFlag[i];
     if (pathErrorCheckOnly) {
-      staticMap[path10] = [handlers.map(([h]) => [h, /* @__PURE__ */ Object.create(null)]), emptyParam];
+      staticMap[path12] = [handlers.map(([h]) => [h, /* @__PURE__ */ Object.create(null)]), emptyParam];
     } else {
       j++;
     }
     let paramAssoc;
     try {
-      paramAssoc = trie.insert(path10, j, pathErrorCheckOnly);
+      paramAssoc = trie.insert(path12, j, pathErrorCheckOnly);
     } catch (e) {
-      throw e === PATH_ERROR ? new UnsupportedPathError(path10) : e;
+      throw e === PATH_ERROR ? new UnsupportedPathError(path12) : e;
     }
     if (pathErrorCheckOnly) {
       continue;
@@ -6742,12 +6742,12 @@ function buildMatcherFromPreprocessedRoutes(routes) {
   }
   return [regexp, handlerMap, staticMap];
 }
-function findMiddleware(middleware, path10) {
+function findMiddleware(middleware, path12) {
   if (!middleware) {
     return void 0;
   }
   for (const k of Object.keys(middleware).sort((a, b) => b.length - a.length)) {
-    if (buildWildcardRegExp(k).test(path10)) {
+    if (buildWildcardRegExp(k).test(path12)) {
       return [...middleware[k]];
     }
   }
@@ -6761,7 +6761,7 @@ var RegExpRouter = class {
     this.#middleware = { [METHOD_NAME_ALL]: /* @__PURE__ */ Object.create(null) };
     this.#routes = { [METHOD_NAME_ALL]: /* @__PURE__ */ Object.create(null) };
   }
-  add(method, path10, handler) {
+  add(method, path12, handler) {
     const middleware = this.#middleware;
     const routes = this.#routes;
     if (!middleware || !routes) {
@@ -6776,18 +6776,18 @@ var RegExpRouter = class {
         });
       });
     }
-    if (path10 === "/*") {
-      path10 = "*";
+    if (path12 === "/*") {
+      path12 = "*";
     }
-    const paramCount = (path10.match(/\/:/g) || []).length;
-    if (/\*$/.test(path10)) {
-      const re = buildWildcardRegExp(path10);
+    const paramCount = (path12.match(/\/:/g) || []).length;
+    if (/\*$/.test(path12)) {
+      const re = buildWildcardRegExp(path12);
       if (method === METHOD_NAME_ALL) {
         Object.keys(middleware).forEach((m) => {
-          middleware[m][path10] ||= findMiddleware(middleware[m], path10) || findMiddleware(middleware[METHOD_NAME_ALL], path10) || [];
+          middleware[m][path12] ||= findMiddleware(middleware[m], path12) || findMiddleware(middleware[METHOD_NAME_ALL], path12) || [];
         });
       } else {
-        middleware[method][path10] ||= findMiddleware(middleware[method], path10) || findMiddleware(middleware[METHOD_NAME_ALL], path10) || [];
+        middleware[method][path12] ||= findMiddleware(middleware[method], path12) || findMiddleware(middleware[METHOD_NAME_ALL], path12) || [];
       }
       Object.keys(middleware).forEach((m) => {
         if (method === METHOD_NAME_ALL || method === m) {
@@ -6805,7 +6805,7 @@ var RegExpRouter = class {
       });
       return;
     }
-    const paths = checkOptionalParameter(path10) || [path10];
+    const paths = checkOptionalParameter(path12) || [path12];
     for (let i = 0, len = paths.length; i < len; i++) {
       const path22 = paths[i];
       Object.keys(routes).forEach((m) => {
@@ -6832,13 +6832,13 @@ var RegExpRouter = class {
     const routes = [];
     let hasOwnRoute = method === METHOD_NAME_ALL;
     [this.#middleware, this.#routes].forEach((r) => {
-      const ownRoute = r[method] ? Object.keys(r[method]).map((path10) => [path10, r[method][path10]]) : [];
+      const ownRoute = r[method] ? Object.keys(r[method]).map((path12) => [path12, r[method][path12]]) : [];
       if (ownRoute.length !== 0) {
         hasOwnRoute ||= true;
         routes.push(...ownRoute);
       } else if (method !== METHOD_NAME_ALL) {
         routes.push(
-          ...Object.keys(r[METHOD_NAME_ALL]).map((path10) => [path10, r[METHOD_NAME_ALL][path10]])
+          ...Object.keys(r[METHOD_NAME_ALL]).map((path12) => [path12, r[METHOD_NAME_ALL][path12]])
         );
       }
     });
@@ -6865,13 +6865,13 @@ var SmartRouter = class {
   constructor(init) {
     this.#routers = init.routers;
   }
-  add(method, path10, handler) {
+  add(method, path12, handler) {
     if (!this.#routes) {
       throw new Error(MESSAGE_MATCHER_IS_ALREADY_BUILT);
     }
-    this.#routes.push([method, path10, handler]);
+    this.#routes.push([method, path12, handler]);
   }
-  match(method, path10) {
+  match(method, path12) {
     if (!this.#routes) {
       throw new Error("Fatal error");
     }
@@ -6886,7 +6886,7 @@ var SmartRouter = class {
         for (let i2 = 0, len2 = routes.length; i2 < len2; i2++) {
           router.add(...routes[i2]);
         }
-        res = router.match(method, path10);
+        res = router.match(method, path12);
       } catch (e) {
         if (e instanceof UnsupportedPathError) {
           continue;
@@ -6943,10 +6943,10 @@ var Node2 = class _Node2 {
     }
     this.#patterns = [];
   }
-  insert(method, path10, handler) {
+  insert(method, path12, handler) {
     this.#order = ++this.#order;
     let curNode = this;
-    const parts = splitRoutingPath(path10);
+    const parts = splitRoutingPath(path12);
     const possibleKeys = [];
     for (let i = 0, len = parts.length; i < len; i++) {
       const p = parts[i];
@@ -6995,12 +6995,12 @@ var Node2 = class _Node2 {
       }
     }
   }
-  search(method, path10) {
+  search(method, path12) {
     const handlerSets = [];
     this.#params = emptyParams;
     const curNode = this;
     let curNodes = [curNode];
-    const parts = splitPath(path10);
+    const parts = splitPath(path12);
     const curNodesQueue = [];
     const len = parts.length;
     let partOffsets = null;
@@ -7042,13 +7042,13 @@ var Node2 = class _Node2 {
           if (matcher instanceof RegExp) {
             if (partOffsets === null) {
               partOffsets = new Array(len);
-              let offset = path10[0] === "/" ? 1 : 0;
+              let offset = path12[0] === "/" ? 1 : 0;
               for (let p = 0; p < len; p++) {
                 partOffsets[p] = offset;
                 offset += parts[p].length + 1;
               }
             }
-            const restPathString = path10.substring(partOffsets[i]);
+            const restPathString = path12.substring(partOffsets[i]);
             const m = matcher.exec(restPathString);
             if (m) {
               params[name] = m[0];
@@ -7101,18 +7101,18 @@ var TrieRouter = class {
   constructor() {
     this.#node = new Node2();
   }
-  add(method, path10, handler) {
-    const results = checkOptionalParameter(path10);
+  add(method, path12, handler) {
+    const results = checkOptionalParameter(path12);
     if (results) {
       for (let i = 0, len = results.length; i < len; i++) {
         this.#node.insert(method, results[i], handler);
       }
       return;
     }
-    this.#node.insert(method, path10, handler);
+    this.#node.insert(method, path12, handler);
   }
-  match(method, path10) {
-    return this.#node.search(method, path10);
+  match(method, path12) {
+    return this.#node.search(method, path12);
   }
 };
 
@@ -7218,9 +7218,9 @@ var cors = (options) => {
 };
 
 // src/index.ts
-import fs9 from "node:fs/promises";
+import fs11 from "node:fs/promises";
 import http from "node:http";
-import path9 from "node:path";
+import path11 from "node:path";
 import { fileURLToPath } from "node:url";
 
 // ../../node_modules/.pnpm/ws@8.19.0_bufferutil@4.0.9/node_modules/ws/wrapper.mjs
@@ -7291,15 +7291,124 @@ function getGitState() {
   return cache;
 }
 
+// src/middleware/repo.ts
+init_cjs_shim();
+import fs3 from "node:fs";
+import os2 from "node:os";
+import path3 from "node:path";
+
+// src/workspaces.ts
+init_cjs_shim();
+import fs2 from "node:fs";
+import os from "node:os";
+import path2 from "node:path";
+var CONFIG_DIR = path2.join(os.homedir(), ".config", "local-review");
+var WORKSPACES_FILE = path2.join(CONFIG_DIR, "workspaces.json");
+function isRealRepo(p) {
+  try {
+    return fs2.statSync(path2.join(p, ".git")).isDirectory();
+  } catch {
+    return false;
+  }
+}
+function getWorkspaces() {
+  try {
+    const raw2 = fs2.readFileSync(WORKSPACES_FILE, "utf-8");
+    const data = JSON.parse(raw2);
+    if (!Array.isArray(data)) return [];
+    return data.filter(
+      (w) => typeof w === "object" && w !== null && typeof w.name === "string" && typeof w.path === "string" && isRealRepo(w.path)
+    );
+  } catch {
+    return [];
+  }
+}
+function registerWorkspace(repoPath) {
+  const resolved = path2.resolve(
+    repoPath.startsWith("~") ? os.homedir() + repoPath.slice(1) : repoPath
+  );
+  const gitPath = path2.join(resolved, ".git");
+  try {
+    const stat4 = fs2.statSync(gitPath);
+    if (!stat4.isDirectory()) return false;
+  } catch {
+    return false;
+  }
+  const name = path2.basename(resolved);
+  const workspaces = getWorkspaces();
+  if (workspaces.some((w) => w.path === resolved)) return false;
+  workspaces.push({ name, path: resolved });
+  fs2.mkdirSync(CONFIG_DIR, { recursive: true });
+  fs2.writeFileSync(WORKSPACES_FILE, JSON.stringify(workspaces, null, 2));
+  return true;
+}
+function resolveWorkspace(name) {
+  const workspaces = getWorkspaces();
+  const match2 = workspaces.find(
+    (w) => w.name.toLowerCase() === name.toLowerCase()
+  );
+  return match2?.path ?? null;
+}
+
+// src/middleware/repo.ts
+function repoMiddleware(defaultRepoRoot) {
+  return async (c, next) => {
+    const repoParam = c.req.query("repo");
+    const workspaceParam = c.req.query("workspace");
+    if (!repoParam && !workspaceParam) {
+      c.set("repoRoot", defaultRepoRoot);
+      return next();
+    }
+    let targetPath = repoParam;
+    if (!targetPath && workspaceParam) {
+      const resolved2 = resolveWorkspace(workspaceParam);
+      if (!resolved2) {
+        return c.json({ error: `Unknown workspace: ${workspaceParam}` }, 400);
+      }
+      targetPath = resolved2;
+    }
+    if (!targetPath) {
+      c.set("repoRoot", defaultRepoRoot);
+      return next();
+    }
+    if (targetPath.includes("..")) {
+      return c.json(
+        { error: "Invalid repo path: path traversal not allowed" },
+        400
+      );
+    }
+    let resolved = targetPath;
+    if (resolved.startsWith("~")) {
+      resolved = os2.homedir() + resolved.slice(1);
+    }
+    resolved = path3.resolve(resolved);
+    if (!fs3.existsSync(resolved)) {
+      return c.json(
+        { error: `Invalid repo path: directory does not exist: ${resolved}` },
+        400
+      );
+    }
+    const gitPath = path3.join(resolved, ".git");
+    if (!fs3.existsSync(gitPath)) {
+      return c.json(
+        { error: `Invalid repo path: not a git repository: ${resolved}` },
+        400
+      );
+    }
+    c.set("repoRoot", resolved);
+    return next();
+  };
+}
+
 // src/index.ts
 init_resolver_daemon();
 
 // src/routes/context.ts
 init_cjs_shim();
-import os from "node:os";
+import os3 from "node:os";
 function expandTilde(p) {
-  if (p === "~") return os.homedir();
-  if (p.startsWith("~/")) return os.homedir() + p.slice(1);
+  if (p === "~") return os3.homedir();
+  if (p.startsWith("~/")) return os3.homedir() + p.slice(1);
   return p;
 }
 function filterActiveBranches(state2) {
@@ -7478,9 +7587,10 @@ async function buildCommitList(worktreePath, requestedTarget, requestedSource, l
   });
   return { commits, sourceBranch, targetBranch };
 }
-function createContextRoute(repoRoot2) {
+function createContextRoute(_repoRoot) {
   const app2 = new Hono2();
   app2.get("/context", (c) => {
+    const repoRoot2 = c.get("repoRoot");
     const requestedWorktree = c.req.query("worktree") ?? null;
     const _requestedSource = c.req.query("source") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
@@ -7513,6 +7623,7 @@ function createContextRoute(repoRoot2) {
     });
   });
   app2.get("/diff", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
     const requestedWorktree = c.req.query("worktree") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
     const requestedSource = c.req.query("source") ?? null;
@@ -7545,6 +7656,7 @@ function createContextRoute(repoRoot2) {
     }
   });
   app2.get("/commits", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
     const requestedWorktree = c.req.query("worktree") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
     const requestedSource = c.req.query("source") ?? null;
@@ -7577,6 +7689,7 @@ function createContextRoute(repoRoot2) {
     }
   });
   app2.get("/commit-diff", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
     const requestedWorktree = c.req.query("worktree") ?? null;
     const commit = c.req.query("commit") ?? null;
     if (!commit) {
@@ -7618,14 +7731,15 @@ function createContextRoute(repoRoot2) {
 
 // src/routes/features.ts
 init_cjs_shim();
-import fs5 from "node:fs/promises";
-import path5 from "node:path";
-import os2 from "node:os";
+import fs7 from "node:fs/promises";
+import path7 from "node:path";
+import { execFileSync } from "node:child_process";
+import os4 from "node:os";
 
 // src/utils.ts
 init_cjs_shim();
-import fs3 from "node:fs/promises";
-import path3 from "node:path";
+import fs5 from "node:fs/promises";
+import path5 from "node:path";
 var FEATURE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 function safeId(raw2) {
   return FEATURE_ID_RE.test(raw2) ? raw2 : null;
@@ -7634,37 +7748,37 @@ function findWorktreePath(featureId) {
   const gitState = getGitState();
   if (!gitState) return null;
   const wt = gitState.worktrees.find(
-    (w) => path3.basename(w.path) === featureId
+    (w) => path5.basename(w.path) === featureId
   );
   return wt ? wt.path : null;
 }
 async function findOpenspecChangeDir(wtPath, featureId) {
-  const changesDir = path3.join(wtPath, "openspec", "changes");
-  const exactDir = path3.join(changesDir, featureId);
+  const changesDir = path5.join(wtPath, "openspec", "changes");
+  const exactDir = path5.join(changesDir, featureId);
   try {
-    const stat4 = await fs3.stat(exactDir);
+    const stat4 = await fs5.stat(exactDir);
     if (stat4.isDirectory()) return exactDir;
   } catch {
   }
   const slugMatch = featureId.match(/^\d{4}-\d{2}-\d{2}-(.+)$/) ?? featureId.match(/^[A-Z]+-\d+-(.+)$/);
   if (slugMatch) {
-    const slugDir = path3.join(changesDir, slugMatch[1]);
+    const slugDir = path5.join(changesDir, slugMatch[1]);
     try {
-      const stat4 = await fs3.stat(slugDir);
+      const stat4 = await fs5.stat(slugDir);
       if (stat4.isDirectory()) return slugDir;
     } catch {
     }
   }
   try {
-    const entries = await fs3.readdir(changesDir, { withFileTypes: true });
+    const entries = await fs5.readdir(changesDir, { withFileTypes: true });
     const results = await Promise.all(
       entries.filter((e) => e.isDirectory() && e.name !== "archive").map(async (entry) => {
-        const yamlPath = path3.join(changesDir, entry.name, ".openspec.yaml");
+        const yamlPath = path5.join(changesDir, entry.name, ".openspec.yaml");
         try {
-          const content = await fs3.readFile(yamlPath, "utf-8");
+          const content = await fs5.readFile(yamlPath, "utf-8");
           const match2 = content.match(/^feature-id:\s*(.+)$/m);
           if (match2?.[1].trim() === featureId) {
-            return path3.join(changesDir, entry.name);
+            return path5.join(changesDir, entry.name);
           }
         } catch {
         }
@@ -7679,8 +7793,8 @@ async function findOpenspecChangeDir(wtPath, featureId) {
 
 // src/routes/sessions.ts
 init_cjs_shim();
-import fs4 from "node:fs/promises";
-import path4 from "node:path";
+import fs6 from "node:fs/promises";
+import path6 from "node:path";
 var THREAD_STATUS = {
   Open: "open",
   Resolved: "resolved",
@@ -7703,57 +7817,65 @@ var SESSION_CONFIGS = {
     }
   }
 };
-function registerSessionCRUD(app2, config, sessionsDir2, ensureSessionsDir, sessionType, broadcast3) {
+function registerSessionCRUD(app2, config, _sessionsDir, _ensureSessionsDir, sessionType, broadcast3) {
   const { pathSegment, fileSuffix, onPatchThread } = config;
   app2.get(`/:id/${pathSegment}`, async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const sessionsDir2 = path6.join(repoRoot2, ".review", "sessions");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    await ensureSessionsDir();
-    const filePath = path4.join(sessionsDir2, `${featureId}${fileSuffix}`);
+    await fs6.mkdir(sessionsDir2, { recursive: true });
+    const filePath = path6.join(sessionsDir2, `${featureId}${fileSuffix}`);
     try {
-      const content = await fs4.readFile(filePath, "utf-8");
+      const content = await fs6.readFile(filePath, "utf-8");
       return c.json({ session: JSON.parse(content) });
     } catch {
       return c.json({ session: null });
     }
   });
   app2.post(`/:id/${pathSegment}`, async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const sessionsDir2 = path6.join(repoRoot2, ".review", "sessions");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    await ensureSessionsDir();
-    const filePath = path4.join(sessionsDir2, `${featureId}${fileSuffix}`);
+    await fs6.mkdir(sessionsDir2, { recursive: true });
+    const filePath = path6.join(sessionsDir2, `${featureId}${fileSuffix}`);
     const session = await c.req.json();
-    await fs4.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
+    await fs6.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
     return c.json({ ok: true });
   });
   app2.delete(`/:id/${pathSegment}`, async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const sessionsDir2 = path6.join(repoRoot2, ".review", "sessions");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    await ensureSessionsDir();
-    const filePath = path4.join(sessionsDir2, `${featureId}${fileSuffix}`);
+    await fs6.mkdir(sessionsDir2, { recursive: true });
+    const filePath = path6.join(sessionsDir2, `${featureId}${fileSuffix}`);
     try {
-      await fs4.unlink(filePath);
+      await fs6.unlink(filePath);
     } catch {
     }
     return c.json({ ok: true });
   });
   app2.patch(`/:id/${pathSegment}/threads/:threadId`, async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const sessionsDir2 = path6.join(repoRoot2, ".review", "sessions");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
     const threadId = c.req.param("threadId");
-    await ensureSessionsDir();
-    const filePath = path4.join(sessionsDir2, `${featureId}${fileSuffix}`);
+    await fs6.mkdir(sessionsDir2, { recursive: true });
+    const filePath = path6.join(sessionsDir2, `${featureId}${fileSuffix}`);
     let sessionContent;
     try {
-      sessionContent = await fs4.readFile(filePath, "utf-8");
+      sessionContent = await fs6.readFile(filePath, "utf-8");
     } catch {
       return c.json({ error: "Session not found" }, 404);
     }
@@ -7786,7 +7908,7 @@ function registerSessionCRUD(app2, config, sessionsDir2, ensureSessionsDir, sess
     onPatchThread?.(updatedThread, session);
     threads[threadIndex] = updatedThread;
     session.threads = threads;
-    await fs4.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
+    await fs6.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
     if (broadcast3 && updatedThread.status === THREAD_STATUS.Resolved) {
       broadcast3({
         event: "review:resolve-thread-done",
@@ -7804,19 +7926,13 @@ function registerSessionCRUD(app2, config, sessionsDir2, ensureSessionsDir, sess
 }
 function createSessionsRoute(repoRoot2, broadcast3) {
   const app2 = new Hono2();
-  const sessionsDir2 = path4.join(repoRoot2, ".review", "sessions");
-  let dirEnsured = false;
-  async function ensureSessionsDir() {
-    if (dirEnsured) return;
-    await fs4.mkdir(sessionsDir2, { recursive: true });
-    dirEnsured = true;
-  }
   for (const [type, config] of Object.entries(SESSION_CONFIGS)) {
     registerSessionCRUD(
       app2,
       config,
-      sessionsDir2,
-      ensureSessionsDir,
+      path6.join(repoRoot2, ".review", "sessions"),
+      async () => {
+      },
       type,
       broadcast3
     );
@@ -7825,9 +7941,20 @@ function createSessionsRoute(repoRoot2, broadcast3) {
 }
 
 // src/routes/features.ts
-var HOME = os2.homedir();
+var HOME = os4.homedir();
 function tildefy(p) {
   return p.startsWith(HOME) ? "~" + p.slice(HOME.length) : p;
+}
+function getRepoName(repoRoot2) {
+  try {
+    const commonDir = execFileSync("git", ["rev-parse", "--git-common-dir"], {
+      cwd: repoRoot2,
+      encoding: "utf-8"
+    }).trim();
+    return path7.basename(path7.dirname(path7.resolve(repoRoot2, commonDir)));
+  } catch {
+    return path7.basename(repoRoot2);
+  }
 }
 function deriveFeatureStatus(codeSession, hasOpenspecArtifacts) {
   if (codeSession) {
@@ -7861,7 +7988,7 @@ function countSessionThreads(session) {
 }
 async function getLastActivity(paths) {
   const stats = await Promise.all(
-    paths.map((p) => fs5.stat(p).catch(() => null))
+    paths.map((p) => fs7.stat(p).catch(() => null))
   );
   let latest = null;
   for (const stat4 of stats) {
@@ -7878,26 +8005,28 @@ function countFilesChanged(codeSession) {
 }
 async function readJsonSession(filePath) {
   try {
-    const content = await fs5.readFile(filePath, "utf-8");
+    const content = await fs7.readFile(filePath, "utf-8");
     return JSON.parse(content);
   } catch {
     return null;
   }
 }
-function createFeaturesRoute(repoRoot2) {
+function createFeaturesRoute(_repoRoot) {
   const app2 = new Hono2();
-  const sessionsDir2 = path5.join(repoRoot2, ".review", "sessions");
   app2.get("/", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const sessionsDir2 = path7.join(repoRoot2, ".review", "sessions");
     try {
-      const gitState = getGitState();
+      const isOverride = repoRoot2 !== _repoRoot;
+      const gitState = isOverride ? await refreshGitState(repoRoot2) : getGitState();
       if (!gitState) {
         return c.json({ features: [], error: "git state not yet computed" });
       }
       const features = [];
       await Promise.all(
         gitState.worktrees.slice(1).map(async (wt) => {
-          const featureId = path5.basename(wt.path);
-          const codeSessionPath = path5.join(
+          const featureId = path7.basename(wt.path);
+          const codeSessionPath = path7.join(
             sessionsDir2,
             `${featureId}-code.json`
           );
@@ -7907,16 +8036,16 @@ function createFeaturesRoute(repoRoot2) {
           let lastActivity = null;
           let codeSession = null;
           if (openspecDir) {
-            const proposalMdPath = path5.join(openspecDir, "proposal.md");
-            const specMdPath = path5.join(openspecDir, "spec.md");
-            const designMdPath = path5.join(openspecDir, "design.md");
-            const tasksMdPath = path5.join(openspecDir, "tasks.md");
+            const proposalMdPath = path7.join(openspecDir, "proposal.md");
+            const specMdPath = path7.join(openspecDir, "spec.md");
+            const designMdPath = path7.join(openspecDir, "design.md");
+            const tasksMdPath = path7.join(openspecDir, "tasks.md");
             const results = await Promise.all([
               readJsonSession(codeSessionPath),
-              fs5.access(proposalMdPath).then(() => true).catch(() => false),
-              fs5.access(specMdPath).then(() => true).catch(() => false),
-              fs5.access(designMdPath).then(() => true).catch(() => false),
-              fs5.readFile(tasksMdPath, "utf-8").catch(() => null),
+              fs7.access(proposalMdPath).then(() => true).catch(() => false),
+              fs7.access(specMdPath).then(() => true).catch(() => false),
+              fs7.access(designMdPath).then(() => true).catch(() => false),
+              fs7.readFile(tasksMdPath, "utf-8").catch(() => null),
               getLastActivity([
                 proposalMdPath,
                 specMdPath,
@@ -7953,12 +8082,12 @@ function createFeaturesRoute(repoRoot2) {
         })
       );
       const archivedDirs = [
-        path5.join(repoRoot2, "specs", "archived"),
-        path5.join(repoRoot2, "openspec", "changes", "archive")
+        path7.join(repoRoot2, "specs", "archived"),
+        path7.join(repoRoot2, "openspec", "changes", "archive")
       ];
       for (const archivedDir of archivedDirs) {
         try {
-          const archivedEntries = await fs5.readdir(archivedDir, {
+          const archivedEntries = await fs7.readdir(archivedDir, {
             withFileTypes: true
           });
           for (const entry of archivedEntries) {
@@ -7966,8 +8095,8 @@ function createFeaturesRoute(repoRoot2) {
             const archivedId = entry.name;
             if (features.some((f) => f.id === archivedId)) continue;
             const [hasSpec, hasTasks] = await Promise.all([
-              fs5.access(path5.join(archivedDir, archivedId, "spec.md")).then(() => true).catch(() => false),
-              fs5.access(path5.join(archivedDir, archivedId, "tasks.md")).then(() => true).catch(() => false)
+              fs7.access(path7.join(archivedDir, archivedId, "spec.md")).then(() => true).catch(() => false),
+              fs7.access(path7.join(archivedDir, archivedId, "tasks.md")).then(() => true).catch(() => false)
             ]);
             if (hasSpec || hasTasks) {
               features.push({
@@ -7996,7 +8125,7 @@ function createFeaturesRoute(repoRoot2) {
       })).filter(({ slug }) => !existingSlugs.has(slug));
       const branchFeatures = await Promise.all(
         branchesToProcess.map(async ({ branchName, slug }) => {
-          const codeSessionPath = path5.join(sessionsDir2, `${slug}-code.json`);
+          const codeSessionPath = path7.join(sessionsDir2, `${slug}-code.json`);
           const [codeSession, lastActivity] = await Promise.all([
             readJsonSession(codeSessionPath),
             getLastActivity([codeSessionPath])
@@ -8018,7 +8147,7 @@ function createFeaturesRoute(repoRoot2) {
         })
       );
       features.push(...branchFeatures);
-      return c.json({ features });
+      return c.json({ features, repoName: getRepoName(repoRoot2) });
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown error";
       return c.json({ features: [], error: message });
@@ -8029,18 +8158,19 @@ function createFeaturesRoute(repoRoot2) {
 
 // src/routes/spec.ts
 init_cjs_shim();
-import fs6 from "node:fs/promises";
-import path6 from "node:path";
+import fs8 from "node:fs/promises";
+import path8 from "node:path";
 function resolveSpecPath(featureId, repoRoot2) {
   const wtPath = findWorktreePath(featureId);
   if (wtPath) {
-    return path6.join(wtPath, "specs", "active", featureId, "spec.md");
+    return path8.join(wtPath, "specs", "active", featureId, "spec.md");
   }
-  return path6.join(repoRoot2, "specs", "archived", featureId, "spec.md");
+  return path8.join(repoRoot2, "specs", "archived", featureId, "spec.md");
 }
-function createSpecRoute(repoRoot2) {
+function createSpecRoute(_repoRoot) {
   const app2 = new Hono2();
   app2.get("/:id/spec", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
@@ -8050,7 +8180,7 @@ function createSpecRoute(repoRoot2) {
       return c.json({ error: "Feature not found" }, 404);
     }
     try {
-      const content = await fs6.readFile(specMdPath, "utf-8");
+      const content = await fs8.readFile(specMdPath, "utf-8");
       return c.json({
         content,
         path: `specs/active/${featureId}/spec.md`
@@ -8060,6 +8190,7 @@ function createSpecRoute(repoRoot2) {
     }
   });
   app2.put("/:id/spec", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
@@ -8073,7 +8204,7 @@ function createSpecRoute(repoRoot2) {
       return c.json({ error: "content must be a string" }, 400);
     }
     try {
-      await fs6.writeFile(specMdPath, body.content, "utf-8");
+      await fs8.writeFile(specMdPath, body.content, "utf-8");
       return c.json({ ok: true });
     } catch {
       return c.json({ error: "Feature not found" }, 404);
@@ -8088,7 +8219,7 @@ function createSpecRoute(repoRoot2) {
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }
-    const diagramsDir = path6.join(
+    const diagramsDir = path8.join(
       wtPath,
       "specs",
       "active",
@@ -8097,7 +8228,7 @@ function createSpecRoute(repoRoot2) {
     );
     let diagrams = [];
     try {
-      const entries = await fs6.readdir(diagramsDir);
+      const entries = await fs8.readdir(diagramsDir);
       diagrams = entries.filter((f) => f.endsWith(".drawio"));
     } catch {
     }
@@ -8119,7 +8250,7 @@ function createSpecRoute(repoRoot2) {
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }
-    const diagramFilePath = path6.join(
+    const diagramFilePath = path8.join(
       wtPath,
       "specs",
       "active",
@@ -8128,13 +8259,14 @@ function createSpecRoute(repoRoot2) {
       diagramName
     );
     try {
-      const content = await fs6.readFile(diagramFilePath, "utf-8");
+      const content = await fs8.readFile(diagramFilePath, "utf-8");
       return c.json({ content, name: diagramName });
     } catch {
       return c.json({ error: "Diagram not found" }, 404);
     }
   });
   app2.get("/file", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
     const worktreeParam = c.req.query("worktree");
     const filePath = c.req.query("path");
     if (!filePath) {
@@ -8151,12 +8283,12 @@ function createSpecRoute(repoRoot2) {
     } else {
       selectedPath = gitState.worktrees.length > 0 ? gitState.worktrees[0].path : repoRoot2;
     }
-    const absPath = path6.join(selectedPath, filePath);
+    const absPath = path8.join(selectedPath, filePath);
     if (!absPath.startsWith(selectedPath)) {
       return c.json({ error: "Forbidden" }, 403);
     }
     try {
-      const content = await fs6.readFile(absPath, "utf-8");
+      const content = await fs8.readFile(absPath, "utf-8");
       return c.json({ content });
     } catch {
       return c.json({ error: "File not found" }, 404);
@@ -8167,8 +8299,8 @@ function createSpecRoute(repoRoot2) {
 
 // src/routes/tasks.ts
 init_cjs_shim();
-import fs7 from "node:fs/promises";
-import path7 from "node:path";
+import fs9 from "node:fs/promises";
+import path9 from "node:path";
 function parseTasksMarkdown(markdown) {
   const lines = markdown.split("\n");
   const rawPhases = [];
@@ -8270,9 +8402,10 @@ function parseTasksMarkdown(markdown) {
     phases
   };
 }
-function createTasksRoute(repoRoot2) {
+function createTasksRoute(_repoRoot) {
   const app2 = new Hono2();
   app2.get("/:id/tasks", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
     const rawId = c.req.param("id");
     const featureId = safeId(rawId);
     if (!featureId) {
@@ -8283,12 +8416,12 @@ function createTasksRoute(repoRoot2) {
     if (wtPath) {
       const openspecDir = await findOpenspecChangeDir(wtPath, featureId);
       if (openspecDir) {
-        tasksFilePath = path7.join(openspecDir, "tasks.md");
+        tasksFilePath = path9.join(openspecDir, "tasks.md");
       }
     } else {
       const archivedPaths = [
-        path7.join(repoRoot2, "specs", "archived", featureId, "tasks.md"),
-        path7.join(
+        path9.join(repoRoot2, "specs", "archived", featureId, "tasks.md"),
+        path9.join(
           repoRoot2,
           "openspec",
           "changes",
@@ -8299,7 +8432,7 @@ function createTasksRoute(repoRoot2) {
       ];
       for (const p of archivedPaths) {
         try {
-          await fs7.access(p);
+          await fs9.access(p);
           tasksFilePath = p;
           break;
         } catch {
@@ -8311,7 +8444,7 @@ function createTasksRoute(repoRoot2) {
     }
     let tasksContent;
     try {
-      tasksContent = await fs7.readFile(tasksFilePath, "utf-8");
+      tasksContent = await fs9.readFile(tasksFilePath, "utf-8");
     } catch {
       return c.json({ error: "tasks.md not found" }, 404);
     }
@@ -8319,8 +8452,8 @@ function createTasksRoute(repoRoot2) {
     const overallProgress = parsed.total > 0 ? Math.round(parsed.completed / parsed.total * 100) : 0;
     let developmentMode = "Non-TDD";
     try {
-      const yamlContent = await fs7.readFile(
-        path7.join(path7.dirname(tasksFilePath), ".openspec.yaml"),
+      const yamlContent = await fs9.readFile(
+        path9.join(path9.dirname(tasksFilePath), ".openspec.yaml"),
         "utf-8"
       );
       const modeMatch = yamlContent.match(/^mode:\s*(.+)$/m);
@@ -8355,8 +8488,8 @@ function createTasksRoute(repoRoot2) {
     if (!openspecDir) {
       return c.json({ error: "openspec change directory not found" }, 404);
     }
-    const tasksFilePath = path7.join(openspecDir, "tasks.md");
-    await fs7.writeFile(tasksFilePath, body.content, "utf-8");
+    const tasksFilePath = path9.join(openspecDir, "tasks.md");
+    await fs9.writeFile(tasksFilePath, body.content, "utf-8");
     return c.json({ ok: true });
   });
   return app2;
@@ -8443,7 +8576,7 @@ var ReaddirpStream = class extends Readable3 {
     this._directoryFilter = normalizeFilter(opts.directoryFilter);
     const statMethod = opts.lstat ? lstat : stat;
     if (wantBigintFsStats) {
-      this._stat = (path10) => statMethod(path10, { bigint: true });
+      this._stat = (path12) => statMethod(path12, { bigint: true });
     } else {
       this._stat = statMethod;
     }
@@ -8468,8 +8601,8 @@ var ReaddirpStream = class extends Readable3 {
         const par = this.parent;
         const fil = par && par.files;
         if (fil && fil.length > 0) {
-          const { path: path10, depth } = par;
-          const slice = fil.splice(0, batch).map((dirent) => this._formatEntry(dirent, path10));
+          const { path: path12, depth } = par;
+          const slice = fil.splice(0, batch).map((dirent) => this._formatEntry(dirent, path12));
           const awaited = await Promise.all(slice);
           for (const entry of awaited) {
             if (!entry)
@@ -8509,20 +8642,20 @@ var ReaddirpStream = class extends Readable3 {
       this.reading = false;
     }
   }
-  async _exploreDir(path10, depth) {
+  async _exploreDir(path12, depth) {
     let files;
     try {
-      files = await readdir(path10, this._rdOptions);
+      files = await readdir(path12, this._rdOptions);
     } catch (error) {
       this._onError(error);
     }
-    return { files, depth, path: path10 };
+    return { files, depth, path: path12 };
   }
-  async _formatEntry(dirent, path10) {
+  async _formatEntry(dirent, path12) {
     let entry;
     const basename3 = this._isDirent ? dirent.name : dirent;
     try {
-      const fullPath = presolve(pjoin(path10, basename3));
+      const fullPath = presolve(pjoin(path12, basename3));
       entry = { path: prelative(this._root, fullPath), fullPath, basename: basename3 };
       entry[this._statsProp] = this._isDirent ? dirent : await this._stat(fullPath);
     } catch (err) {
@@ -8923,16 +9056,16 @@ var delFromSet = (main, prop, item) => {
 };
 var isEmptySet = (val) => val instanceof Set ? val.size === 0 : !val;
 var FsWatchInstances = /* @__PURE__ */ new Map();
-function createFsWatchInstance(path10, options, listener, errHandler, emitRaw) {
+function createFsWatchInstance(path12, options, listener, errHandler, emitRaw) {
   const handleEvent = (rawEvent, evPath) => {
-    listener(path10);
-    emitRaw(rawEvent, evPath, { watchedPath: path10 });
-    if (evPath && path10 !== evPath) {
-      fsWatchBroadcast(sysPath.resolve(path10, evPath), KEY_LISTENERS, sysPath.join(path10, evPath));
+    listener(path12);
+    emitRaw(rawEvent, evPath, { watchedPath: path12 });
+    if (evPath && path12 !== evPath) {
+      fsWatchBroadcast(sysPath.resolve(path12, evPath), KEY_LISTENERS, sysPath.join(path12, evPath));
     }
   };
   try {
-    return fs_watch(path10, {
+    return fs_watch(path12, {
       persistent: options.persistent
     }, handleEvent);
   } catch (error) {
@@ -8948,12 +9081,12 @@ var fsWatchBroadcast = (fullPath, listenerType, val1, val2, val3) => {
     listener(val1, val2, val3);
   });
 };
-var setFsWatchListener = (path10, fullPath, options, handlers) => {
+var setFsWatchListener = (path12, fullPath, options, handlers) => {
   const { listener, errHandler, rawEmitter } = handlers;
   let cont = FsWatchInstances.get(fullPath);
   let watcher;
   if (!options.persistent) {
-    watcher = createFsWatchInstance(path10, options, listener, errHandler, rawEmitter);
+    watcher = createFsWatchInstance(path12, options, listener, errHandler, rawEmitter);
     if (!watcher)
       return;
     return watcher.close.bind(watcher);
@@ -8964,7 +9097,7 @@ var setFsWatchListener = (path10, fullPath, options, handlers) => {
     addAndConvert(cont, KEY_RAW, rawEmitter);
   } else {
     watcher = createFsWatchInstance(
-      path10,
+      path12,
       options,
       fsWatchBroadcast.bind(null, fullPath, KEY_LISTENERS),
       errHandler,
@@ -8979,7 +9112,7 @@ var setFsWatchListener = (path10, fullPath, options, handlers) => {
         cont.watcherUnusable = true;
       if (isWindows && error.code === "EPERM") {
         try {
-          const fd = await open(path10, "r");
+          const fd = await open(path12, "r");
           await fd.close();
           broadcastErr(error);
         } catch (err) {
@@ -9010,7 +9143,7 @@ var setFsWatchListener = (path10, fullPath, options, handlers) => {
   };
 };
 var FsWatchFileInstances = /* @__PURE__ */ new Map();
-var setFsWatchFileListener = (path10, fullPath, options, handlers) => {
+var setFsWatchFileListener = (path12, fullPath, options, handlers) => {
   const { listener, rawEmitter } = handlers;
   let cont = FsWatchFileInstances.get(fullPath);
   const copts = cont && cont.options;
@@ -9032,7 +9165,7 @@ var setFsWatchFileListener = (path10, fullPath, options, handlers) => {
         });
         const currmtime = curr.mtimeMs;
         if (curr.size !== prev.size || currmtime > prev.mtimeMs || currmtime === 0) {
-          foreach(cont.listeners, (listener2) => listener2(path10, curr));
+          foreach(cont.listeners, (listener2) => listener2(path12, curr));
         }
       })
     };
@@ -9060,13 +9193,13 @@ var NodeFsHandler = class {
    * @param listener on fs change
    * @returns closer for the watcher instance
    */
-  _watchWithNodeFs(path10, listener) {
+  _watchWithNodeFs(path12, listener) {
     const opts = this.fsw.options;
-    const directory = sysPath.dirname(path10);
-    const basename3 = sysPath.basename(path10);
+    const directory = sysPath.dirname(path12);
+    const basename3 = sysPath.basename(path12);
     const parent = this.fsw._getWatchedDir(directory);
     parent.add(basename3);
-    const absolutePath = sysPath.resolve(path10);
+    const absolutePath = sysPath.resolve(path12);
     const options = {
       persistent: opts.persistent
     };
@@ -9076,12 +9209,12 @@ var NodeFsHandler = class {
     if (opts.usePolling) {
       const enableBin = opts.interval !== opts.binaryInterval;
       options.interval = enableBin && isBinaryPath(basename3) ? opts.binaryInterval : opts.interval;
-      closer = setFsWatchFileListener(path10, absolutePath, options, {
+      closer = setFsWatchFileListener(path12, absolutePath, options, {
         listener,
         rawEmitter: this.fsw._emitRaw
       });
     } else {
-      closer = setFsWatchListener(path10, absolutePath, options, {
+      closer = setFsWatchListener(path12, absolutePath, options, {
         listener,
         errHandler: this._boundHandleError,
         rawEmitter: this.fsw._emitRaw
@@ -9103,7 +9236,7 @@ var NodeFsHandler = class {
     let prevStats = stats;
     if (parent.has(basename3))
       return;
-    const listener = async (path10, newStats) => {
+    const listener = async (path12, newStats) => {
       if (!this.fsw._throttle(THROTTLE_MODE_WATCH, file, 5))
         return;
       if (!newStats || newStats.mtimeMs === 0) {
@@ -9117,11 +9250,11 @@ var NodeFsHandler = class {
             this.fsw._emit(EV.CHANGE, file, newStats2);
           }
           if ((isMacos || isLinux || isFreeBSD) && prevStats.ino !== newStats2.ino) {
-            this.fsw._closeFile(path10);
+            this.fsw._closeFile(path12);
             prevStats = newStats2;
             const closer2 = this._watchWithNodeFs(file, listener);
             if (closer2)
-              this.fsw._addPathCloser(path10, closer2);
+              this.fsw._addPathCloser(path12, closer2);
           } else {
             prevStats = newStats2;
           }
@@ -9153,7 +9286,7 @@ var NodeFsHandler = class {
    * @param item basename of this item
    * @returns true if no more processing is needed for this entry.
    */
-  async _handleSymlink(entry, directory, path10, item) {
+  async _handleSymlink(entry, directory, path12, item) {
     if (this.fsw.closed) {
       return;
     }
@@ -9163,7 +9296,7 @@ var NodeFsHandler = class {
       this.fsw._incrReadyCount();
       let linkPath;
       try {
-        linkPath = await fsrealpath(path10);
+        linkPath = await fsrealpath(path12);
       } catch (e) {
         this.fsw._emitReady();
         return true;
@@ -9173,12 +9306,12 @@ var NodeFsHandler = class {
       if (dir.has(item)) {
         if (this.fsw._symlinkPaths.get(full) !== linkPath) {
           this.fsw._symlinkPaths.set(full, linkPath);
-          this.fsw._emit(EV.CHANGE, path10, entry.stats);
+          this.fsw._emit(EV.CHANGE, path12, entry.stats);
         }
       } else {
         dir.add(item);
         this.fsw._symlinkPaths.set(full, linkPath);
-        this.fsw._emit(EV.ADD, path10, entry.stats);
+        this.fsw._emit(EV.ADD, path12, entry.stats);
       }
       this.fsw._emitReady();
       return true;
@@ -9207,9 +9340,9 @@ var NodeFsHandler = class {
         return;
       }
       const item = entry.path;
-      let path10 = sysPath.join(directory, item);
+      let path12 = sysPath.join(directory, item);
       current.add(item);
-      if (entry.stats.isSymbolicLink() && await this._handleSymlink(entry, directory, path10, item)) {
+      if (entry.stats.isSymbolicLink() && await this._handleSymlink(entry, directory, path12, item)) {
         return;
       }
       if (this.fsw.closed) {
@@ -9218,8 +9351,8 @@ var NodeFsHandler = class {
       }
       if (item === target || !target && !previous.has(item)) {
         this.fsw._incrReadyCount();
-        path10 = sysPath.join(dir, sysPath.relative(dir, path10));
-        this._addToNodeFs(path10, initialAdd, wh, depth + 1);
+        path12 = sysPath.join(dir, sysPath.relative(dir, path12));
+        this._addToNodeFs(path12, initialAdd, wh, depth + 1);
       }
     }).on(EV.ERROR, this._boundHandleError);
     return new Promise((resolve4, reject) => {
@@ -9288,13 +9421,13 @@ var NodeFsHandler = class {
    * @param depth Child path actually targeted for watch
    * @param target Child path actually targeted for watch
    */
-  async _addToNodeFs(path10, initialAdd, priorWh, depth, target) {
+  async _addToNodeFs(path12, initialAdd, priorWh, depth, target) {
     const ready = this.fsw._emitReady;
-    if (this.fsw._isIgnored(path10) || this.fsw.closed) {
+    if (this.fsw._isIgnored(path12) || this.fsw.closed) {
       ready();
       return false;
     }
-    const wh = this.fsw._getWatchHelpers(path10);
+    const wh = this.fsw._getWatchHelpers(path12);
     if (priorWh) {
       wh.filterPath = (entry) => priorWh.filterPath(entry);
       wh.filterDir = (entry) => priorWh.filterDir(entry);
@@ -9310,8 +9443,8 @@ var NodeFsHandler = class {
       const follow = this.fsw.options.followSymlinks;
       let closer;
       if (stats.isDirectory()) {
-        const absPath = sysPath.resolve(path10);
-        const targetPath = follow ? await fsrealpath(path10) : path10;
+        const absPath = sysPath.resolve(path12);
+        const targetPath = follow ? await fsrealpath(path12) : path12;
         if (this.fsw.closed)
           return;
         closer = await this._handleDir(wh.watchPath, stats, initialAdd, depth, target, wh, targetPath);
@@ -9321,29 +9454,29 @@ var NodeFsHandler = class {
           this.fsw._symlinkPaths.set(absPath, targetPath);
         }
       } else if (stats.isSymbolicLink()) {
-        const targetPath = follow ? await fsrealpath(path10) : path10;
+        const targetPath = follow ? await fsrealpath(path12) : path12;
         if (this.fsw.closed)
           return;
         const parent = sysPath.dirname(wh.watchPath);
         this.fsw._getWatchedDir(parent).add(wh.watchPath);
         this.fsw._emit(EV.ADD, wh.watchPath, stats);
-        closer = await this._handleDir(parent, stats, initialAdd, depth, path10, wh, targetPath);
+        closer = await this._handleDir(parent, stats, initialAdd, depth, path12, wh, targetPath);
         if (this.fsw.closed)
           return;
         if (targetPath !== void 0) {
-          this.fsw._symlinkPaths.set(sysPath.resolve(path10), targetPath);
+          this.fsw._symlinkPaths.set(sysPath.resolve(path12), targetPath);
         }
       } else {
         closer = this._handleFile(wh.watchPath, stats, initialAdd);
       }
       ready();
       if (closer)
-        this.fsw._addPathCloser(path10, closer);
+        this.fsw._addPathCloser(path12, closer);
       return false;
     } catch (error) {
       if (this.fsw._handleError(error)) {
         ready();
-        return path10;
+        return path12;
       }
     }
   }
@@ -9386,26 +9519,26 @@ function createPattern(matcher) {
   }
   return () => false;
 }
-function normalizePath(path10) {
-  if (typeof path10 !== "string")
+function normalizePath(path12) {
+  if (typeof path12 !== "string")
     throw new Error("string expected");
-  path10 = sysPath2.normalize(path10);
-  path10 = path10.replace(/\\/g, "/");
+  path12 = sysPath2.normalize(path12);
+  path12 = path12.replace(/\\/g, "/");
   let prepend = false;
-  if (path10.startsWith("//"))
+  if (path12.startsWith("//"))
     prepend = true;
   const DOUBLE_SLASH_RE2 = /\/\//;
-  while (path10.match(DOUBLE_SLASH_RE2))
-    path10 = path10.replace(DOUBLE_SLASH_RE2, "/");
+  while (path12.match(DOUBLE_SLASH_RE2))
+    path12 = path12.replace(DOUBLE_SLASH_RE2, "/");
   if (prepend)
-    path10 = "/" + path10;
-  return path10;
+    path12 = "/" + path12;
+  return path12;
 }
 function matchPatterns(patterns, testString, stats) {
-  const path10 = normalizePath(testString);
+  const path12 = normalizePath(testString);
   for (let index = 0; index < patterns.length; index++) {
     const pattern = patterns[index];
-    if (pattern(path10, stats)) {
+    if (pattern(path12, stats)) {
       return true;
     }
   }
@@ -9445,19 +9578,19 @@ var toUnix = (string) => {
   }
   return str;
 };
-var normalizePathToUnix = (path10) => toUnix(sysPath2.normalize(toUnix(path10)));
-var normalizeIgnored = (cwd = "") => (path10) => {
-  if (typeof path10 === "string") {
-    return normalizePathToUnix(sysPath2.isAbsolute(path10) ? path10 : sysPath2.join(cwd, path10));
+var normalizePathToUnix = (path12) => toUnix(sysPath2.normalize(toUnix(path12)));
+var normalizeIgnored = (cwd = "") => (path12) => {
+  if (typeof path12 === "string") {
+    return normalizePathToUnix(sysPath2.isAbsolute(path12) ? path12 : sysPath2.join(cwd, path12));
   } else {
-    return path10;
+    return path12;
   }
 };
-var getAbsolutePath = (path10, cwd) => {
-  if (sysPath2.isAbsolute(path10)) {
-    return path10;
+var getAbsolutePath = (path12, cwd) => {
+  if (sysPath2.isAbsolute(path12)) {
+    return path12;
   }
-  return sysPath2.join(cwd, path10);
+  return sysPath2.join(cwd, path12);
 };
 var EMPTY_SET = Object.freeze(/* @__PURE__ */ new Set());
 var DirEntry = class {
@@ -9512,10 +9645,10 @@ var DirEntry = class {
 var STAT_METHOD_F = "stat";
 var STAT_METHOD_L = "lstat";
 var WatchHelper = class {
-  constructor(path10, follow, fsw) {
+  constructor(path12, follow, fsw) {
     this.fsw = fsw;
-    const watchPath = path10;
-    this.path = path10 = path10.replace(REPLACER_RE, "");
+    const watchPath = path12;
+    this.path = path12 = path12.replace(REPLACER_RE, "");
     this.watchPath = watchPath;
     this.fullWatchPath = sysPath2.resolve(watchPath);
     this.dirParts = [];
@@ -9637,20 +9770,20 @@ var FSWatcher = class extends EventEmitter {
     this._closePromise = void 0;
     let paths = unifyPaths(paths_);
     if (cwd) {
-      paths = paths.map((path10) => {
-        const absPath = getAbsolutePath(path10, cwd);
+      paths = paths.map((path12) => {
+        const absPath = getAbsolutePath(path12, cwd);
         return absPath;
       });
     }
-    paths.forEach((path10) => {
-      this._removeIgnoredPath(path10);
+    paths.forEach((path12) => {
+      this._removeIgnoredPath(path12);
     });
     this._userIgnored = void 0;
     if (!this._readyCount)
       this._readyCount = 0;
     this._readyCount += paths.length;
-    Promise.all(paths.map(async (path10) => {
-      const res = await this._nodeFsHandler._addToNodeFs(path10, !_internal, void 0, 0, _origAdd);
+    Promise.all(paths.map(async (path12) => {
+      const res = await this._nodeFsHandler._addToNodeFs(path12, !_internal, void 0, 0, _origAdd);
       if (res)
         this._emitReady();
       return res;
@@ -9672,17 +9805,17 @@ var FSWatcher = class extends EventEmitter {
       return this;
     const paths = unifyPaths(paths_);
     const { cwd } = this.options;
-    paths.forEach((path10) => {
-      if (!sysPath2.isAbsolute(path10) && !this._closers.has(path10)) {
+    paths.forEach((path12) => {
+      if (!sysPath2.isAbsolute(path12) && !this._closers.has(path12)) {
         if (cwd)
-          path10 = sysPath2.join(cwd, path10);
-        path10 = sysPath2.resolve(path10);
+          path12 = sysPath2.join(cwd, path12);
+        path12 = sysPath2.resolve(path12);
       }
-      this._closePath(path10);
-      this._addIgnoredPath(path10);
-      if (this._watched.has(path10)) {
+      this._closePath(path12);
+      this._addIgnoredPath(path12);
+      if (this._watched.has(path12)) {
         this._addIgnoredPath({
-          path: path10,
+          path: path12,
           recursive: true
         });
       }
@@ -9746,38 +9879,38 @@ var FSWatcher = class extends EventEmitter {
    * @param stats arguments to be passed with event
    * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag
    */
-  async _emit(event, path10, stats) {
+  async _emit(event, path12, stats) {
     if (this.closed)
       return;
     const opts = this.options;
     if (isWindows)
-      path10 = sysPath2.normalize(path10);
+      path12 = sysPath2.normalize(path12);
     if (opts.cwd)
-      path10 = sysPath2.relative(opts.cwd, path10);
-    const args = [path10];
+      path12 = sysPath2.relative(opts.cwd, path12);
+    const args = [path12];
     if (stats != null)
       args.push(stats);
     const awf = opts.awaitWriteFinish;
     let pw;
-    if (awf && (pw = this._pendingWrites.get(path10))) {
+    if (awf && (pw = this._pendingWrites.get(path12))) {
       pw.lastChange = /* @__PURE__ */ new Date();
       return this;
     }
     if (opts.atomic) {
       if (event === EVENTS.UNLINK) {
-        this._pendingUnlinks.set(path10, [event, ...args]);
+        this._pendingUnlinks.set(path12, [event, ...args]);
         setTimeout(() => {
-          this._pendingUnlinks.forEach((entry, path11) => {
+          this._pendingUnlinks.forEach((entry, path13) => {
             this.emit(...entry);
             this.emit(EVENTS.ALL, ...entry);
-            this._pendingUnlinks.delete(path11);
+            this._pendingUnlinks.delete(path13);
           });
         }, typeof opts.atomic === "number" ? opts.atomic : 100);
         return this;
       }
-      if (event === EVENTS.ADD && this._pendingUnlinks.has(path10)) {
+      if (event === EVENTS.ADD && this._pendingUnlinks.has(path12)) {
         event = EVENTS.CHANGE;
-        this._pendingUnlinks.delete(path10);
+        this._pendingUnlinks.delete(path12);
       }
     }
     if (awf && (event === EVENTS.ADD || event === EVENTS.CHANGE) && this._readyEmitted) {
@@ -9795,16 +9928,16 @@ var FSWatcher = class extends EventEmitter {
           this.emitWithAll(event, args);
         }
       };
-      this._awaitWriteFinish(path10, awf.stabilityThreshold, event, awfEmit);
+      this._awaitWriteFinish(path12, awf.stabilityThreshold, event, awfEmit);
       return this;
     }
     if (event === EVENTS.CHANGE) {
-      const isThrottled = !this._throttle(EVENTS.CHANGE, path10, 50);
+      const isThrottled = !this._throttle(EVENTS.CHANGE, path12, 50);
       if (isThrottled)
         return this;
     }
     if (opts.alwaysStat && stats === void 0 && (event === EVENTS.ADD || event === EVENTS.ADD_DIR || event === EVENTS.CHANGE)) {
-      const fullPath = opts.cwd ? sysPath2.join(opts.cwd, path10) : path10;
+      const fullPath = opts.cwd ? sysPath2.join(opts.cwd, path12) : path12;
       let stats2;
       try {
         stats2 = await stat3(fullPath);
@@ -9835,23 +9968,23 @@ var FSWatcher = class extends EventEmitter {
    * @param timeout duration of time to suppress duplicate actions
    * @returns tracking object or false if action should be suppressed
    */
-  _throttle(actionType, path10, timeout) {
+  _throttle(actionType, path12, timeout) {
     if (!this._throttled.has(actionType)) {
       this._throttled.set(actionType, /* @__PURE__ */ new Map());
     }
     const action = this._throttled.get(actionType);
     if (!action)
       throw new Error("invalid throttle");
-    const actionPath = action.get(path10);
+    const actionPath = action.get(path12);
     if (actionPath) {
       actionPath.count++;
       return false;
     }
     let timeoutObject;
     const clear = () => {
-      const item = action.get(path10);
+      const item = action.get(path12);
       const count = item ? item.count : 0;
-      action.delete(path10);
+      action.delete(path12);
       clearTimeout(timeoutObject);
       if (item)
         clearTimeout(item.timeoutObject);
@@ -9859,7 +9992,7 @@ var FSWatcher = class extends EventEmitter {
     };
     timeoutObject = setTimeout(clear, timeout);
     const thr = { timeoutObject, clear, count: 0 };
-    action.set(path10, thr);
+    action.set(path12, thr);
     return thr;
   }
   _incrReadyCount() {
@@ -9873,44 +10006,44 @@ var FSWatcher = class extends EventEmitter {
    * @param event
    * @param awfEmit Callback to be called when ready for event to be emitted.
    */
-  _awaitWriteFinish(path10, threshold, event, awfEmit) {
+  _awaitWriteFinish(path12, threshold, event, awfEmit) {
     const awf = this.options.awaitWriteFinish;
     if (typeof awf !== "object")
       return;
     const pollInterval = awf.pollInterval;
     let timeoutHandler;
-    let fullPath = path10;
-    if (this.options.cwd && !sysPath2.isAbsolute(path10)) {
-      fullPath = sysPath2.join(this.options.cwd, path10);
+    let fullPath = path12;
+    if (this.options.cwd && !sysPath2.isAbsolute(path12)) {
+      fullPath = sysPath2.join(this.options.cwd, path12);
     }
     const now = /* @__PURE__ */ new Date();
     const writes = this._pendingWrites;
     function awaitWriteFinishFn(prevStat) {
       statcb(fullPath, (err, curStat) => {
-        if (err || !writes.has(path10)) {
+        if (err || !writes.has(path12)) {
           if (err && err.code !== "ENOENT")
             awfEmit(err);
           return;
         }
         const now2 = Number(/* @__PURE__ */ new Date());
         if (prevStat && curStat.size !== prevStat.size) {
-          writes.get(path10).lastChange = now2;
+          writes.get(path12).lastChange = now2;
         }
-        const pw = writes.get(path10);
+        const pw = writes.get(path12);
         const df = now2 - pw.lastChange;
         if (df >= threshold) {
-          writes.delete(path10);
+          writes.delete(path12);
           awfEmit(void 0, curStat);
         } else {
           timeoutHandler = setTimeout(awaitWriteFinishFn, pollInterval, curStat);
         }
       });
     }
-    if (!writes.has(path10)) {
-      writes.set(path10, {
+    if (!writes.has(path12)) {
+      writes.set(path12, {
         lastChange: now,
         cancelWait: () => {
-          writes.delete(path10);
+          writes.delete(path12);
           clearTimeout(timeoutHandler);
           return event;
         }
@@ -9921,8 +10054,8 @@ var FSWatcher = class extends EventEmitter {
   /**
    * Determines whether user has asked to ignore this path.
    */
-  _isIgnored(path10, stats) {
-    if (this.options.atomic && DOT_RE.test(path10))
+  _isIgnored(path12, stats) {
+    if (this.options.atomic && DOT_RE.test(path12))
       return true;
     if (!this._userIgnored) {
       const { cwd } = this.options;
@@ -9932,17 +10065,17 @@ var FSWatcher = class extends EventEmitter {
       const list = [...ignoredPaths.map(normalizeIgnored(cwd)), ...ignored];
       this._userIgnored = anymatch(list, void 0);
     }
-    return this._userIgnored(path10, stats);
+    return this._userIgnored(path12, stats);
   }
-  _isntIgnored(path10, stat4) {
-    return !this._isIgnored(path10, stat4);
+  _isntIgnored(path12, stat4) {
+    return !this._isIgnored(path12, stat4);
   }
   /**
    * Provides a set of common helpers and properties relating to symlink handling.
    * @param path file or directory pattern being watched
    */
-  _getWatchHelpers(path10) {
-    return new WatchHelper(path10, this.options.followSymlinks, this);
+  _getWatchHelpers(path12) {
+    return new WatchHelper(path12, this.options.followSymlinks, this);
   }
   // Directory helpers
   // -----------------
@@ -9974,63 +10107,63 @@ var FSWatcher = class extends EventEmitter {
    * @param item      base path of item/directory
    */
   _remove(directory, item, isDirectory) {
-    const path10 = sysPath2.join(directory, item);
-    const fullPath = sysPath2.resolve(path10);
-    isDirectory = isDirectory != null ? isDirectory : this._watched.has(path10) || this._watched.has(fullPath);
-    if (!this._throttle("remove", path10, 100))
+    const path12 = sysPath2.join(directory, item);
+    const fullPath = sysPath2.resolve(path12);
+    isDirectory = isDirectory != null ? isDirectory : this._watched.has(path12) || this._watched.has(fullPath);
+    if (!this._throttle("remove", path12, 100))
       return;
     if (!isDirectory && this._watched.size === 1) {
       this.add(directory, item, true);
     }
-    const wp = this._getWatchedDir(path10);
+    const wp = this._getWatchedDir(path12);
     const nestedDirectoryChildren = wp.getChildren();
-    nestedDirectoryChildren.forEach((nested) => this._remove(path10, nested));
+    nestedDirectoryChildren.forEach((nested) => this._remove(path12, nested));
     const parent = this._getWatchedDir(directory);
     const wasTracked = parent.has(item);
     parent.remove(item);
     if (this._symlinkPaths.has(fullPath)) {
       this._symlinkPaths.delete(fullPath);
     }
-    let relPath = path10;
+    let relPath = path12;
     if (this.options.cwd)
-      relPath = sysPath2.relative(this.options.cwd, path10);
+      relPath = sysPath2.relative(this.options.cwd, path12);
     if (this.options.awaitWriteFinish && this._pendingWrites.has(relPath)) {
       const event = this._pendingWrites.get(relPath).cancelWait();
       if (event === EVENTS.ADD)
         return;
     }
-    this._watched.delete(path10);
+    this._watched.delete(path12);
     this._watched.delete(fullPath);
     const eventName = isDirectory ? EVENTS.UNLINK_DIR : EVENTS.UNLINK;
-    if (wasTracked && !this._isIgnored(path10))
-      this._emit(eventName, path10);
-    this._closePath(path10);
+    if (wasTracked && !this._isIgnored(path12))
+      this._emit(eventName, path12);
+    this._closePath(path12);
   }
   /**
    * Closes all watchers for a path
    */
-  _closePath(path10) {
-    this._closeFile(path10);
-    const dir = sysPath2.dirname(path10);
-    this._getWatchedDir(dir).remove(sysPath2.basename(path10));
+  _closePath(path12) {
+    this._closeFile(path12);
+    const dir = sysPath2.dirname(path12);
+    this._getWatchedDir(dir).remove(sysPath2.basename(path12));
   }
   /**
    * Closes only file-specific watchers
    */
-  _closeFile(path10) {
-    const closers = this._closers.get(path10);
+  _closeFile(path12) {
+    const closers = this._closers.get(path12);
     if (!closers)
       return;
     closers.forEach((closer) => closer());
-    this._closers.delete(path10);
+    this._closers.delete(path12);
   }
-  _addPathCloser(path10, closer) {
+  _addPathCloser(path12, closer) {
     if (!closer)
       return;
-    let list = this._closers.get(path10);
+    let list = this._closers.get(path12);
     if (!list) {
       list = [];
-      this._closers.set(path10, list);
+      this._closers.set(path12, list);
     }
     list.push(closer);
   }
@@ -10060,8 +10193,8 @@ function watch(paths, options = {}) {
 var esm_default = { watch, FSWatcher };
 
 // src/watcher.ts
-import fs8 from "node:fs/promises";
-import path8 from "node:path";
+import fs10 from "node:fs/promises";
+import path10 from "node:path";
 var WS_EVENTS = {
   FEATURES_UPDATED: "review:features-updated",
   SESSION_UPDATED: "review:session-updated",
@@ -10079,11 +10212,11 @@ function broadcast(event) {
   broadcaster(event);
 }
 function startGitWatcher(repoRoot2) {
-  const gitDir = path8.join(repoRoot2, ".git");
+  const gitDir = path10.join(repoRoot2, ".git");
   const watchPaths = [
-    path8.join(gitDir, "HEAD"),
-    path8.join(gitDir, "refs", "heads"),
-    path8.join(gitDir, "worktrees")
+    path10.join(gitDir, "HEAD"),
+    path10.join(gitDir, "refs", "heads"),
+    path10.join(gitDir, "worktrees")
   ];
   let debounceTimer = null;
   esm_default.watch(watchPaths, { ignoreInitial: true, depth: 2 }).on("all", () => {
@@ -10103,9 +10236,9 @@ function startSessionWatcher(sessionsDir2) {
     if (!filePath.endsWith(".json")) return;
     void (async () => {
       try {
-        const content = await fs8.readFile(filePath, "utf-8");
+        const content = await fs10.readFile(filePath, "utf-8");
         const session = JSON.parse(content);
-        const fileName = path8.basename(filePath);
+        const fileName = path10.basename(filePath);
         broadcast({
           event: WS_EVENTS.SESSION_UPDATED,
           data: { fileName, session }
@@ -10117,10 +10250,10 @@ function startSessionWatcher(sessionsDir2) {
 }
 
 // src/index.ts
-var __dirname2 = path9.dirname(fileURLToPath(import.meta.url));
-var repoRoot = path9.resolve(__dirname2, "../../..");
-var sessionsDir = path9.join(repoRoot, ".review", "sessions");
-var uiDist = path9.resolve(__dirname2, "../../ui/dist");
+var __dirname2 = path11.dirname(fileURLToPath(import.meta.url));
+var repoRoot = path11.resolve(__dirname2, "../../..");
+var sessionsDir = path11.join(repoRoot, ".review", "sessions");
+var uiDist = path11.resolve(__dirname2, "../../ui/dist");
 var isDev = process.argv.includes("--dev") || !!process.env.DEV;
 var clients = /* @__PURE__ */ new Set();
 function broadcast2(event) {
@@ -10134,11 +10267,20 @@ function broadcast2(event) {
 setBroadcaster(broadcast2);
 var app = new Hono2();
 app.use("*", cors());
+app.use("/api/*", repoMiddleware(repoRoot));
 app.route("/api/features", createFeaturesRoute(repoRoot));
 app.route("/api", createContextRoute(repoRoot));
 app.route("/api/features", createSessionsRoute(repoRoot, broadcast2));
 app.route("/api/features", createSpecRoute(repoRoot));
 app.route("/api/features", createTasksRoute(repoRoot));
+app.get("/api/workspaces", (c) => c.json({ workspaces: getWorkspaces() }));
+app.post("/api/workspaces/register", async (c) => {
+  const body = await c.req.json();
+  if (!body.path) return c.json({ error: "path required" }, 400);
+  const added = registerWorkspace(body.path);
+  return c.json({ ok: true, added });
+});
+registerWorkspace(repoRoot);
 app.post("/api/resolver/cold-start", (c) => {
   void coldStart(repoRoot);
   return c.json({ ok: true, message: "Cold-start initiated" });
@@ -10149,10 +10291,10 @@ app.get("/api/resolver/status", (c) => {
 app.post("/api/resolver/resolve", async (c) => {
   const { featureId, sessionType } = await c.req.json();
   const suffix = sessionType === "code" ? "-code.json" : "-spec.json";
-  const sessionFile = path9.join(sessionsDir, `${featureId}${suffix}`);
+  const sessionFile = path11.join(sessionsDir, `${featureId}${suffix}`);
   const openThreads = await (async () => {
     try {
-      const raw2 = await fs9.readFile(sessionFile, "utf-8");
+      const raw2 = await fs11.readFile(sessionFile, "utf-8");
       const s = JSON.parse(raw2);
       return (s.threads ?? []).filter((t) => t.status === "open");
     } catch {
@@ -10201,7 +10343,7 @@ if (!isDev) {
   app.get("*", async (c, next) => {
     const pathname = new URL(c.req.url).pathname;
     if (pathname.includes(".")) return next();
-    const html = await fs9.readFile(path9.join(uiDist, "index.html"), "utf-8");
+    const html = await fs11.readFile(path11.join(uiDist, "index.html"), "utf-8");
     return c.html(html);
   });
   app.use("/*", serveStatic({ root: uiDist, rewriteRequestPath: (p) => p }));
@@ -10218,7 +10360,7 @@ var viteMiddleware = null;
 if (isDev) {
   const { createServer: createViteServer } = await import("vite");
   const vite = await createViteServer({
-    root: path9.resolve(__dirname2, "../../ui"),
+    root: path11.resolve(__dirname2, "../../ui"),
     server: {
       middlewareMode: { server },
       hmr: { server }

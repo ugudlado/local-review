@@ -10,6 +10,7 @@ import {
   type SourceType,
   type FeatureStatus,
 } from "../types/constants";
+import { withRepo } from "../hooks/useRepoContext";
 
 // Re-export so callers that imported from here continue to work.
 export { SOURCE_TYPE, type SourceType };
@@ -64,15 +65,23 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const featureApi = {
   // Worktrees
-  getWorktrees(): Promise<{ worktrees: WorktreeListItem[]; error?: string }> {
+  getWorktrees(
+    repo?: string | null,
+    workspace?: string | null,
+  ): Promise<{ worktrees: WorktreeListItem[]; error?: string }> {
     return apiFetch<{ worktrees: WorktreeListItem[]; error?: string }>(
-      `${BASE}/worktrees`,
+      withRepo(`${BASE}/worktrees`, repo ?? null, workspace ?? null),
     );
   },
 
   // Features
-  getFeatures(): Promise<{ features: FeatureInfo[] }> {
-    return apiFetch<{ features: FeatureInfo[] }>(`${BASE}/features`);
+  getFeatures(
+    repo?: string | null,
+    workspace?: string | null,
+  ): Promise<{ features: FeatureInfo[]; repoName?: string }> {
+    return apiFetch<{ features: FeatureInfo[]; repoName?: string }>(
+      withRepo(`${BASE}/features`, repo ?? null, workspace ?? null),
+    );
   },
 
   // Spec

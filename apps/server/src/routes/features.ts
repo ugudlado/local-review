@@ -1,14 +1,30 @@
 import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { getGitState } from "../git.js";
+import { execFileSync } from "node:child_process";
+import { getGitState, refreshGitState } from "../git.js";
 import os from "node:os";
+import type { AppEnv } from "../types.js";
 import { findOpenspecChangeDir } from "../utils.js";
 import { THREAD_STATUS } from "./sessions.js";
 
 const HOME = os.homedir();
 function tildefy(p: string): string {
   return p.startsWith(HOME) ? "~" + p.slice(HOME.length) : p;
+}
+
+/** Resolve the real repo name — handles worktrees by finding the common git dir. */
+function getRepoName(repoRoot: string): string {
+  try {
+    const commonDir = execFileSync("git", ["rev-parse", "--git-common-dir"], {
+      cwd: repoRoot,
+      encoding: "utf-8",
+    }).trim();
+    // commonDir is e.g. "/Users/x/code/review/.git" — parent basename is the repo name
+    return path.basename(path.dirname(path.resolve(repoRoot, commonDir)));
+  } catch {
+    return path.basename(repoRoot);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -114,13 +130,18 @@ async function readJsonSession(filePath: string): Promise<Session> {
 // Route factory
 // ---------------------------------------------------------------------------
 
-export function createFeaturesRoute(repoRoot: string): Hono {
-  const app = new Hono();
-  const sessionsDir = path.join(repoRoot, ".review", "sessions");
+export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   app.get("/", async (c) => {
+    const repoRoot = c.get("repoRoot");
+    const sessionsDir = path.join(repoRoot, ".review", "sessions");
     try {
-      const gitState = getGitState();
+      // Use cached state for default repo, fresh state for overrides
+      const isOverride = repoRoot !== _repoRoot;
+      const gitState = isOverride
+        ? await refreshGitState(repoRoot)
+        : getGitState();
       if (!gitState) {
         return c.json({ features: [], error: "git state not yet computed" });
       }
@@ -293,7 +314,7 @@ export function createFeaturesRoute(repoRoot: string): Hono {
       );
       features.push(...branchFeatures);
 
-      return c.json({ features });
+      return c.json({ features, repoName: getRepoName(repoRoot) });
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown error";
       return c.json({ features: [], error: message });

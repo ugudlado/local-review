@@ -1,10 +1,17 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { featureApi, type FeatureInfo } from "../services/featureApi";
 import FeatureRow from "../components/dashboard/FeatureRow";
 import SkeletonRow from "../components/dashboard/SkeletonRow";
 import EmptyState from "../components/dashboard/EmptyState";
 import { APP_NAME, APP_VERSION } from "../config/app";
 import { FEATURE_STATUS, type FeatureStatus } from "../types/sessions";
+import { useRepoContext, useWorkspaces } from "../hooks/useRepoContext";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../components/ui/popover";
 
 type SortKey = "activity" | "status" | "name";
 
@@ -55,8 +62,98 @@ const SELECT_STYLE = {
   appearance: "none" as const,
 };
 
+function FolderIcon() {
+  return (
+    <svg
+      className="h-3.5 w-3.5 shrink-0"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+    >
+      <path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1Z" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className ?? "h-3 w-3 shrink-0"}
+      viewBox="0 0 16 16"
+      fill="currentColor"
+    >
+      <path d="M12.78 5.22a.749.749 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.06 0L3.22 6.28a.749.749 0 1 1 1.06-1.06L8 8.939l3.72-3.719a.749.749 0 0 1 1.06 0Z" />
+    </svg>
+  );
+}
+
+function WorkspaceSwitcher({
+  workspace,
+  workspaces,
+  onChange,
+}: {
+  workspace: string | null;
+  workspaces: { name: string; path: string }[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const label = workspace ?? "All workspaces";
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-slate-400 ring-1 ring-[var(--border-default)] transition-colors hover:text-slate-300 hover:ring-slate-600 focus:outline-none focus:ring-[var(--accent-blue)]">
+          <FolderIcon />
+          <span>{label}</span>
+          <ChevronIcon
+            className={`h-3 w-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-52 border-[var(--border-default)] bg-[var(--bg-surface)] p-1 shadow-lg"
+      >
+        <button
+          className={`flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-sm transition-colors ${
+            !workspace
+              ? "bg-[var(--accent-blue)]/10 text-slate-200"
+              : "text-slate-400 hover:bg-slate-700/40 hover:text-slate-300"
+          }`}
+          onClick={() => {
+            onChange("");
+            setOpen(false);
+          }}
+        >
+          All workspaces
+        </button>
+        {workspaces.map((ws) => (
+          <button
+            key={ws.name}
+            className={`flex w-full items-center gap-2 rounded px-2.5 py-1.5 text-sm transition-colors ${
+              workspace === ws.name
+                ? "bg-[var(--accent-blue)]/10 text-slate-200"
+                : "text-slate-400 hover:bg-slate-700/40 hover:text-slate-300"
+            }`}
+            onClick={() => {
+              onChange(ws.name);
+              setOpen(false);
+            }}
+          >
+            <FolderIcon />
+            {ws.name}
+          </button>
+        ))}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export default function Dashboard() {
+  const { repo, workspace } = useRepoContext();
+  const workspaces = useWorkspaces();
+  const [, setSearchParams] = useSearchParams();
   const [features, setFeatures] = useState<FeatureInfo[]>([]);
+  const [apiRepoName, setApiRepoName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -70,14 +167,23 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const data = await featureApi.getFeatures();
+      const data = await featureApi.getFeatures(repo, workspace);
       setFeatures(data.features);
+      setApiRepoName(data.repoName ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load features");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [repo, workspace]);
+
+  function handleWorkspaceChange(value: string) {
+    if (!value) {
+      setSearchParams({});
+    } else {
+      setSearchParams({ workspace: value });
+    }
+  }
 
   useEffect(() => {
     void fetchFeatures();
@@ -109,9 +215,9 @@ export default function Dashboard() {
 
       let count: string;
       if ((searchQuery || statusFilter !== "all") && features.length > 0) {
-        count = `${combined.length} of ${features.length}`;
+        count = `${combined.length} of ${features.length} features`;
       } else if (features.length > 0) {
-        count = `${features.length}`;
+        count = `${features.length} features`;
       } else {
         count = "";
       }
@@ -124,40 +230,99 @@ export default function Dashboard() {
       };
     }, [features, searchQuery, sortKey, statusFilter]);
 
+  // Compute summary stats across all (unfiltered) features
+  const summaryStats = useMemo(() => {
+    const active = features.filter(
+      (f) => f.status !== FEATURE_STATUS.Complete,
+    ).length;
+    const completed = features.filter(
+      (f) => f.status === FEATURE_STATUS.Complete,
+    ).length;
+    const openThreads = features.reduce(
+      (sum, f) => sum + f.codeThreadCounts.open + f.specThreadCounts.open,
+      0,
+    );
+    return { active, completed, openThreads };
+  }, [features]);
+
   return (
     <div className="min-h-screen bg-[var(--bg-base)]">
       <div className="mx-auto max-w-6xl px-6 py-6 pb-16">
         {/* Header */}
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-2 flex items-center justify-between gap-4">
           <h1 className="flex shrink-0 items-baseline gap-2 font-mono text-2xl font-bold tracking-tight text-slate-100">
             {APP_NAME}
-            <span className="text-xs font-normal text-[var(--text-muted)]">
+            <span className="text-xs font-normal text-slate-600">
               v{APP_VERSION}
             </span>
+            {apiRepoName && !workspaces.length && (
+              <span className="text-sm font-normal text-slate-400">
+                / {apiRepoName}
+              </span>
+            )}
           </h1>
-          <button
-            onClick={() => {
-              void fetchFeatures();
-            }}
-            disabled={loading}
-            className="flex items-center gap-1.5 rounded px-2 py-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className={loading ? "animate-spin" : undefined}
+          <div className="flex items-center gap-2">
+            {workspaces.length > 0 && (
+              <WorkspaceSwitcher
+                workspace={workspace}
+                workspaces={workspaces}
+                onChange={handleWorkspaceChange}
+              />
+            )}
+            <button
+              onClick={() => {
+                void fetchFeatures();
+              }}
+              disabled={loading}
+              className="flex items-center gap-1.5 rounded px-2 py-1 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
             >
-              <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-            </svg>
-            Refresh
-          </button>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={loading ? "animate-spin" : undefined}
+              >
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+              </svg>
+              Refresh
+            </button>
+          </div>
         </div>
+
+        {/* Summary stats bar */}
+        {!loading && features.length > 0 && (
+          <div className="mb-4 flex items-center gap-4 text-xs text-[var(--text-muted)]">
+            <span>
+              <span className="tabular-nums text-slate-400">
+                {summaryStats.active}
+              </span>{" "}
+              active
+            </span>
+            <span className="text-slate-700">&middot;</span>
+            <span>
+              <span className="tabular-nums text-slate-400">
+                {summaryStats.completed}
+              </span>{" "}
+              completed
+            </span>
+            {summaryStats.openThreads > 0 && (
+              <>
+                <span className="text-slate-700">&middot;</span>
+                <span className="text-amber-500/80">
+                  <span className="tabular-nums">
+                    {summaryStats.openThreads}
+                  </span>{" "}
+                  open threads
+                </span>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Filter / sort controls */}
         <div className="mb-4 flex items-center gap-2 border-b border-slate-800/60 pb-4">
@@ -259,6 +424,8 @@ export default function Dashboard() {
                       key={feature.id}
                       feature={feature}
                       searchQuery={searchQuery}
+                      repoName={apiRepoName}
+                      compact={feature.status === FEATURE_STATUS.Complete}
                     />
                   ))
                 ) : (
@@ -269,10 +436,11 @@ export default function Dashboard() {
                         key={feature.id}
                         feature={feature}
                         searchQuery={searchQuery}
+                        repoName={apiRepoName}
                       />
                     ))}
 
-                    {/* Completed features (collapsible) */}
+                    {/* Completed features (collapsible, compact 2-col grid) */}
                     {completedFeatures.length > 0 && (
                       <>
                         <button
@@ -293,14 +461,19 @@ export default function Dashboard() {
                           </svg>
                           <div className="h-px flex-1 bg-[var(--border-default)]" />
                         </button>
-                        {showCompleted &&
-                          completedFeatures.map((feature) => (
-                            <FeatureRow
-                              key={feature.id}
-                              feature={feature}
-                              searchQuery={searchQuery}
-                            />
-                          ))}
+                        {showCompleted && (
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-0">
+                            {completedFeatures.map((feature) => (
+                              <FeatureRow
+                                key={feature.id}
+                                feature={feature}
+                                searchQuery={searchQuery}
+                                repoName={apiRepoName}
+                                compact
+                              />
+                            ))}
+                          </div>
+                        )}
                       </>
                     )}
                   </>

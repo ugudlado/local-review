@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
+import type { AppEnv } from "../types.js";
 import { findOpenspecChangeDir, findWorktreePath, safeId } from "../utils.js";
 
 interface ParsedTask {
@@ -170,11 +171,12 @@ function parseTasksMarkdown(markdown: string): {
   };
 }
 
-export function createTasksRoute(repoRoot: string): Hono {
-  const app = new Hono();
+export function createTasksRoute(_repoRoot: string): Hono<AppEnv> {
+  const app = new Hono<AppEnv>();
 
   // GET /api/features/:id/tasks
   app.get("/:id/tasks", async (c) => {
+    const repoRoot = c.get("repoRoot");
     const rawId = c.req.param("id");
     const featureId = safeId(rawId);
     if (!featureId) {

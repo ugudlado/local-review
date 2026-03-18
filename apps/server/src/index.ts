@@ -8,6 +8,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
 import { refreshGitState } from "./git.js";
+import { repoMiddleware } from "./middleware/repo.js";
+import type { AppEnv } from "./types.js";
+import { getWorkspaces, registerWorkspace } from "./workspaces.js";
 import {
   coldStart as resolverColdStart,
   getStatus as resolverStatus,
@@ -50,8 +53,9 @@ setBroadcaster(broadcast);
 // Hono app
 // ---------------------------------------------------------------------------
 
-const app = new Hono();
+const app = new Hono<AppEnv>();
 app.use("*", cors());
+app.use("/api/*", repoMiddleware(repoRoot));
 
 // API routes
 app.route("/api/features", createFeaturesRoute(repoRoot));
@@ -59,6 +63,18 @@ app.route("/api", createContextRoute(repoRoot));
 app.route("/api/features", createSessionsRoute(repoRoot, broadcast));
 app.route("/api/features", createSpecRoute(repoRoot));
 app.route("/api/features", createTasksRoute(repoRoot));
+
+// Workspace registry
+app.get("/api/workspaces", (c) => c.json({ workspaces: getWorkspaces() }));
+app.post("/api/workspaces/register", async (c) => {
+  const body = await c.req.json<{ path?: string }>();
+  if (!body.path) return c.json({ error: "path required" }, 400);
+  const added = registerWorkspace(body.path);
+  return c.json({ ok: true, added });
+});
+
+// Register the default repo on startup
+registerWorkspace(repoRoot);
 
 // Resolver daemon management
 app.post("/api/resolver/cold-start", (c) => {
