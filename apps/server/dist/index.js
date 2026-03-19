@@ -7515,8 +7515,7 @@ import os3 from "node:os";
 import path5 from "node:path";
 var configDir = null;
 function getConfigDir() {
-  if (!configDir)
-    configDir = path5.join(os3.homedir(), ".config", "local-review");
+  configDir ??= path5.join(os3.homedir(), ".config", "local-review");
   return configDir;
 }
 function getSessionsDir(workspaceName) {
@@ -7524,19 +7523,12 @@ function getSessionsDir(workspaceName) {
   fs5.mkdirSync(dir, { recursive: true });
   return dir;
 }
-async function readSessionFile(workspaceName, repoRoot2, fileName) {
-  const centralPath = path5.join(getSessionsDir(workspaceName), fileName);
+async function readSessionFile(workspaceName, fileName) {
+  const filePath = path5.join(getSessionsDir(workspaceName), fileName);
   try {
-    const content = await fs5.promises.readFile(centralPath, "utf-8");
-    return { content, source: "central" };
+    return await fs5.promises.readFile(filePath, "utf-8");
   } catch {
-    const legacyPath = path5.join(repoRoot2, ".review", "sessions", fileName);
-    try {
-      const content = await fs5.promises.readFile(legacyPath, "utf-8");
-      return { content, source: "legacy" };
-    } catch {
-      return null;
-    }
+    return null;
   }
 }
 function writeSessionFile(workspaceName, fileName, data) {
@@ -7549,12 +7541,9 @@ function writeSessionFile(workspaceName, fileName, data) {
   const filePath = path5.join(getSessionsDir(workspaceName), fileName);
   atomicWriteSync(filePath, data);
 }
-async function deleteSessionFile(workspaceName, repoRoot2, fileName) {
-  const centralPath = path5.join(getSessionsDir(workspaceName), fileName);
-  const legacyPath = path5.join(repoRoot2, ".review", "sessions", fileName);
-  await fs5.promises.unlink(centralPath).catch(() => {
-  });
-  await fs5.promises.unlink(legacyPath).catch(() => {
+async function deleteSessionFile(workspaceName, fileName) {
+  const filePath = path5.join(getSessionsDir(workspaceName), fileName);
+  await fs5.promises.unlink(filePath).catch(() => {
   });
 }
 async function migrateRepoSessions(workspaceName, repoPath) {
@@ -8016,17 +8005,16 @@ function registerSessionCRUD(app2, config, _sessionType, broadcast3) {
   const { pathSegment, fileSuffix, onPatchThread } = config;
   app2.get(`/:id/${pathSegment}`, async (c) => {
     const workspaceName = c.get("workspaceName");
-    const repoRoot2 = c.get("repoRoot");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
     const fileName = `${featureId}${fileSuffix}`;
-    const result = await readSessionFile(workspaceName, repoRoot2, fileName);
+    const result = await readSessionFile(workspaceName, fileName);
     if (!result) {
       return c.json({ session: null });
     }
-    return c.json({ session: JSON.parse(result.content) });
+    return c.json({ session: JSON.parse(result) });
   });
   app2.post(`/:id/${pathSegment}`, async (c) => {
     const workspaceName = c.get("workspaceName");
@@ -8041,29 +8029,27 @@ function registerSessionCRUD(app2, config, _sessionType, broadcast3) {
   });
   app2.delete(`/:id/${pathSegment}`, async (c) => {
     const workspaceName = c.get("workspaceName");
-    const repoRoot2 = c.get("repoRoot");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
     const fileName = `${featureId}${fileSuffix}`;
-    await deleteSessionFile(workspaceName, repoRoot2, fileName);
+    await deleteSessionFile(workspaceName, fileName);
     return c.json({ ok: true });
   });
   app2.patch(`/:id/${pathSegment}/threads/:threadId`, async (c) => {
     const workspaceName = c.get("workspaceName");
-    const repoRoot2 = c.get("repoRoot");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
     const threadId = c.req.param("threadId");
     const fileName = `${featureId}${fileSuffix}`;
-    const result = await readSessionFile(workspaceName, repoRoot2, fileName);
+    const result = await readSessionFile(workspaceName, fileName);
     if (!result) {
       return c.json({ error: "Session not found" }, 404);
     }
-    const session = JSON.parse(result.content);
+    const session = JSON.parse(result);
     const threads = session.threads ?? [];
     const threadIndex = threads.findIndex((t) => t.id === threadId);
     if (threadIndex === -1) {
@@ -10475,20 +10461,15 @@ app.get("/api/resolver/status", (c) => {
 });
 app.post("/api/resolver/resolve", async (c) => {
   const workspaceName = c.get("workspaceName");
-  const resolverRepoRoot = c.get("repoRoot");
   const { featureId, sessionType } = await c.req.json();
   const suffix = sessionType === "code" ? "-code.json" : "-spec.json";
   const fileName = `${featureId}${suffix}`;
   const sessionFile = path12.join(getSessionsDir(workspaceName), fileName);
   const openThreads = await (async () => {
-    const result = await readSessionFile(
-      workspaceName,
-      resolverRepoRoot,
-      fileName
-    );
-    if (!result) return [];
+    const content = await readSessionFile(workspaceName, fileName);
+    if (!content) return [];
     try {
-      const s = JSON.parse(result.content);
+      const s = JSON.parse(content);
       return (s.threads ?? []).filter((t) => t.status === "open");
     } catch {
       return [];

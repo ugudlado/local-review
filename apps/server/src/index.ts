@@ -108,21 +108,16 @@ app.get("/api/resolver/status", (c) => {
 });
 app.post("/api/resolver/resolve", async (c) => {
   const workspaceName = c.get("workspaceName");
-  const resolverRepoRoot = c.get("repoRoot");
   const { featureId, sessionType } = await c.req.json();
   const suffix = sessionType === "code" ? "-code.json" : "-spec.json";
   const fileName = `${featureId}${suffix}`;
   const sessionFile = path.join(getSessionsDir(workspaceName), fileName);
 
   const openThreads = await (async () => {
-    const result = await readSessionFile(
-      workspaceName,
-      resolverRepoRoot,
-      fileName,
-    );
-    if (!result) return [];
+    const content = await readSessionFile(workspaceName, fileName);
+    if (!content) return [];
     try {
-      const s = JSON.parse(result.content) as {
+      const s = JSON.parse(content) as {
         threads?: Array<{
           id: string;
           filePath: string;

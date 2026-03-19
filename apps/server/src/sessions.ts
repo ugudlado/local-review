@@ -27,33 +27,23 @@ export function getSessionsDir(workspaceName: string): string {
 }
 
 /**
- * Read a session file, checking central location first, then legacy fallback.
- * Returns { content, source } where source indicates where it was found.
+ * Read a session file from the central location.
  */
 export async function readSessionFile(
   workspaceName: string,
-  repoRoot: string,
   fileName: string,
-): Promise<{ content: string; source: "central" | "legacy" } | null> {
-  const centralPath = path.join(getSessionsDir(workspaceName), fileName);
+): Promise<string | null> {
+  const filePath = path.join(getSessionsDir(workspaceName), fileName);
   try {
-    const content = await fs.promises.readFile(centralPath, "utf-8");
-    return { content, source: "central" };
+    return await fs.promises.readFile(filePath, "utf-8");
   } catch {
-    // Fall back to legacy location
-    const legacyPath = path.join(repoRoot, ".review", "sessions", fileName);
-    try {
-      const content = await fs.promises.readFile(legacyPath, "utf-8");
-      return { content, source: "legacy" };
-    } catch {
-      return null;
-    }
+    return null;
   }
 }
 
 /**
  * Write a session file to the central location using atomic write.
- * Always stamps workspaceName on the session data (R6).
+ * Always stamps workspaceName on the session data.
  */
 export function writeSessionFile(
   workspaceName: string,
@@ -73,21 +63,17 @@ export function writeSessionFile(
 
 /**
  * Delete a session file from the central location.
- * Also attempts to delete from legacy location.
  */
 export async function deleteSessionFile(
   workspaceName: string,
-  repoRoot: string,
   fileName: string,
 ): Promise<void> {
-  const centralPath = path.join(getSessionsDir(workspaceName), fileName);
-  const legacyPath = path.join(repoRoot, ".review", "sessions", fileName);
-  await fs.promises.unlink(centralPath).catch(() => {});
-  await fs.promises.unlink(legacyPath).catch(() => {});
+  const filePath = path.join(getSessionsDir(workspaceName), fileName);
+  await fs.promises.unlink(filePath).catch(() => {});
 }
 
 /**
- * Migrate sessions from a repo's legacy .review/sessions/ to central storage.
+ * Migrate sessions from a repo's .review/sessions/ to central storage.
  * Copies (not moves) files. Adds workspaceName field to migrated sessions.
  * Uses newer-wins conflict resolution.
  */
@@ -116,7 +102,7 @@ export async function migrateRepoSessions(
       const raw = await fs.promises.readFile(srcPath, "utf-8");
       const session = JSON.parse(raw) as Record<string, unknown>;
 
-      // Newer-wins conflict resolution
+      // Newer-wins: skip if central copy is newer or equal
       try {
         const destRaw = await fs.promises.readFile(destPath, "utf-8");
         const destSession = JSON.parse(destRaw) as Record<string, unknown>;
@@ -135,7 +121,7 @@ export async function migrateRepoSessions(
           continue;
         }
       } catch {
-        // Destination doesn't exist — proceed with migration
+        // Destination doesn't exist — proceed
       }
 
       session.workspaceName = workspaceName;

@@ -96,21 +96,20 @@ function registerSessionCRUD(
 ): void {
   const { pathSegment, fileSuffix, onPatchThread } = config;
 
-  // GET — read with central-first, legacy-fallback
+  // GET
   app.get(`/:id/${pathSegment}`, async (c) => {
     const workspaceName = c.get("workspaceName");
-    const repoRoot = c.get("repoRoot");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
     const fileName = `${featureId}${fileSuffix}`;
-    const result = await readSessionFile(workspaceName, repoRoot, fileName);
+    const result = await readSessionFile(workspaceName, fileName);
     if (!result) {
       return c.json({ session: null });
     }
-    return c.json({ session: JSON.parse(result.content) as unknown });
+    return c.json({ session: JSON.parse(result) as unknown });
   });
 
   // POST (save) — always write to central location
@@ -128,25 +127,23 @@ function registerSessionCRUD(
     return c.json({ ok: true });
   });
 
-  // DELETE — remove from both central and legacy locations
+  // DELETE
   app.delete(`/:id/${pathSegment}`, async (c) => {
     const workspaceName = c.get("workspaceName");
-    const repoRoot = c.get("repoRoot");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
     const fileName = `${featureId}${fileSuffix}`;
-    await deleteSessionFile(workspaceName, repoRoot, fileName);
+    await deleteSessionFile(workspaceName, fileName);
 
     return c.json({ ok: true });
   });
 
-  // PATCH thread — read with fallback, write to central
+  // PATCH thread
   app.patch(`/:id/${pathSegment}/threads/:threadId`, async (c) => {
     const workspaceName = c.get("workspaceName");
-    const repoRoot = c.get("repoRoot");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
@@ -154,12 +151,12 @@ function registerSessionCRUD(
     const threadId = c.req.param("threadId");
 
     const fileName = `${featureId}${fileSuffix}`;
-    const result = await readSessionFile(workspaceName, repoRoot, fileName);
+    const result = await readSessionFile(workspaceName, fileName);
     if (!result) {
       return c.json({ error: "Session not found" }, 404);
     }
 
-    const session = JSON.parse(result.content) as {
+    const session = JSON.parse(result) as {
       threads?: ThreadRecord[];
       [key: string]: unknown;
     };
