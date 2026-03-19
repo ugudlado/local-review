@@ -1,7 +1,10 @@
 import { Hono } from "hono";
-import fs from "node:fs/promises";
-import path from "node:path";
 import type { AppEnv } from "../types.js";
+import {
+  deleteSessionFile,
+  readSessionFile,
+  writeSessionFile,
+} from "../sessions.js";
 import { safeId } from "../utils.js";
 import type { Broadcaster } from "../watcher.js";
 
@@ -82,104 +85,81 @@ const SESSION_CONFIGS: Record<SessionType, SessionConfig> = {
 };
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // Generic session CRUD registration
 // ---------------------------------------------------------------------------
 
 function registerSessionCRUD(
   app: Hono<AppEnv>,
   config: SessionConfig,
-  _sessionsDir: string,
-  _ensureSessionsDir: () => Promise<void>,
-  sessionType: SessionType,
+  _sessionType: SessionType,
   broadcast?: Broadcaster,
 ): void {
   const { pathSegment, fileSuffix, onPatchThread } = config;
 
-  // GET
+  // GET — read with central-first, legacy-fallback
   app.get(`/:id/${pathSegment}`, async (c) => {
+    const workspaceName = c.get("workspaceName");
     const repoRoot = c.get("repoRoot");
-    const sessionsDir = path.join(repoRoot, ".review", "sessions");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
-    await fs.mkdir(sessionsDir, { recursive: true });
-    const filePath = path.join(sessionsDir, `${featureId}${fileSuffix}`);
-
-    try {
-      const content = await fs.readFile(filePath, "utf-8");
-      return c.json({ session: JSON.parse(content) as unknown });
-    } catch {
+    const fileName = `${featureId}${fileSuffix}`;
+    const result = await readSessionFile(workspaceName, repoRoot, fileName);
+    if (!result) {
       return c.json({ session: null });
     }
+    return c.json({ session: JSON.parse(result.content) as unknown });
   });
 
-  // POST (save)
+  // POST (save) — always write to central location
   app.post(`/:id/${pathSegment}`, async (c) => {
-    const repoRoot = c.get("repoRoot");
-    const sessionsDir = path.join(repoRoot, ".review", "sessions");
+    const workspaceName = c.get("workspaceName");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-
-    await fs.mkdir(sessionsDir, { recursive: true });
-    const filePath = path.join(sessionsDir, `${featureId}${fileSuffix}`);
 
     const session = await c.req.json<Record<string, unknown>>();
-
-    await fs.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
+    const fileName = `${featureId}${fileSuffix}`;
+    writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
 
     return c.json({ ok: true });
   });
 
-  // DELETE
+  // DELETE — remove from both central and legacy locations
   app.delete(`/:id/${pathSegment}`, async (c) => {
+    const workspaceName = c.get("workspaceName");
     const repoRoot = c.get("repoRoot");
-    const sessionsDir = path.join(repoRoot, ".review", "sessions");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
 
-    await fs.mkdir(sessionsDir, { recursive: true });
-    const filePath = path.join(sessionsDir, `${featureId}${fileSuffix}`);
-
-    try {
-      await fs.unlink(filePath);
-    } catch {
-      // File doesn't exist — that's fine
-    }
+    const fileName = `${featureId}${fileSuffix}`;
+    await deleteSessionFile(workspaceName, repoRoot, fileName);
 
     return c.json({ ok: true });
   });
 
-  // PATCH thread
+  // PATCH thread — read with fallback, write to central
   app.patch(`/:id/${pathSegment}/threads/:threadId`, async (c) => {
+    const workspaceName = c.get("workspaceName");
     const repoRoot = c.get("repoRoot");
-    const sessionsDir = path.join(repoRoot, ".review", "sessions");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
     const threadId = c.req.param("threadId");
 
-    await fs.mkdir(sessionsDir, { recursive: true });
-    const filePath = path.join(sessionsDir, `${featureId}${fileSuffix}`);
-
-    let sessionContent: string;
-    try {
-      sessionContent = await fs.readFile(filePath, "utf-8");
-    } catch {
+    const fileName = `${featureId}${fileSuffix}`;
+    const result = await readSessionFile(workspaceName, repoRoot, fileName);
+    if (!result) {
       return c.json({ error: "Session not found" }, 404);
     }
 
-    const session = JSON.parse(sessionContent) as {
+    const session = JSON.parse(result.content) as {
       threads?: ThreadRecord[];
       [key: string]: unknown;
     };
@@ -217,7 +197,7 @@ function registerSessionCRUD(
     threads[threadIndex] = updatedThread;
     session.threads = threads;
 
-    await fs.writeFile(filePath, JSON.stringify(session, null, 2), "utf-8");
+    writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
 
     // Broadcast per-thread completion for real-time sidebar progress
     if (broadcast && updatedThread.status === THREAD_STATUS.Resolved) {
@@ -241,22 +221,11 @@ function registerSessionCRUD(
 // Route factory
 // ---------------------------------------------------------------------------
 
-export function createSessionsRoute(
-  repoRoot: string,
-  broadcast?: Broadcaster,
-): Hono<AppEnv> {
+export function createSessionsRoute(broadcast?: Broadcaster): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
-  // Register both code and spec session CRUD
   for (const [type, config] of Object.entries(SESSION_CONFIGS)) {
-    registerSessionCRUD(
-      app,
-      config,
-      path.join(repoRoot, ".review", "sessions"),
-      async () => {},
-      type as SessionType,
-      broadcast,
-    );
+    registerSessionCRUD(app, config, type as SessionType, broadcast);
   }
 
   return app;

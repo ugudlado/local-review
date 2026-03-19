@@ -70,7 +70,7 @@ Start the review UI so you can browse the dashboard or jump directly into a feat
 
 5. If a plain session filename was provided (no flag, legacy behavior), tell the user:
 
-   > Session file: `.review/sessions/$ARGUMENTS`
+   > Sessions are now stored centrally at `~/.config/local-review/workspace/{name}/sessions/`
    > In the UI, use "Load Session" to restore it.
 
 6. Summarize what the UI provides based on the mode opened:

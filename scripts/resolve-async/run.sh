@@ -15,7 +15,19 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-SESSIONS_DIR="$REPO_ROOT/.review/sessions"
+
+# Derive sessions dir from workspace registry (central storage)
+WORKSPACE_FILE="$HOME/.config/local-review/workspaces.json"
+if [[ -f "$WORKSPACE_FILE" ]] && command -v jq &>/dev/null; then
+  REPO_NAME=$(jq -r --arg p "$REPO_ROOT" '.workspaces[] | select(.path == $p) | .name' "$WORKSPACE_FILE")
+  if [[ -n "$REPO_NAME" ]]; then
+    SESSIONS_DIR="$HOME/.config/local-review/workspace/$REPO_NAME/sessions"
+  else
+    SESSIONS_DIR="$REPO_ROOT/.review/sessions"  # unregistered repo fallback
+  fi
+else
+  SESSIONS_DIR="$REPO_ROOT/.review/sessions"  # no registry fallback
+fi
 CONTEXT_SCRIPT="$REPO_ROOT/scripts/review-context.sh"
 
 # --- Timing helpers (macOS date lacks %N, use python3 fallback) ---

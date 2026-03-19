@@ -77,8 +77,20 @@ export function stopGitWatcher(repoRoot: string): void {
   }
 }
 
-export function startSessionWatcher(sessionsDir: string): void {
-  chokidar
+/** Per-workspace session watcher instances. Keyed by workspace name. */
+const sessionWatchers = new Map<string, FSWatcher>();
+
+/**
+ * Start watching a workspace's central sessions directory.
+ * No-ops if already watching this workspace.
+ */
+export function startSessionWatcher(
+  workspaceName: string,
+  sessionsDir: string,
+): void {
+  if (sessionWatchers.has(workspaceName)) return;
+
+  const watcher = chokidar
     .watch(sessionsDir, {
       ignoreInitial: true,
       awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
@@ -92,11 +104,22 @@ export function startSessionWatcher(sessionsDir: string): void {
           const fileName = path.basename(filePath);
           broadcast({
             event: WS_EVENTS.SESSION_UPDATED,
-            data: { fileName, session },
+            data: { workspaceName, fileName, session },
           });
         } catch {
           // File may be mid-write or invalid JSON — ignore
         }
       })();
     });
+
+  sessionWatchers.set(workspaceName, watcher);
+}
+
+/** Stop watching a workspace's sessions directory. */
+export function stopSessionWatcher(workspaceName: string): void {
+  const watcher = sessionWatchers.get(workspaceName);
+  if (watcher) {
+    void watcher.close();
+    sessionWatchers.delete(workspaceName);
+  }
 }

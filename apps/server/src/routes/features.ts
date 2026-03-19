@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 import { getGitState, refreshGitState } from "../git.js";
+import { getSessionsDir } from "../sessions.js";
 import { setLastActive } from "../workspaces.js";
 import os from "node:os";
 import type { AppEnv } from "../types.js";
@@ -12,20 +12,6 @@ import { THREAD_STATUS } from "./sessions.js";
 const HOME = os.homedir();
 function tildefy(p: string): string {
   return p.startsWith(HOME) ? "~" + p.slice(HOME.length) : p;
-}
-
-/** Resolve the real repo name — handles worktrees by finding the common git dir. */
-function getRepoName(repoRoot: string): string {
-  try {
-    const commonDir = execFileSync("git", ["rev-parse", "--git-common-dir"], {
-      cwd: repoRoot,
-      encoding: "utf-8",
-    }).trim();
-    // commonDir is e.g. "/Users/x/code/review/.git" — parent basename is the repo name
-    return path.basename(path.dirname(path.resolve(repoRoot, commonDir)));
-  } catch {
-    return path.basename(repoRoot);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -136,7 +122,8 @@ export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
 
   app.get("/", async (c) => {
     const repoRoot = c.get("repoRoot");
-    const sessionsDir = path.join(repoRoot, ".review", "sessions");
+    const workspaceName = c.get("workspaceName");
+    const sessionsDir = getSessionsDir(workspaceName);
     try {
       // Use cached state if available, refresh on miss
       let gitState = getGitState(repoRoot);
@@ -315,7 +302,7 @@ export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
       // Track this workspace as last-active
       setLastActive(repoRoot);
 
-      return c.json({ features, repoName: getRepoName(repoRoot) });
+      return c.json({ features, repoName: workspaceName });
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown error";
       return c.json({ features: [], error: message });
