@@ -1,0 +1,65 @@
+{
+  "name": "local-review-vscode",
+  "displayName": "Local Review",
+  "description": "Inline code review annotations synced with the local-review browser UI",
+  "version": "0.1.0",
+  "publisher": "local-review",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:.review/",
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "local-review.refresh",
+        "title": "Local Review: Refresh"
+      },
+      {
+        "command": "local-review.connect",
+        "title": "Local Review: Connect"
+      },
+      {
+        "command": "local-review.disconnect",
+        "title": "Local Review: Disconnect"
+      },
+      {
+        "command": "local-review.startReview",
+        "title": "Local Review: Start Review"
+      },
+      {
+        "command": "local-review.requestChanges",
+        "title": "Local Review: Request Changes"
+      }
+    ],
+    "configuration": {
+      "title": "Local Review",
+      "properties": {
+        "local-review.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:37003",
+          "description": "URL of the local-review server"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=dist/extension.js --external:vscode",
+    "watch": "esbuild src/extension.ts --bundle --platform=node --format=cjs --outfile=dist/extension.js --external:vscode --watch",
+    "package": "vsce package",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.5.0"
+  }
+}
