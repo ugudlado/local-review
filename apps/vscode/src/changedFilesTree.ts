@@ -90,6 +90,11 @@ export class ChangedFilesTreeProvider
     return item;
   }
 
+  getParent(_element: DiffFileItem): DiffFileItem | undefined {
+    // Flat list — no parent hierarchy. Required for TreeView.reveal() to work.
+    return undefined;
+  }
+
   getChildren(): DiffFileItem[] {
     return this._files;
   }

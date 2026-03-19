@@ -3,7 +3,11 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import * as path from "path";
 import { FeatureDetector } from "./featureDetector";
-import { serverClient, setWorkspaceName } from "./serverClient";
+import {
+  serverClient,
+  setWorkspaceName,
+  setDebugChannel,
+} from "./serverClient";
 import type { SessionThread } from "./serverClient";
 import { StatusBar } from "./statusBar";
 import { CommentManager } from "./commentManager";
@@ -27,6 +31,7 @@ function getBaseUrl(): string {
 export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = vscode.window.createOutputChannel("Local Review");
   outputChannel.appendLine("Local Review extension activated");
+  setDebugChannel(outputChannel);
 
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!workspaceRoot) {

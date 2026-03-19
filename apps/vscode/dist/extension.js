@@ -3995,13 +3995,21 @@ function appendWorkspaceParam(url) {
   const sep = url.includes("?") ? "&" : "?";
   return `${url}${sep}workspace=${encodeURIComponent(_workspaceName)}`;
 }
+var _debugChannel = null;
+function setDebugChannel(channel) {
+  _debugChannel = channel;
+}
 async function apiFetch(path3, options) {
+  const method = options?.method ?? "GET";
   const url = appendWorkspaceParam(`${getBaseUrl()}/api/features${path3}`);
+  _debugChannel?.appendLine(`[API] ${method} ${url}`);
   const res = await httpRequest(url, {
-    method: options?.method ?? "GET",
+    method,
     body: options?.body
   });
+  _debugChannel?.appendLine(`[API] \u2192 ${res.status} (${res.body.length} bytes)`);
   if (res.status >= 400) {
+    _debugChannel?.appendLine(`[API] ERROR: ${res.body.slice(0, 200)}`);
     throw new Error(`API error: ${res.status} ${res.body}`);
   }
   return JSON.parse(res.body);
@@ -4793,6 +4801,9 @@ var ChangedFilesTreeProvider = class {
     item.tooltip = `${element.status === "R" ? `Renamed: ${element.oldPath} \u2192 ${element.newPath}` : element.path}`;
     return item;
   }
+  getParent(_element) {
+    return void 0;
+  }
   getChildren() {
     return this._files;
   }
@@ -4932,6 +4943,7 @@ function getBaseUrl2() {
 function activate(context) {
   const outputChannel = vscode9.window.createOutputChannel("Local Review");
   outputChannel.appendLine("Local Review extension activated");
+  setDebugChannel(outputChannel);
   const workspaceRoot = vscode9.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!workspaceRoot) {
     outputChannel.appendLine("No workspace folder found \u2014 going dormant");

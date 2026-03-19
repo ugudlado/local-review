@@ -102,16 +102,29 @@ function appendWorkspaceParam(url: string): string {
   return `${url}${sep}workspace=${encodeURIComponent(_workspaceName)}`;
 }
 
+/** Debug output channel — set from extension.ts during activation. */
+let _debugChannel: { appendLine(msg: string): void } | null = null;
+
+export function setDebugChannel(channel: {
+  appendLine(msg: string): void;
+}): void {
+  _debugChannel = channel;
+}
+
 async function apiFetch<T>(
   path: string,
   options?: { method?: string; body?: string },
 ): Promise<T> {
+  const method = options?.method ?? "GET";
   const url = appendWorkspaceParam(`${getBaseUrl()}/api/features${path}`);
+  _debugChannel?.appendLine(`[API] ${method} ${url}`);
   const res = await httpRequest(url, {
-    method: options?.method ?? "GET",
+    method,
     body: options?.body,
   });
+  _debugChannel?.appendLine(`[API] → ${res.status} (${res.body.length} bytes)`);
   if (res.status >= 400) {
+    _debugChannel?.appendLine(`[API] ERROR: ${res.body.slice(0, 200)}`);
     throw new Error(`API error: ${res.status} ${res.body}`);
   }
   return JSON.parse(res.body) as T;
