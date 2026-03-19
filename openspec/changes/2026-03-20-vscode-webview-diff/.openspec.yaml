@@ -1,0 +1,6 @@
+schema: feature-rapid
+feature-id: 2026-03-20-vscode-webview-diff
+linear-ticket: none
+worktree: ~/code/feature_worktrees/2026-03-20-vscode-webview-diff
+branch: feature/2026-03-20-vscode-webview-diff
+mode: non-tdd
