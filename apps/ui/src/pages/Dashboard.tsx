@@ -175,7 +175,10 @@ export default function Dashboard() {
         const results = await Promise.all(
           workspaces.map((ws) => featureApi.getFeatures(null, ws.name)),
         );
-        const merged = results.flatMap((r) => r.features);
+        // Tag each feature with its source workspace so navigation preserves context
+        const merged = results.flatMap((r, i) =>
+          r.features.map((f) => ({ ...f, _workspace: workspaces[i].name })),
+        );
         setFeatures(merged);
         setApiRepoName(null);
       } else {
