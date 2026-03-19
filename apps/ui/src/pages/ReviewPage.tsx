@@ -728,10 +728,6 @@ export function ReviewPage({
     [visibleFiles],
   );
 
-  const handleApprove = useCallback(() => {
-    setReviewVerdict(REVIEW_VERDICT.Approved);
-  }, []);
-
   const triggerResolve = useCallback(() => {
     if (featureId) {
       featureApi.triggerResolve(featureId, "code").catch((err) => {
@@ -756,10 +752,7 @@ export function ReviewPage({
       <div className="flex items-center gap-2">
         <ReviewVerdict
           verdict={reviewVerdict}
-          onVerdictChange={(v) => {
-            if (v === REVIEW_VERDICT.Approved) handleApprove();
-            else handleRequestChanges();
-          }}
+          onVerdictChange={() => handleRequestChanges()}
           openThreadCount={pendingCount}
           featureId={featureId ?? undefined}
           onRetryResolve={triggerResolve}
@@ -772,7 +765,6 @@ export function ReviewPage({
     pendingCount,
     setHeaderActions,
     featureId,
-    handleApprove,
     handleRequestChanges,
     triggerResolve,
   ]);
@@ -940,11 +932,6 @@ export function ReviewPage({
 
         {!embedded && (
           <div className="ml-auto flex items-center gap-2">
-            {reviewVerdict === REVIEW_VERDICT.Approved && (
-              <span className="rounded-full bg-[var(--accent-emerald-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-emerald)]">
-                Approved
-              </span>
-            )}
             {reviewVerdict === REVIEW_VERDICT.ChangesRequested && (
               <span className="rounded-full bg-[var(--accent-rose-dim)] px-2 py-0.5 text-[10px] font-medium text-[var(--accent-rose)]">
                 Changes Requested
@@ -952,10 +939,7 @@ export function ReviewPage({
             )}
             <ReviewVerdict
               verdict={reviewVerdict}
-              onVerdictChange={(v) => {
-                if (v === REVIEW_VERDICT.Approved) handleApprove();
-                else handleRequestChanges();
-              }}
+              onVerdictChange={() => handleRequestChanges()}
               openThreadCount={pendingCount}
               featureId={featureId ?? undefined}
               onRetryResolve={triggerResolve}
