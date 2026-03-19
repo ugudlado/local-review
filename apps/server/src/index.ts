@@ -9,6 +9,11 @@ import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
 import { refreshGitState } from "./git.js";
 import { repoMiddleware } from "./middleware/repo.js";
+import {
+  getSessionsDir,
+  migrateRepoSessions,
+  readSessionFile,
+} from "./sessions.js";
 import type { AppEnv } from "./types.js";
 import {
   ensureRegistered,
@@ -33,7 +38,6 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../../..");
-const sessionsDir = path.join(repoRoot, ".review", "sessions");
 const uiDist = path.resolve(__dirname, "../../ui/dist");
 const isDev = process.argv.includes("--dev") || !!process.env.DEV;
 
@@ -65,7 +69,7 @@ app.use("/api/*", repoMiddleware(repoRoot));
 // API routes
 app.route("/api/features", createFeaturesRoute(repoRoot));
 app.route("/api", createContextRoute(repoRoot));
-app.route("/api/features", createSessionsRoute(repoRoot, broadcast));
+app.route("/api/features", createSessionsRoute(broadcast));
 app.route("/api/features", createSpecRoute(repoRoot));
 app.route("/api/features", createTasksRoute(repoRoot));
 
@@ -76,9 +80,17 @@ app.post("/api/workspaces/register", async (c) => {
   if (!body.path) return c.json({ error: "path required" }, 400);
   const result = registerWorkspace(body.path);
   if (!result) return c.json({ ok: false, error: "not a git repository" }, 400);
-  // Start watching the newly registered workspace for git changes
+  // Start watching the newly registered workspace
   if (result.added) {
     startGitWatcher(result.workspace.path);
+    void migrateRepoSessions(
+      result.workspace.name,
+      result.workspace.path,
+    ).catch(() => {});
+    startSessionWatcher(
+      result.workspace.name,
+      getSessionsDir(result.workspace.name),
+    );
   }
   return c.json({ ok: true, added: result.added, workspace: result.workspace });
 });
@@ -95,14 +107,17 @@ app.get("/api/resolver/status", (c) => {
   return c.json(resolverStatus());
 });
 app.post("/api/resolver/resolve", async (c) => {
+  const workspaceName = c.get("workspaceName");
   const { featureId, sessionType } = await c.req.json();
   const suffix = sessionType === "code" ? "-code.json" : "-spec.json";
-  const sessionFile = path.join(sessionsDir, `${featureId}${suffix}`);
+  const fileName = `${featureId}${suffix}`;
+  const sessionFile = path.join(getSessionsDir(workspaceName), fileName);
 
   const openThreads = await (async () => {
+    const content = await readSessionFile(workspaceName, fileName);
+    if (!content) return [];
     try {
-      const raw = await fs.readFile(sessionFile, "utf-8");
-      const s = JSON.parse(raw) as {
+      const s = JSON.parse(content) as {
         threads?: Array<{
           id: string;
           filePath: string;
@@ -183,7 +198,13 @@ await refreshGitState(effectiveDefault);
 console.log("[local-review] Git state ready.");
 
 startGitWatcher(effectiveDefault);
-startSessionWatcher(sessionsDir);
+
+// Per-workspace session migration and watchers
+const workspaces = getWorkspaces();
+for (const ws of workspaces) {
+  await migrateRepoSessions(ws.name, ws.path).catch(() => {});
+  startSessionWatcher(ws.name, getSessionsDir(ws.name));
+}
 
 const port = parseInt(process.env.PORT ?? "", 10) || 37003;
 

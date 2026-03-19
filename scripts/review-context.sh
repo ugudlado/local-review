@@ -43,8 +43,14 @@ ANCHOR_END=$(echo "$THREAD" | jq -r '.lineEnd // .line')
 SIDE=$(echo "$THREAD" | jq -r '.side')
 MESSAGES=$(echo "$THREAD" | jq '.messages')
 
-# Resolve file relative to repo root (session lives in .review/sessions/, so go up 3 levels)
-REPO_ROOT=$(cd "$(dirname "$SESSION_FILE")/../.." && pwd)
+# Resolve repo root from session's worktreePath field, or from the session file path
+WORKTREE_PATH=$(jq -r '.worktreePath // empty' "$SESSION_FILE" 2>/dev/null | sed "s|^~|$HOME|")
+if [[ -n "$WORKTREE_PATH" && -d "$WORKTREE_PATH" ]]; then
+  REPO_ROOT="$WORKTREE_PATH"
+else
+  # Legacy fallback: session was inside .review/sessions/ (go up 3 levels)
+  REPO_ROOT=$(cd "$(dirname "$SESSION_FILE")/../.." && pwd)
+fi
 ABS_PATH="$REPO_ROOT/$FILE_PATH"
 
 # --- Build file context window ---

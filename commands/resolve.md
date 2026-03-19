@@ -13,20 +13,20 @@ Load a saved review session and address every open thread directly in this Claud
 
 Parse `$ARGUMENTS` to determine the session type and file:
 
-- **`--spec [feature-id]`**: Find `.review/sessions/*-spec.json` matching the feature ID
-- **`--code [feature-id]`**: Find `.review/sessions/*-code.json` matching the feature ID
-- **`[session-file]`** (no flag): Use `.review/sessions/$ARGUMENTS` directly
+- **`--spec [feature-id]`**: Find `~/.config/local-review/workspace/{name}/sessions/*-spec.json` matching the feature ID
+- **`--code [feature-id]`**: Find `~/.config/local-review/workspace/{name}/sessions/*-code.json` matching the feature ID
+- **`[session-file]`** (no flag): Use `~/.config/local-review/workspace/{name}/sessions/$ARGUMENTS` directly
 - **No arguments**: Fall back to the most recent session (any type)
 
 ```bash
 # With --spec flag:
-ls -t .review/sessions/*-spec.json 2>/dev/null | head -1
+ls -t ~/.config/local-review/workspace/{name}/sessions/*-spec.json 2>/dev/null | head -1
 
 # With --code flag:
-ls -t .review/sessions/*-code.json 2>/dev/null | head -1
+ls -t ~/.config/local-review/workspace/{name}/sessions/*-code.json 2>/dev/null | head -1
 
 # No arguments — most recent session of any type:
-ls -t .review/sessions/*.json 2>/dev/null | head -1
+ls -t ~/.config/local-review/workspace/{name}/sessions/*.json 2>/dev/null | head -1
 ```
 
 If no sessions exist, tell the user to save one from the review UI first.
@@ -34,7 +34,7 @@ If no sessions exist, tell the user to save one from the review UI first.
 ### 2. Read the session and detect type
 
 ```bash
-cat .review/sessions/<session-file>
+cat ~/.config/local-review/workspace/{name}/sessions/<session-file>
 ```
 
 Detect session type:
@@ -55,7 +55,7 @@ For each open thread, extract context then analyze and act:
 #### Code threads
 
 ```bash
-bash scripts/review-context.sh .review/sessions/<session-file> <threadId>
+bash scripts/review-context.sh ~/.config/local-review/workspace/{name}/sessions/<session-file> <threadId>
 ```
 
 This returns JSON with `fileContext`, `diffHunk`, and `messages`. Use it to:
