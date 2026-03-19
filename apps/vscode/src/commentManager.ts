@@ -343,10 +343,7 @@ export class CommentManager implements vscode.Disposable {
       comments,
     );
 
-    // Set thread label with severity
-    thread.label = sessionThread.severity
-      ? `[${sessionThread.severity}]`
-      : undefined;
+    thread.label = undefined;
 
     // Resolved threads are collapsed UNLESS the last message is from an agent
     // (user needs to read the agent's response before deciding next action)
