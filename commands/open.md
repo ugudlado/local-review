@@ -15,11 +15,10 @@ Start the review UI so you can browse the dashboard or jump directly into a feat
    - `--tasks <feature-id>` — open the tasks view for that feature
    - `--source <branch>` — pre-select this branch as the compare branch (standalone mode only)
    - `--worktree <path>` — pre-select this worktree path (standalone mode only)
-   - `--repo <path>` — scope the dashboard to a specific repository (overrides auto-detection)
    - No flags, no arguments — open the dashboard scoped to the current working directory
    - Plain argument with no flag (legacy) — treat as a session filename
 
-   **Repo auto-detection**: When no `--repo` flag is provided, detect the git root of the current working directory and use it as the `repo` parameter. This ensures the dashboard always shows features for the project the user is working in.
+   **Workspace auto-detection**: Detect the git root of the current working directory and derive the workspace name from the directory basename. This ensures the dashboard always shows features for the project the user is working in.
 
    ```bash
    # Auto-detect repo root from CWD
@@ -52,18 +51,15 @@ Start the review UI so you can browse the dashboard or jump directly into a feat
      -d "{\"path\": \"$REPO_ROOT\"}" >/dev/null 2>&1 || true
 
    # Default — dashboard scoped to current workspace
-   open "http://localhost:37003?workspace=$WORKSPACE_NAME"
-
-   # With explicit --repo (full path override)
-   open "http://localhost:37003?repo=<path>"
+   open "http://localhost:37003/workspace/$WORKSPACE_NAME"
 
    # Standalone with source branch and/or worktree pre-selected
-   open "http://localhost:37003?workspace=$WORKSPACE_NAME&source=<branch>"
-   open "http://localhost:37003?workspace=$WORKSPACE_NAME&worktree=<encoded-path>"
+   open "http://localhost:37003?source=<branch>"
+   open "http://localhost:37003?worktree=<encoded-path>"
 
-   # With --spec / --code / --tasks (include workspace param)
-   open "http://localhost:37003/features/$FEATURE_ID/code?workspace=$WORKSPACE_NAME"
-   open "http://localhost:37003/features/$FEATURE_ID/tasks?workspace=$WORKSPACE_NAME"
+   # With --spec / --code / --tasks (workspace in path)
+   open "http://localhost:37003/workspace/$WORKSPACE_NAME/features/$FEATURE_ID/code"
+   open "http://localhost:37003/workspace/$WORKSPACE_NAME/features/$FEATURE_ID/tasks"
    ```
 
    Note: The `open` command requires disabling the sandbox since it needs macOS Launch Services.

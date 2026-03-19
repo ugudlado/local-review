@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { featureApi, type FeatureInfo } from "../services/featureApi";
 import FeatureRow from "../components/dashboard/FeatureRow";
 import SkeletonRow from "../components/dashboard/SkeletonRow";
 import EmptyState from "../components/dashboard/EmptyState";
 import { APP_NAME, APP_VERSION } from "../config/app";
 import { FEATURE_STATUS, type FeatureStatus } from "../types/sessions";
-import { useRepoContext, useWorkspaces } from "../hooks/useRepoContext";
+import {
+  useWorkspaceContext,
+  useWorkspaces,
+} from "../hooks/useWorkspaceContext";
 import {
   Popover,
   PopoverContent,
@@ -149,9 +152,9 @@ function WorkspaceSwitcher({
 }
 
 export default function Dashboard() {
-  const { workspace } = useRepoContext();
+  const { workspace } = useWorkspaceContext();
   const { workspaces, loaded: workspacesLoaded } = useWorkspaces();
-  const [, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [features, setFeatures] = useState<FeatureInfo[]>([]);
   const [apiRepoName, setApiRepoName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -194,9 +197,9 @@ export default function Dashboard() {
 
   function handleWorkspaceChange(value: string) {
     if (!value) {
-      setSearchParams({});
+      void navigate("/");
     } else {
-      setSearchParams({ workspace: value });
+      void navigate(`/workspace/${encodeURIComponent(value)}`);
     }
   }
 

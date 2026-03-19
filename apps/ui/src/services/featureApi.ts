@@ -10,7 +10,7 @@ import {
   type SourceType,
   type FeatureStatus,
 } from "../types/constants";
-import { withWorkspace } from "../hooks/useRepoContext";
+import { withWorkspaceQuery } from "../hooks/useWorkspaceContext";
 
 // Re-export so callers that imported from here continue to work.
 export { SOURCE_TYPE, type SourceType };
@@ -71,7 +71,7 @@ export const featureApi = {
     workspace?: string | null,
   ): Promise<{ worktrees: WorktreeListItem[]; error?: string }> {
     return apiFetch<{ worktrees: WorktreeListItem[]; error?: string }>(
-      withWorkspace(`${BASE}/worktrees`, workspace),
+      withWorkspaceQuery(`${BASE}/worktrees`, workspace),
     );
   },
 
@@ -80,7 +80,7 @@ export const featureApi = {
     workspace?: string | null,
   ): Promise<{ features: FeatureInfo[]; repoName?: string }> {
     return apiFetch<{ features: FeatureInfo[]; repoName?: string }>(
-      withWorkspace(`${BASE}/features`, workspace),
+      withWorkspaceQuery(`${BASE}/features`, workspace),
     );
   },
 

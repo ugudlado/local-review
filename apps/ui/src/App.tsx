@@ -29,7 +29,6 @@ function RootLayout() {
 /** Redirects /features/:featureId to the tab matching the feature's current status. */
 function FeatureDefaultRedirect() {
   const { featureId } = useParams<{ featureId: string }>();
-  const [searchParams] = useSearchParams();
   const { features, loading, error } = useFeatures();
 
   const defaultTab = useMemo(() => {
@@ -40,9 +39,7 @@ function FeatureDefaultRedirect() {
   }, [features, featureId]);
 
   if (loading || (error && features.length === 0)) return null;
-  // Preserve search params (e.g. ?workspace=) through the redirect
-  const qs = searchParams.toString();
-  return <Navigate to={`${defaultTab}${qs ? `?${qs}` : ""}`} replace />;
+  return <Navigate to={defaultTab} replace />;
 }
 
 /** Wrapper that resolves a feature's worktree path and renders ReviewPage in embedded mode. */
@@ -132,6 +129,14 @@ function StandaloneReviewPage() {
   );
 }
 
+const featureChildren = [
+  { index: true, element: <FeatureDefaultRedirect /> },
+  ...(FLAGS.DEV_WORKFLOW
+    ? [{ path: FEATURE_TAB.Tasks, element: <TasksPage /> }]
+    : []),
+  { path: FEATURE_TAB.Code, element: <FeatureCodeTab /> },
+];
+
 const router = createBrowserRouter([
   {
     element: <RootLayout />,
@@ -140,27 +145,18 @@ const router = createBrowserRouter([
         path: "/",
         element: FLAGS.DEV_WORKFLOW ? <Dashboard /> : <StandaloneReviewPage />,
       },
+      { path: "/workspace/:workspaceName", element: <Dashboard /> },
+      {
+        path: "/workspace/:workspaceName/features/:featureId",
+        element: <FeatureLayout />,
+        children: featureChildren,
+      },
       {
         path: "/features/:featureId",
         element: <FeatureLayout />,
-        children: [
-          {
-            index: true,
-            element: <FeatureDefaultRedirect />,
-          },
-          ...(FLAGS.DEV_WORKFLOW
-            ? [{ path: FEATURE_TAB.Tasks, element: <TasksPage /> }]
-            : []),
-          {
-            path: FEATURE_TAB.Code,
-            element: <FeatureCodeTab />,
-          },
-        ],
+        children: featureChildren,
       },
-      {
-        path: "*",
-        element: <NotFound />,
-      },
+      { path: "*", element: <NotFound /> },
     ],
   },
 ]);
