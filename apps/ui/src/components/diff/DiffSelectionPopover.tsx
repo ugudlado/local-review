@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MessageSquareIcon } from "lucide-react";
 
 export interface DiffSelectionInfo {
   /** The selected text content. */
@@ -109,6 +110,18 @@ export function DiffSelectionPopover({
     };
   }, [handleSelectionChange]);
 
+  // Dismiss on scroll — position goes stale
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !position) return;
+    const dismiss = () => {
+      setSelection(null);
+      setPosition(null);
+    };
+    container.addEventListener("scroll", dismiss, { passive: true });
+    return () => container.removeEventListener("scroll", dismiss);
+  }, [containerRef, position]);
+
   const handleComment = useCallback(() => {
     if (!selection) return;
     onComment(selection);
@@ -129,17 +142,9 @@ export function DiffSelectionPopover({
         <button
           type="button"
           onClick={handleComment}
-          className="border-[var(--accent-blue)]/50 bg-[var(--accent-blue)]/20 hover:bg-[var(--accent-blue)]/30 flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium text-blue-300 transition-colors"
+          className="flex items-center gap-1.5 rounded-md border border-[var(--accent-blue-dim)] bg-[var(--accent-blue-dim)] px-2.5 py-1 text-[11px] font-medium text-[var(--accent-blue)] transition-colors hover:brightness-125"
         >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-            className="shrink-0"
-          >
-            <path d="M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0113.25 12H9.06l-2.573 2.573A1.458 1.458 0 014 13.543V12H2.75A1.75 1.75 0 011 10.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h2a.75.75 0 01.75.75v2.19l2.72-2.72a.749.749 0 01.53-.22h4.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25H2.75z" />
-          </svg>
+          <MessageSquareIcon size={12} className="shrink-0" />
           Comment
         </button>
       </div>
