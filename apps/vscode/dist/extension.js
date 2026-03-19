@@ -57,7 +57,7 @@ var require_constants = __commonJS({
 var require_node_gyp_build = __commonJS({
   "../../node_modules/.pnpm/node-gyp-build@4.8.4/node_modules/node-gyp-build/node-gyp-build.js"(exports2, module2) {
     var fs = require("fs");
-    var path2 = require("path");
+    var path3 = require("path");
     var os = require("os");
     var runtimeRequire = typeof __webpack_require__ === "function" ? __non_webpack_require__ : require;
     var vars = process.config && process.config.variables || {};
@@ -74,21 +74,21 @@ var require_node_gyp_build = __commonJS({
       return runtimeRequire(load.resolve(dir));
     }
     load.resolve = load.path = function(dir) {
-      dir = path2.resolve(dir || ".");
+      dir = path3.resolve(dir || ".");
       try {
-        var name = runtimeRequire(path2.join(dir, "package.json")).name.toUpperCase().replace(/-/g, "_");
+        var name = runtimeRequire(path3.join(dir, "package.json")).name.toUpperCase().replace(/-/g, "_");
         if (process.env[name + "_PREBUILD"]) dir = process.env[name + "_PREBUILD"];
       } catch (err) {
       }
       if (!prebuildsOnly) {
-        var release = getFirst(path2.join(dir, "build/Release"), matchBuild);
+        var release = getFirst(path3.join(dir, "build/Release"), matchBuild);
         if (release) return release;
-        var debug = getFirst(path2.join(dir, "build/Debug"), matchBuild);
+        var debug = getFirst(path3.join(dir, "build/Debug"), matchBuild);
         if (debug) return debug;
       }
-      var prebuild = resolve2(dir);
+      var prebuild = resolve3(dir);
       if (prebuild) return prebuild;
-      var nearby = resolve2(path2.dirname(process.execPath));
+      var nearby = resolve3(path3.dirname(process.execPath));
       if (nearby) return nearby;
       var target = [
         "platform=" + platform,
@@ -104,15 +104,15 @@ var require_node_gyp_build = __commonJS({
         // eslint-disable-line
       ].filter(Boolean).join(" ");
       throw new Error("No native build was found for " + target + "\n    loaded from: " + dir + "\n");
-      function resolve2(dir2) {
-        var tuples = readdirSync(path2.join(dir2, "prebuilds")).map(parseTuple);
+      function resolve3(dir2) {
+        var tuples = readdirSync(path3.join(dir2, "prebuilds")).map(parseTuple);
         var tuple = tuples.filter(matchTuple(platform, arch)).sort(compareTuples)[0];
         if (!tuple) return;
-        var prebuilds = path2.join(dir2, "prebuilds", tuple.name);
+        var prebuilds = path3.join(dir2, "prebuilds", tuple.name);
         var parsed = readdirSync(prebuilds).map(parseTags);
         var candidates = parsed.filter(matchTags(runtime, abi));
         var winner = candidates.sort(compareTags(runtime))[0];
-        if (winner) return path2.join(prebuilds, winner.file);
+        if (winner) return path3.join(prebuilds, winner.file);
       }
     };
     function readdirSync(dir) {
@@ -124,7 +124,7 @@ var require_node_gyp_build = __commonJS({
     }
     function getFirst(dir, filter) {
       var files = readdirSync(dir).filter(filter);
-      return files[0] && path2.join(dir, files[0]);
+      return files[0] && path3.join(dir, files[0]);
     }
     function matchBuild(name) {
       return /\.node$/.test(name);
@@ -3866,6 +3866,9 @@ __export(extension_exports, {
 });
 module.exports = __toCommonJS(extension_exports);
 var vscode9 = __toESM(require("vscode"));
+var import_child_process3 = require("child_process");
+var import_util3 = require("util");
+var path2 = __toESM(require("path"));
 
 // src/featureDetector.ts
 var vscode = __toESM(require("vscode"));
@@ -3953,7 +3956,7 @@ function getBaseUrl() {
   return vscode2.workspace.getConfiguration("local-review").get("serverUrl", "http://localhost:37003");
 }
 function httpRequest(url, options) {
-  return new Promise((resolve2, reject) => {
+  return new Promise((resolve3, reject) => {
     const parsed = new import_url.URL(url);
     const mod = parsed.protocol === "https:" ? https : http;
     const req = mod.request(
@@ -3969,7 +3972,7 @@ function httpRequest(url, options) {
         const chunks = [];
         res.on("data", (chunk) => chunks.push(chunk));
         res.on("end", () => {
-          resolve2({
+          resolve3({
             status: res.statusCode ?? 0,
             body: Buffer.concat(chunks).toString("utf-8")
           });
@@ -3983,8 +3986,17 @@ function httpRequest(url, options) {
     req.end();
   });
 }
-async function apiFetch(path2, options) {
-  const url = `${getBaseUrl()}/api/features${path2}`;
+var _workspaceName = null;
+function setWorkspaceName(name) {
+  _workspaceName = name;
+}
+function appendWorkspaceParam(url) {
+  if (!_workspaceName) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}workspace=${encodeURIComponent(_workspaceName)}`;
+}
+async function apiFetch(path3, options) {
+  const url = appendWorkspaceParam(`${getBaseUrl()}/api/features${path3}`);
   const res = await httpRequest(url, {
     method: options?.method ?? "GET",
     body: options?.body
@@ -4036,7 +4048,7 @@ var serverClient = {
     });
   },
   async triggerResolve(featureId, sessionType = "code") {
-    const url = `${getBaseUrl()}/api/resolver/resolve`;
+    const url = appendWorkspaceParam(`${getBaseUrl()}/api/resolver/resolve`);
     const res = await httpRequest(url, {
       method: "POST",
       body: JSON.stringify({ featureId, sessionType })
@@ -4044,7 +4056,9 @@ var serverClient = {
     return JSON.parse(res.body);
   },
   async getDiff(worktreePath) {
-    const url = `${getBaseUrl()}/api/diff?worktree=${encodeURIComponent(worktreePath)}`;
+    const url = appendWorkspaceParam(
+      `${getBaseUrl()}/api/diff?worktree=${encodeURIComponent(worktreePath)}`
+    );
     const res = await httpRequest(url, {});
     if (res.status >= 400) {
       throw new Error(`Diff API error: ${res.status} ${res.body}`);
@@ -4053,7 +4067,7 @@ var serverClient = {
   },
   async checkConnection() {
     try {
-      const url = `${getBaseUrl()}/api/features`;
+      const url = appendWorkspaceParam(`${getBaseUrl()}/api/features`);
       const res = await httpRequest(url, {});
       return res.status >= 200 && res.status < 400;
     } catch {
@@ -4262,9 +4276,9 @@ var BaseContentProvider = class {
       return "";
     }
   }
-  invalidate(path2) {
-    if (path2) {
-      const key = path2.startsWith("/") ? path2.slice(1) : path2;
+  invalidate(path3) {
+    if (path3) {
+      const key = path3.startsWith("/") ? path3.slice(1) : path3;
       this._cache.delete(key);
       const idx = this._cachedUris.findIndex(
         (u) => (u.path.startsWith("/") ? u.path.slice(1) : u.path) === key
@@ -4729,8 +4743,8 @@ var ChangedFilesTreeProvider = class {
     const counts = /* @__PURE__ */ new Map();
     for (const t of threads) {
       if (t.status !== "open") continue;
-      const path2 = t.anchor?.path;
-      if (path2) counts.set(path2, (counts.get(path2) ?? 0) + 1);
+      const path3 = t.anchor?.path;
+      if (path3) counts.set(path3, (counts.get(path3) ?? 0) + 1);
     }
     let changed = false;
     for (const file of this._files) {
@@ -4911,6 +4925,7 @@ var DiffPanelManager = class {
 };
 
 // src/extension.ts
+var execFileAsync3 = (0, import_util3.promisify)(import_child_process3.execFile);
 function getBaseUrl2() {
   return vscode9.workspace.getConfiguration("local-review").get("serverUrl", "http://localhost:37003");
 }
@@ -5010,7 +5025,25 @@ function activate(context) {
       }
     })
   );
+  const resolveWorkspace = async () => {
+    try {
+      const { stdout } = await execFileAsync3(
+        "git",
+        ["rev-parse", "--git-common-dir"],
+        { cwd: workspaceRoot }
+      );
+      const gitCommonDir = path2.resolve(workspaceRoot, stdout.trim());
+      const repoName = path2.basename(path2.dirname(gitCommonDir));
+      setWorkspaceName(repoName);
+      outputChannel.appendLine(`Workspace resolved: ${repoName}`);
+    } catch {
+      const fallback = path2.basename(workspaceRoot);
+      setWorkspaceName(fallback);
+      outputChannel.appendLine(`Workspace fallback: ${fallback}`);
+    }
+  };
   const init = async () => {
+    await resolveWorkspace();
     const featureId = await featureDetector.initialize();
     currentFeatureId = featureId;
     if (!featureId) {

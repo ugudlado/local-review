@@ -1,6 +1,9 @@
 import * as vscode from "vscode";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import * as path from "path";
 import { FeatureDetector } from "./featureDetector";
-import { serverClient } from "./serverClient";
+import { serverClient, setWorkspaceName } from "./serverClient";
 import type { SessionThread } from "./serverClient";
 import { StatusBar } from "./statusBar";
 import { CommentManager } from "./commentManager";
@@ -12,6 +15,8 @@ import {
   SCHEME_EMPTY,
 } from "./baseContentProvider";
 import { DiffPanelManager } from "./diffPanelManager";
+
+const execFileAsync = promisify(execFile);
 
 function getBaseUrl(): string {
   return vscode.workspace
@@ -151,8 +156,31 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
   );
 
+  // Resolve workspace name from git repo root (handles worktrees).
+  // git-common-dir points to the main repo's .git even in a worktree.
+  const resolveWorkspace = async () => {
+    try {
+      const { stdout } = await execFileAsync(
+        "git",
+        ["rev-parse", "--git-common-dir"],
+        { cwd: workspaceRoot },
+      );
+      // git-common-dir returns e.g. "/Users/.../code/review/.git"
+      const gitCommonDir = path.resolve(workspaceRoot, stdout.trim());
+      const repoName = path.basename(path.dirname(gitCommonDir));
+      setWorkspaceName(repoName);
+      outputChannel.appendLine(`Workspace resolved: ${repoName}`);
+    } catch {
+      // Fallback to directory name
+      const fallback = path.basename(workspaceRoot);
+      setWorkspaceName(fallback);
+      outputChannel.appendLine(`Workspace fallback: ${fallback}`);
+    }
+  };
+
   // Initialize feature detection and connection
   const init = async () => {
+    await resolveWorkspace();
     const featureId = await featureDetector.initialize();
     currentFeatureId = featureId;
 

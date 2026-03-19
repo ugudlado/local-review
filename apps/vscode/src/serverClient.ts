@@ -89,11 +89,24 @@ function httpRequest(
   });
 }
 
+/** Workspace name resolved from git repo root — set during activation. */
+let _workspaceName: string | null = null;
+
+export function setWorkspaceName(name: string): void {
+  _workspaceName = name;
+}
+
+function appendWorkspaceParam(url: string): string {
+  if (!_workspaceName) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}workspace=${encodeURIComponent(_workspaceName)}`;
+}
+
 async function apiFetch<T>(
   path: string,
   options?: { method?: string; body?: string },
 ): Promise<T> {
-  const url = `${getBaseUrl()}/api/features${path}`;
+  const url = appendWorkspaceParam(`${getBaseUrl()}/api/features${path}`);
   const res = await httpRequest(url, {
     method: options?.method ?? "GET",
     body: options?.body,
@@ -168,7 +181,7 @@ export const serverClient = {
     clarifications?: number;
     error?: string;
   }> {
-    const url = `${getBaseUrl()}/api/resolver/resolve`;
+    const url = appendWorkspaceParam(`${getBaseUrl()}/api/resolver/resolve`);
     const res = await httpRequest(url, {
       method: "POST",
       body: JSON.stringify({ featureId, sessionType }),
@@ -189,7 +202,9 @@ export const serverClient = {
     uncommittedDiff: string;
     allDiff: string;
   }> {
-    const url = `${getBaseUrl()}/api/diff?worktree=${encodeURIComponent(worktreePath)}`;
+    const url = appendWorkspaceParam(
+      `${getBaseUrl()}/api/diff?worktree=${encodeURIComponent(worktreePath)}`,
+    );
     const res = await httpRequest(url, {});
     if (res.status >= 400) {
       throw new Error(`Diff API error: ${res.status} ${res.body}`);
@@ -206,7 +221,7 @@ export const serverClient = {
 
   async checkConnection(): Promise<boolean> {
     try {
-      const url = `${getBaseUrl()}/api/features`;
+      const url = appendWorkspaceParam(`${getBaseUrl()}/api/features`);
       const res = await httpRequest(url, {});
       return res.status >= 200 && res.status < 400;
     } catch {
