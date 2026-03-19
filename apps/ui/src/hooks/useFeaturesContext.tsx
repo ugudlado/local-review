@@ -6,8 +6,8 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { useSearchParams } from "react-router-dom";
 import { featureApi, type FeatureInfo } from "../services/featureApi";
+import { useWorkspaceContext } from "./useWorkspaceContext";
 
 interface FeaturesContextValue {
   features: FeatureInfo[];
@@ -24,8 +24,7 @@ const FeaturesContext = createContext<FeaturesContextValue>({
 });
 
 export function FeaturesProvider({ children }: { children: ReactNode }) {
-  const [searchParams] = useSearchParams();
-  const workspace = searchParams.get("workspace");
+  const { workspace } = useWorkspaceContext();
   const [features, setFeatures] = useState<FeatureInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);

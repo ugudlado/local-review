@@ -1,5 +1,5 @@
 import type { AuthorType } from "../types/sessions";
-import { withWorkspace } from "../hooks/useRepoContext";
+import { withWorkspaceQuery } from "../hooks/useWorkspaceContext";
 
 export type ReviewMessage = {
   id: string;
@@ -81,7 +81,7 @@ export const localReviewApi = {
       params.set("worktree", worktreePath);
     }
     const suffix = params.toString() ? `?${params.toString()}` : "";
-    const url = withWorkspace(`/api/context${suffix}`, workspace);
+    const url = withWorkspaceQuery(`/api/context${suffix}`, workspace);
     const response = await fetch(url);
     return await parseJson<RepoContext>(response);
   },
@@ -103,7 +103,7 @@ export const localReviewApi = {
       query.set("source", params.sourceBranch);
     }
     const suffix = query.toString() ? `?${query.toString()}` : "";
-    const url = withWorkspace(`/api/diff${suffix}`, params.workspace);
+    const url = withWorkspaceQuery(`/api/diff${suffix}`, params.workspace);
     const response = await fetch(url);
     return await parseJson<DiffBundle>(response);
   },
@@ -125,7 +125,7 @@ export const localReviewApi = {
       query.set("source", params.sourceBranch);
     }
     const suffix = query.toString() ? `?${query.toString()}` : "";
-    const url = withWorkspace(`/api/commits${suffix}`, params.workspace);
+    const url = withWorkspaceQuery(`/api/commits${suffix}`, params.workspace);
     const response = await fetch(url);
     const data = await parseJson<{ commits: CommitInfo[] }>(response);
     return data.commits;
@@ -141,7 +141,7 @@ export const localReviewApi = {
       query.set("worktree", params.worktreePath);
     }
     query.set("commit", params.commit);
-    const url = withWorkspace(
+    const url = withWorkspaceQuery(
       `/api/commit-diff?${query.toString()}`,
       params.workspace,
     );
@@ -157,7 +157,7 @@ export const localReviewApi = {
   }): Promise<string> {
     const query = new URLSearchParams({ path: params.filePath });
     if (params.worktreePath) query.set("worktree", params.worktreePath);
-    const url = withWorkspace(
+    const url = withWorkspaceQuery(
       `/api/file?${query.toString()}`,
       params.workspace,
     );

@@ -2,16 +2,24 @@
 
 ## Approach
 
-Use React Router's nested route structure to add an optional `/workspace/:workspaceName` prefix. A shared layout component handles both the "workspace scoped" and "all workspaces" cases. A redirect component at the root level catches legacy `?workspace=` URLs and rewrites them.
+Use React Router's nested route structure to add an optional `/workspace/:workspaceName` prefix. A shared layout component handles both the "workspace scoped" and "all workspaces" cases. No legacy URL redirect — old `?workspace=` URLs simply stop working.
 
-### Why not `<Navigate>` in every component?
+## Current State (baseline)
 
-The redirect logic is centralized in one place (root layout) rather than scattered across Dashboard, FeatureRow, etc. Components downstream simply read the workspace from `useParams()` and never need to know whether the user arrived via a legacy URL.
+The codebase currently uses query-param workspace context:
+
+- `useRepoContext()` reads `workspace` from `useSearchParams()` — returns `{ workspace }`
+- `withWorkspace(url, workspace)` appends `?workspace=<name>` to URLs
+- `useWorkspaces()` fetches `/api/workspaces`, returns `{ workspaces, loaded }`
+- `featureApi.getFeatures(workspace)` / `getWorktrees(workspace)` use `withWorkspace()` for API calls
+- Dashboard uses `setSearchParams({ workspace: value })` for workspace switching
+- FeatureNavBar tab links do NOT preserve workspace (existing bug)
+- `FeatureRow` uses `feature.repoName` for navigation workspace context
 
 ## Route Structure (App.tsx)
 
 ```
-RootLayout (FeaturesProvider + WorkspaceRedirect)
+RootLayout (FeaturesProvider)
   /                                                    -> Dashboard (all workspaces)
   /workspace/:workspaceName                            -> Dashboard (filtered)
   /workspace/:workspaceName/features/:featureId        -> FeatureLayout
@@ -25,7 +33,7 @@ RootLayout (FeaturesProvider + WorkspaceRedirect)
   *                                                    -> NotFound
 ```
 
-Implementation strategy: define the feature routes once as a reusable array, then mount them under both `/workspace/:workspaceName/features/:featureId` and `/features/:featureId`. This avoids duplicating route definitions.
+Implementation strategy: define the feature routes once as a reusable `featureChildren` array, then mount them under both `/workspace/:workspaceName/features/:featureId` and `/features/:featureId`. This avoids duplicating route definitions.
 
 ```tsx
 const featureChildren = [
@@ -40,20 +48,16 @@ const router = createBrowserRouter([
   {
     element: <RootLayout />,
     children: [
-      // All workspaces dashboard
       {
         path: "/",
         element: FLAGS.DEV_WORKFLOW ? <Dashboard /> : <StandaloneReviewPage />,
       },
-      // Workspace-scoped dashboard
       { path: "/workspace/:workspaceName", element: <Dashboard /> },
-      // Workspace-scoped feature routes
       {
         path: "/workspace/:workspaceName/features/:featureId",
         element: <FeatureLayout />,
         children: featureChildren,
       },
-      // Non-workspace feature routes (direct links, dev/debug)
       {
         path: "/features/:featureId",
         element: <FeatureLayout />,
@@ -67,51 +71,43 @@ const router = createBrowserRouter([
 
 ## Component Changes
 
-### 1. useRepoContext.ts -- Split into path-based and query-based helpers
+### 1. useRepoContext.ts → rename to useWorkspaceContext.ts
 
-The hook changes from reading `?workspace=` search params to reading `:workspaceName` from the URL path via `useParams()`. The `?repo=` param stays as a query param.
+The hook changes from reading `?workspace=` search params to reading `:workspaceName` from the URL path via `useParams()`.
 
 ```tsx
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
-export function useRepoContext() {
+export function useWorkspaceContext() {
   const { workspaceName } = useParams<{ workspaceName?: string }>();
-  const [searchParams] = useSearchParams();
-  const repo = searchParams.get("repo");
-  // workspace comes from the URL path, not query params
-  return { repo, workspace: workspaceName ?? null };
+  return { workspace: workspaceName ?? null };
 }
 ```
 
-Replace `withRepo()` with two distinct helpers:
+Replace `withWorkspace()` (query-param appender) with two distinct helpers:
 
-**`workspacePath(url, workspace)`** -- builds browser navigation URLs with path prefix:
+**`workspacePath(url, workspace)`** — builds browser navigation URLs with path prefix:
 
 ```tsx
 /** Prepend /workspace/:name to a browser URL path. */
 export function workspacePath(url: string, workspace: string | null): string {
   if (!workspace) return url;
-  // url is expected to start with "/"
   if (url === "/") return `/workspace/${encodeURIComponent(workspace)}`;
   return `/workspace/${encodeURIComponent(workspace)}${url}`;
 }
 ```
 
-**`withRepoQuery(url, repo, workspace)`** -- appends query params for API calls (keeps current behavior, renamed for clarity):
+**`withWorkspaceQuery(url, workspace)`** — appends `?workspace=` query param for API calls (same behavior as current `withWorkspace`, renamed for clarity):
 
 ```tsx
-/** Append ?repo= or ?workspace= query params to an API URL. */
-export function withRepoQuery(
+/** Append ?workspace= query param to an API URL. */
+export function withWorkspaceQuery(
   url: string,
-  repo: string | null,
   workspace?: string | null,
 ): string {
-  if (!repo && !workspace) return url;
+  if (!workspace) return url;
   const sep = url.includes("?") ? "&" : "?";
-  if (workspace)
-    return `${url}${sep}workspace=${encodeURIComponent(workspace)}`;
-  if (repo) return `${url}${sep}repo=${encodeURIComponent(repo)}`;
-  return url;
+  return `${url}${sep}workspace=${encodeURIComponent(workspace)}`;
 }
 ```
 
@@ -120,44 +116,23 @@ A convenience hook for building browser URLs:
 ```tsx
 /** Returns a function that prepends the current workspace path prefix to a URL. */
 export function useWorkspacePath() {
-  const { workspace } = useRepoContext();
+  const { workspace } = useWorkspaceContext();
   return (url: string) => workspacePath(url, workspace);
 }
 ```
 
-### 2. WorkspaceRedirect (new, in RootLayout)
+**Cleanup**: Remove the old `useRepoContext` name and any `repo`-related parameters/variables. All consumers switch to `useWorkspaceContext` / `useWorkspacePath`.
 
-A small component rendered inside `RootLayout` that checks for legacy `?workspace=` in search params and redirects:
+### 2. featureApi.ts
 
-```tsx
-function WorkspaceRedirect() {
-  const [searchParams] = useSearchParams();
-  const { pathname } = useLocation();
-  const ws = searchParams.get("workspace");
-
-  if (ws && !pathname.startsWith("/workspace/")) {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete("workspace");
-    const query = newParams.toString();
-    const target = workspacePath(pathname, ws) + (query ? `?${query}` : "");
-    return <Navigate to={target} replace />;
-  }
-  return null;
-}
-```
-
-Placed at the top of `RootLayout` before `<Outlet />`. This handles all legacy URLs with a single redirect.
-
-### 3. featureApi.ts
-
-Replace all `withRepo()` calls with `withRepoQuery()`. This is a mechanical rename -- the function signature and behavior are identical. The API layer never uses path-based workspace URLs.
+Replace all `withWorkspace()` calls with `withWorkspaceQuery()`. Same behavior, explicit name distinguishing it from the path-based helper.
 
 Affected calls:
 
-- `getWorktrees()` -- `withRepoQuery(url, repo, workspace)`
-- `getFeatures()` -- `withRepoQuery(url, repo, workspace)`
+- `getWorktrees(workspace?)` — `withWorkspaceQuery(url, workspace)`
+- `getFeatures(workspace?)` — `withWorkspaceQuery(url, workspace)`
 
-### 4. Dashboard.tsx
+### 3. Dashboard.tsx
 
 **WorkspaceSwitcher `onChange`**: Instead of `setSearchParams({ workspace: value })`, navigate to the workspace path:
 
@@ -173,13 +148,13 @@ function handleWorkspaceChange(value: string) {
 }
 ```
 
-Remove the `useSearchParams` setter -- no longer needed for workspace switching.
+Remove `setSearchParams` usage for workspace switching.
 
-**`fetchFeatures`**: The `workspace` value now comes from `useRepoContext()` (which reads from `useParams`), so the API call logic is unchanged. The `featureApi.getFeatures(repo, workspace)` call still appends `?workspace=` to the API request.
+**`fetchFeatures`**: The `workspace` value now comes from `useWorkspaceContext()` (which reads from `useParams`), so the API call logic is unchanged. The `featureApi.getFeatures(workspace)` call still appends `?workspace=` to the API request via `withWorkspaceQuery`.
 
-### 5. FeatureRow.tsx
+### 4. FeatureRow.tsx
 
-Replace `withRepo(url, repo, workspace)` with the path-based helper:
+Replace `withWorkspace(url, workspace)` with the path-based helper:
 
 ```tsx
 const wp = useWorkspacePath();
@@ -189,17 +164,9 @@ function handleActivate() {
 }
 ```
 
-The `?repo=` case: if `repo` is set (no workspace), append it as a query param. Since `?repo=` is a dev/debug mode and workspace is the primary case, handle it simply:
+Note: currently uses `feature.repoName` for workspace context. This should be `feature.repoName` (the server-provided workspace name) piped through `workspacePath` directly, since the URL workspace might differ in "All workspaces" mode.
 
-```tsx
-function handleActivate() {
-  let url = wp(`/features/${feature.id}`);
-  if (repo) url += `?repo=${encodeURIComponent(repo)}`;
-  void navigate(url);
-}
-```
-
-### 6. FeatureNavBar.tsx
+### 5. FeatureNavBar.tsx
 
 **Back link**: `<Link to={wp("/")}>`
 
@@ -209,18 +176,31 @@ function handleActivate() {
 void navigate(wp(`/features/${id}/${activeTabPath}`));
 ```
 
-**Tab links**: Currently `<Link to={tabPath}>` where `tabPath` is a relative path like `${basePath}/${tab.path}`. These work correctly with path-based routing because `basePath` is `/features/:featureId` and the workspace prefix is part of the current URL. However, `basePath` must be updated to include the workspace prefix:
+**Tab links**: `basePath` must include the workspace prefix:
 
 ```tsx
 const wp = useWorkspacePath();
 const basePath = wp(`/features/${featureId}`);
 ```
 
-This fixes the existing bug where tabs drop workspace context, because `basePath` now includes `/workspace/:name` when applicable.
+This fixes the existing bug where tabs drop workspace context, because `basePath` now includes `/workspace/:name` when applicable. Both link generation and `pathname.startsWith(basePath)` active-tab detection must use the workspace-prefixed path.
 
-### 7. useFeaturesContext.tsx
+### 6. useFeaturesContext.tsx
 
-Currently reads `?repo` from search params. This continues working as-is since `?repo=` remains a query param. No changes needed.
+Currently reads `workspace` from `useSearchParams()`. Must change to read from `useWorkspaceContext()` (path params) and pass to `featureApi.getFeatures(workspace)`:
+
+```tsx
+// Before: reads from search params
+const workspace = searchParams.get("workspace");
+
+// After: reads from path params via useWorkspaceContext
+const { workspace } = useWorkspaceContext();
+void featureApi.getFeatures(workspace);
+```
+
+### 7. FeatureDefaultRedirect
+
+Currently preserves `?workspace=` via `searchParams.toString()` when redirecting. This no longer needs special handling — the workspace is in the URL path and will be preserved automatically by the route structure. Simplify to a bare redirect.
 
 ### 8. commands/open.md
 
@@ -236,43 +216,65 @@ open "http://localhost:37003/workspace/$WORKSPACE_NAME"
 open "http://localhost:37003/workspace/$WORKSPACE_NAME/features/$FEATURE_ID/code"
 ```
 
-The `--repo` flag continues using `?repo=` query params since that is a different mode.
+## Naming Convention Cleanup
+
+All `repo` naming is removed from the UI codebase:
+
+| Old Name                        | New Name                                     |
+| ------------------------------- | -------------------------------------------- |
+| `useRepoContext()`              | `useWorkspaceContext()`                      |
+| `useRepoContext.ts`             | `useWorkspaceContext.ts`                     |
+| `withWorkspace()` (query-param) | `withWorkspaceQuery()` (API calls only)      |
+| —                               | `workspacePath()` (browser URLs, new)        |
+| —                               | `useWorkspacePath()` (convenience hook, new) |
+| `feature.repoName`              | unchanged (server-provided, out of scope)    |
 
 ## Data Flow Summary
 
 ```
-Browser URL                          useRepoContext()              API Call
------------                          ----------------              --------
-/workspace/typewriter/features/X     { workspace: "typewriter" }   /api/features?workspace=typewriter
-/features/X                          { workspace: null }           /api/features
-/features/X?repo=/path               { repo: "/path" }            /api/features?repo=/path
-/?workspace=typewriter               REDIRECT -> /workspace/typewriter
+Browser URL                          useWorkspaceContext()         API Call
+-----------                          --------------------         --------
+/workspace/typewriter/features/X     { workspace: "typewriter" }  /api/features?workspace=typewriter
+/features/X                          { workspace: null }          /api/features
+/                                    { workspace: null }          (fetches all workspaces)
 ```
 
 ## Migration
 
-1. Replace `withRepo` with `workspacePath` / `withRepoQuery` across all UI files.
-2. Add `WorkspaceRedirect` to `RootLayout`.
-3. Update route definitions in `App.tsx`.
-4. Update `commands/open.md` URL patterns.
-5. Verify `?repo=` still works in all contexts.
+1. Rename `useRepoContext.ts` → `useWorkspaceContext.ts`, update all imports.
+2. Split `withWorkspace` into `workspacePath` (browser) + `withWorkspaceQuery` (API).
+3. Add `useWorkspacePath` hook.
+4. Update route definitions in `App.tsx` — add `/workspace/:workspaceName` routes + `featureChildren` array.
+5. Update all consumers: Dashboard, FeatureRow, FeatureNavBar, useFeaturesContext, FeatureDefaultRedirect.
+6. Update `commands/open.md` URL patterns.
 
-The migration is backward compatible because `WorkspaceRedirect` catches all old-format URLs and rewrites them. No data migration is needed -- this is purely a URL structure change.
+No data migration needed — this is purely a URL structure + naming change.
 
 ## Files Changed
 
-| File                                              | Change                                                                                                                |
-| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `apps/ui/src/hooks/useRepoContext.ts`             | Read workspace from `useParams`; split `withRepo` into `workspacePath` + `withRepoQuery`; add `useWorkspacePath` hook |
-| `apps/ui/src/App.tsx`                             | Add `/workspace/:workspaceName` routes; add `WorkspaceRedirect`; extract `featureChildren` array                      |
-| `apps/ui/src/pages/Dashboard.tsx`                 | Navigate instead of `setSearchParams` for workspace switching                                                         |
-| `apps/ui/src/components/dashboard/FeatureRow.tsx` | Use `useWorkspacePath` for navigation URLs                                                                            |
-| `apps/ui/src/components/FeatureNavBar.tsx`        | Use `useWorkspacePath` for back link, feature switcher, and tab base path                                             |
-| `apps/ui/src/services/featureApi.ts`              | Rename `withRepo` to `withRepoQuery` (behavior unchanged)                                                             |
-| `commands/open.md`                                | Update URL patterns to path-based workspace segments                                                                  |
+| File                                                             | Change                                                                                                             |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `apps/ui/src/hooks/useRepoContext.ts` → `useWorkspaceContext.ts` | Rename; read workspace from `useParams`; split into `workspacePath` + `withWorkspaceQuery`; add `useWorkspacePath` |
+| `apps/ui/src/App.tsx`                                            | Add `/workspace/:workspaceName` routes; extract `featureChildren` array                                            |
+| `apps/ui/src/pages/Dashboard.tsx`                                | Navigate instead of `setSearchParams` for workspace switching                                                      |
+| `apps/ui/src/components/dashboard/FeatureRow.tsx`                | Use `useWorkspacePath` for navigation URLs                                                                         |
+| `apps/ui/src/components/FeatureNavBar.tsx`                       | Use `useWorkspacePath` for back link, feature switcher, and tab base path                                          |
+| `apps/ui/src/hooks/useFeaturesContext.tsx`                       | Read workspace from `useWorkspaceContext` instead of search params                                                 |
+| `apps/ui/src/services/featureApi.ts`                             | Rename `withWorkspace` → `withWorkspaceQuery`                                                                      |
+| `commands/open.md`                                               | Update URL patterns to path-based workspace segments                                                               |
 
 ## Edge Cases
 
 - **Workspace name with special characters**: `encodeURIComponent` handles this in path segments. React Router's `useParams` returns the decoded value.
-- **Double-prefix prevention**: `WorkspaceRedirect` checks `!pathname.startsWith("/workspace/")` before redirecting, preventing infinite redirect loops if someone has both a path prefix and a query param.
-- **StandaloneReviewPage**: Only mounted at `/` when `FLAGS.DEV_WORKFLOW` is false. It uses `?source=` and `?worktree=` query params which are unaffected by this change.
+- **Invalid/unknown workspace**: `/workspace/nonexistent` renders the Dashboard with an empty feature list and the workspace selector visible. No error page.
+- **StandaloneReviewPage**: Only mounted at `/` when `FLAGS.DEV_WORKFLOW` is false. It uses `?source=` and `?worktree=` query params which are unaffected.
+- **FeatureNavBar active tab detection**: Both link generation (`basePath`) and `pathname.startsWith(basePath)` matching must use the workspace-prefixed path.
+- **FeatureRow in "All workspaces" mode**: Uses `feature.repoName` (server-provided) to build the workspace path, not the current URL's workspace. This ensures clicking a feature from the aggregate view navigates to the correct workspace-scoped URL.
+
+## Review Summary
+
+Artifacts reviewed by `[codex]` codereviewer. Findings addressed:
+
+- `[codex]` useFeaturesContext must read workspace from path params, not just search params
+- `[codex]` repo/workspace naming consolidated — all `repo` references removed per user decision
+- Legacy redirect support removed per user decision (simplifies architecture)

@@ -4,7 +4,7 @@ import type { FeatureInfo } from "../../services/featureApi";
 import { relativeTime } from "../../utils/timeFormat";
 import { FLAGS } from "../../config/app";
 import { FEATURE_STATUS, type FeatureStatus } from "../../types/sessions";
-import { withWorkspace } from "../../hooks/useRepoContext";
+import { workspacePath } from "../../hooks/useWorkspaceContext";
 
 export interface FeatureRowProps {
   feature: FeatureInfo;
@@ -198,7 +198,7 @@ export default function FeatureRow({
 
   function handleActivate() {
     const effectiveWorkspace = feature.repoName ?? null;
-    void navigate(withWorkspace(`/features/${feature.id}`, effectiveWorkspace));
+    void navigate(workspacePath(`/features/${feature.id}`, effectiveWorkspace));
   }
 
   // Compact layout for completed features — single line, no grid, no status pill
