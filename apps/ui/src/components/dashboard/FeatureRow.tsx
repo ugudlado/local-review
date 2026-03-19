@@ -12,6 +12,39 @@ export interface FeatureRowProps {
   repoName?: string | null;
   /** Render in compact mode for completed features list */
   compact?: boolean;
+  /** Show workspace badge (default true). Set false when context already provides it. */
+  showWorkspace?: boolean;
+}
+
+/** Stable hue derived from workspace name for subtle badge tinting. */
+export function workspaceHue(name: string): number {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return ((hash % 360) + 360) % 360;
+}
+
+function WorkspaceBadge({
+  name,
+  size = "default",
+}: {
+  name: string;
+  size?: "default" | "compact";
+}) {
+  const hue = workspaceHue(name);
+  const isCompact = size === "compact";
+  return (
+    <span
+      className={`shrink-0 rounded font-medium ${isCompact ? "px-1 py-0.5 text-[9px]" : "px-1.5 py-0.5 text-[9px]"}`}
+      style={{
+        backgroundColor: `hsl(${hue} 20% 18%)`,
+        color: `hsl(${hue} 30% 65%)`,
+      }}
+    >
+      {name}
+    </span>
+  );
 }
 
 const ROW_ACCENT: Record<FeatureStatus, string> = {
@@ -185,6 +218,7 @@ export default function FeatureRow({
   searchQuery = "",
   repoName,
   compact = false,
+  showWorkspace = true,
 }: FeatureRowProps) {
   const navigate = useNavigate();
   const { done, total } = feature.taskProgress;
@@ -223,10 +257,8 @@ export default function FeatureRow({
         <span className="truncate text-xs">
           {highlightMatch(formatFeatureTitle(feature.id), searchQuery)}
         </span>
-        {repoName && (
-          <span className="shrink-0 rounded bg-slate-700/40 px-1 py-0.5 text-[9px] text-slate-600">
-            {repoName}
-          </span>
+        {showWorkspace && repoName && (
+          <WorkspaceBadge name={repoName} size="compact" />
         )}
       </div>
     );
@@ -249,11 +281,7 @@ export default function FeatureRow({
           <span className="truncate text-sm font-semibold text-slate-100">
             {highlightMatch(formatFeatureTitle(feature.id), searchQuery)}
           </span>
-          {repoName && (
-            <span className="shrink-0 rounded bg-slate-700/50 px-1.5 py-0.5 text-[9px] font-medium text-slate-400">
-              {repoName}
-            </span>
-          )}
+          {showWorkspace && repoName && <WorkspaceBadge name={repoName} />}
         </div>
         <div className="mt-0.5 flex items-center gap-1">
           <GitBranchIcon />
