@@ -149,8 +149,8 @@ function WorkspaceSwitcher({
 }
 
 export default function Dashboard() {
-  const { repo, workspace } = useRepoContext();
-  const workspaces = useWorkspaces();
+  const { workspace } = useRepoContext();
+  const { workspaces, loaded: workspacesLoaded } = useWorkspaces();
   const [, setSearchParams] = useSearchParams();
   const [features, setFeatures] = useState<FeatureInfo[]>([]);
   const [apiRepoName, setApiRepoName] = useState<string | null>(null);
@@ -164,19 +164,22 @@ export default function Dashboard() {
   const [showCompleted, setShowCompleted] = useState(false);
 
   const fetchFeatures = useCallback(async () => {
+    // Wait for workspace registry to load before fetching in "All workspaces" mode
+    if (!workspace && !workspacesLoaded) return;
+
     setLoading(true);
     setError(null);
     try {
       // "All workspaces" mode: fetch from each workspace and merge
-      if (!workspace && !repo && workspaces.length > 0) {
+      if (!workspace && workspaces.length > 0) {
         const results = await Promise.all(
-          workspaces.map((ws) => featureApi.getFeatures(null, ws.name)),
+          workspaces.map((ws) => featureApi.getFeatures(ws.name)),
         );
         const merged = results.flatMap((r) => r.features);
         setFeatures(merged);
         setApiRepoName(null);
       } else {
-        const data = await featureApi.getFeatures(repo, workspace);
+        const data = await featureApi.getFeatures(workspace);
         setFeatures(data.features);
         setApiRepoName(data.repoName ?? null);
       }
@@ -185,7 +188,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [repo, workspace, workspaces]);
+  }, [workspace, workspaces, workspacesLoaded]);
 
   function handleWorkspaceChange(value: string) {
     if (!value) {
