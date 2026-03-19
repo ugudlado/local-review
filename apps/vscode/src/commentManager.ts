@@ -83,9 +83,11 @@ export class CommentManager implements vscode.Disposable {
   ): void {
     context.subscriptions.push(
       // Create a new thread (user types in the "+" gutter inline box)
+      // VS Code passes a single CommentReply object with { text, thread }
       vscode.commands.registerCommand(
         "local-review.createComment",
-        async (reply: { text: string }, thread: vscode.CommentThread) => {
+        async (reply: vscode.CommentReply) => {
+          const thread = reply.thread;
           const featureId = getFeatureId();
           if (!featureId) {
             void vscode.window.showWarningMessage(
@@ -127,7 +129,8 @@ export class CommentManager implements vscode.Disposable {
       // Reply to an existing thread
       vscode.commands.registerCommand(
         "local-review.replyToComment",
-        async (reply: { text: string }, thread: vscode.CommentThread) => {
+        async (reply: vscode.CommentReply) => {
+          const thread = reply.thread;
           const featureId = getFeatureId();
           if (!featureId) {
             void vscode.window.showWarningMessage(

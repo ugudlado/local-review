@@ -4268,9 +4268,11 @@ var CommentManager = class {
   setupCommentHandlers(context, getFeatureId, outputChannel) {
     context.subscriptions.push(
       // Create a new thread (user types in the "+" gutter inline box)
+      // VS Code passes a single CommentReply object with { text, thread }
       vscode4.commands.registerCommand(
         "local-review.createComment",
-        async (reply, thread) => {
+        async (reply) => {
+          const thread = reply.thread;
           const featureId = getFeatureId();
           if (!featureId) {
             void vscode4.window.showWarningMessage(
@@ -4305,7 +4307,8 @@ var CommentManager = class {
       // Reply to an existing thread
       vscode4.commands.registerCommand(
         "local-review.replyToComment",
-        async (reply, thread) => {
+        async (reply) => {
+          const thread = reply.thread;
           const featureId = getFeatureId();
           if (!featureId) {
             void vscode4.window.showWarningMessage(
