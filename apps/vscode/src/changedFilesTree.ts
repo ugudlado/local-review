@@ -28,7 +28,10 @@ export class ChangedFilesTreeProvider
     }
     let changed = false;
     for (const file of this._files) {
-      const count = counts.get(file.path) ?? 0;
+      // For renamed files, threads may reference the old path
+      const count =
+        (counts.get(file.path) ?? 0) +
+        (file.oldPath !== file.path ? (counts.get(file.oldPath) ?? 0) : 0);
       if (file.openThreads !== count) {
         file.openThreads = count;
         changed = true;
@@ -39,6 +42,10 @@ export class ChangedFilesTreeProvider
 
   get fileCount(): number {
     return this._files.length;
+  }
+
+  getFirstFile(): DiffFileItem | undefined {
+    return this._files[0];
   }
 
   getTreeItem(element: DiffFileItem): vscode.TreeItem {

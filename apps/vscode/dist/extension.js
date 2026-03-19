@@ -4264,11 +4264,15 @@ var BaseContentProvider = class {
   }
   invalidate(path2) {
     if (path2) {
-      this._cache.delete(path2);
-      const uri = this._cachedUris.find(
-        (u) => (u.path.startsWith("/") ? u.path.slice(1) : u.path) === path2
+      const key = path2.startsWith("/") ? path2.slice(1) : path2;
+      this._cache.delete(key);
+      const idx = this._cachedUris.findIndex(
+        (u) => (u.path.startsWith("/") ? u.path.slice(1) : u.path) === key
       );
-      if (uri) this._onDidChange.fire(uri);
+      if (idx !== -1) {
+        this._onDidChange.fire(this._cachedUris[idx]);
+        this._cachedUris.splice(idx, 1);
+      }
     } else {
       this._cache.clear();
       this._mergeBaseSha = null;
@@ -4730,7 +4734,7 @@ var ChangedFilesTreeProvider = class {
     }
     let changed = false;
     for (const file of this._files) {
-      const count = counts.get(file.path) ?? 0;
+      const count = (counts.get(file.path) ?? 0) + (file.oldPath !== file.path ? counts.get(file.oldPath) ?? 0 : 0);
       if (file.openThreads !== count) {
         file.openThreads = count;
         changed = true;
@@ -4740,6 +4744,9 @@ var ChangedFilesTreeProvider = class {
   }
   get fileCount() {
     return this._files.length;
+  }
+  getFirstFile() {
+    return this._files[0];
   }
   getTreeItem(element) {
     const label = element.path.split("/").pop() ?? element.path;
@@ -4783,7 +4790,7 @@ function parseDiffFileList(unifiedDiff) {
   const blocks = unifiedDiff.split(/^diff --git /m).slice(1);
   const entries = [];
   for (const block of blocks) {
-    const headerMatch = block.match(/^a\/(.+?) b\/(.+?)$/m);
+    const headerMatch = block.match(/^a\/(.+) b\/(.+)$/m);
     if (!headerMatch) continue;
     const oldPath = headerMatch[1];
     const newPath = headerMatch[2];
@@ -4842,10 +4849,10 @@ var DiffPanelManager = class {
         "local-review.hasDiffPanel",
         true
       );
-      void this._treeView.reveal(
-        { ...this._files[0], openThreads: 0 },
-        { focus: true }
-      );
+      const firstItem = this._treeProvider.getFirstFile();
+      if (firstItem) {
+        void this._treeView.reveal(firstItem, { focus: true });
+      }
       await this.openFile(this._files[0]);
       this._outputChannel.appendLine(
         `Diff panel opened for ${featureId}: ${this._files.length} files changed`

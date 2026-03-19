@@ -19,7 +19,8 @@ export function parseDiffFileList(unifiedDiff: string): DiffFileEntry[] {
 
   for (const block of blocks) {
     // Parse "a/<old> b/<new>" from first line
-    const headerMatch = block.match(/^a\/(.+?) b\/(.+?)$/m);
+    // Greedy first group: captures everything up to the last " b/"
+    const headerMatch = block.match(/^a\/(.+) b\/(.+)$/m);
     if (!headerMatch) continue;
 
     const oldPath = headerMatch[1];

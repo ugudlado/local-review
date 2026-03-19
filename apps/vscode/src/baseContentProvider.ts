@@ -67,11 +67,15 @@ export class BaseContentProvider
 
   invalidate(path?: string): void {
     if (path) {
-      this._cache.delete(path);
-      const uri = this._cachedUris.find(
-        (u) => (u.path.startsWith("/") ? u.path.slice(1) : u.path) === path,
+      const key = path.startsWith("/") ? path.slice(1) : path;
+      this._cache.delete(key);
+      const idx = this._cachedUris.findIndex(
+        (u) => (u.path.startsWith("/") ? u.path.slice(1) : u.path) === key,
       );
-      if (uri) this._onDidChange.fire(uri);
+      if (idx !== -1) {
+        this._onDidChange.fire(this._cachedUris[idx]);
+        this._cachedUris.splice(idx, 1);
+      }
     } else {
       this._cache.clear();
       this._mergeBaseSha = null;

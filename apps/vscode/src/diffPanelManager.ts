@@ -60,11 +60,11 @@ export class DiffPanelManager implements vscode.Disposable {
         true,
       );
 
-      // Reveal the tree view
-      void this._treeView.reveal(
-        { ...this._files[0], openThreads: 0 },
-        { focus: true },
-      );
+      // Reveal the tree view using actual item reference
+      const firstItem = this._treeProvider.getFirstFile();
+      if (firstItem) {
+        void this._treeView.reveal(firstItem, { focus: true });
+      }
 
       // Open the first file's diff
       await this.openFile(this._files[0]);
