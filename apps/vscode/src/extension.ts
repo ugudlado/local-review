@@ -44,20 +44,6 @@ export function activate(context: vscode.ExtensionContext): void {
     outputChannel,
   );
 
-  // Echo deduplication: after VS Code creates/updates a thread, mute incoming
-  // WS updates for that thread for a short window to avoid flickering loops.
-  const mutedThreadIds = new Set<string>();
-
-  /** Mute a thread ID for 500 ms to suppress the echo of our own writes. */
-  function muteThread(threadId: string): void {
-    mutedThreadIds.add(threadId);
-    setTimeout(() => mutedThreadIds.delete(threadId), 500);
-  }
-
-  // Expose muteThread so future command implementations (T-5, T-6) can call it
-  // to suppress the WS echo after writing a thread.
-  void muteThread; // referenced — prevents unused-variable warnings until consumed
-
   // Track current featureId so WS handler knows which session to reconcile.
   // Uses the featureDetector as the source of truth after initialization.
   let currentFeatureId: string | null = null;
@@ -75,14 +61,6 @@ export function activate(context: vscode.ExtensionContext): void {
       // Session file names are `<featureId>-code.json`
       const match = payload.fileName.match(/^(.+)-code\.json$/);
       if (!match || match[1] !== currentFeatureId) return;
-
-      // Skip reconcile if any of our own writes are still in the mute window
-      if (mutedThreadIds.size > 0) {
-        outputChannel.appendLine(
-          "WS session-updated: skipping (echo mute active)",
-        );
-        return;
-      }
 
       const threads = payload.session?.threads ?? [];
       outputChannel.appendLine(

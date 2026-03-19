@@ -155,8 +155,9 @@ export class CommentManager implements vscode.Disposable {
             createdAt: now,
           };
           try {
+            // Send only the new message — server appends to existing messages
             await serverClient.updateThread(featureId, sessionId, {
-              messages: [...this._getExistingMessages(thread), newMessage],
+              messages: [newMessage],
             });
 
             // Append the new comment to the VS Code thread
@@ -274,25 +275,6 @@ export class CommentManager implements vscode.Disposable {
     };
 
     return sessionThread;
-  }
-
-  /**
-   * Extract the text content of existing comments on a VS Code thread so we
-   * can append a new message when replying.  We reconstruct minimal
-   * SessionMessage objects from the Comment objects already displayed.
-   */
-  private _getExistingMessages(thread: vscode.CommentThread): SessionMessage[] {
-    return thread.comments.map((c): SessionMessage => {
-      const body =
-        c.body instanceof vscode.MarkdownString ? c.body.value : String(c.body);
-      return {
-        id: crypto.randomUUID(),
-        authorType: "human",
-        author: c.author.name,
-        text: body,
-        createdAt: new Date().toISOString(),
-      };
-    });
   }
 
   private _createVSCodeThread(

@@ -4334,7 +4334,7 @@ var CommentManager = class {
           };
           try {
             await serverClient.updateThread(featureId, sessionId, {
-              messages: [...this._getExistingMessages(thread), newMessage]
+              messages: [newMessage]
             });
             thread.comments = [
               ...thread.comments,
@@ -4432,23 +4432,6 @@ var CommentManager = class {
       lastUpdatedAt: now
     };
     return sessionThread;
-  }
-  /**
-   * Extract the text content of existing comments on a VS Code thread so we
-   * can append a new message when replying.  We reconstruct minimal
-   * SessionMessage objects from the Comment objects already displayed.
-   */
-  _getExistingMessages(thread) {
-    return thread.comments.map((c) => {
-      const body = c.body instanceof vscode4.MarkdownString ? c.body.value : String(c.body);
-      return {
-        id: crypto.randomUUID(),
-        authorType: "human",
-        author: c.author.name,
-        text: body,
-        createdAt: (/* @__PURE__ */ new Date()).toISOString()
-      };
-    });
   }
   _createVSCodeThread(sessionThread) {
     const anchor = sessionThread.anchor;
@@ -4657,11 +4640,6 @@ function activate(context) {
     () => featureDetector.featureId,
     outputChannel
   );
-  const mutedThreadIds = /* @__PURE__ */ new Set();
-  function muteThread(threadId) {
-    mutedThreadIds.add(threadId);
-    setTimeout(() => mutedThreadIds.delete(threadId), 500);
-  }
   let currentFeatureId = null;
   context.subscriptions.push(
     wsClient.on("review:session-updated", (data) => {
@@ -4669,12 +4647,6 @@ function activate(context) {
       const payload = data;
       const match = payload.fileName.match(/^(.+)-code\.json$/);
       if (!match || match[1] !== currentFeatureId) return;
-      if (mutedThreadIds.size > 0) {
-        outputChannel.appendLine(
-          "WS session-updated: skipping (echo mute active)"
-        );
-        return;
-      }
       const threads = payload.session?.threads ?? [];
       outputChannel.appendLine(
         `WS session-updated: reconciling ${threads.length} threads for ${currentFeatureId}`

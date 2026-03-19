@@ -320,7 +320,7 @@ export function createFeaturesRoute(_repoRoot: string): Hono<AppEnv> {
       // Track this workspace as last-active
       setLastActive(repoRoot);
 
-      return c.json({ features, repoName: getRepoName(repoRoot) });
+      return c.json({ features, repoName });
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown error";
       return c.json({ features: [], error: message });
