@@ -3995,21 +3995,13 @@ function appendWorkspaceParam(url) {
   const sep = url.includes("?") ? "&" : "?";
   return `${url}${sep}workspace=${encodeURIComponent(_workspaceName)}`;
 }
-var _debugChannel = null;
-function setDebugChannel(channel) {
-  _debugChannel = channel;
-}
 async function apiFetch(path3, options) {
-  const method = options?.method ?? "GET";
   const url = appendWorkspaceParam(`${getBaseUrl()}/api/features${path3}`);
-  _debugChannel?.appendLine(`[API] ${method} ${url}`);
   const res = await httpRequest(url, {
-    method,
+    method: options?.method ?? "GET",
     body: options?.body
   });
-  _debugChannel?.appendLine(`[API] \u2192 ${res.status} (${res.body.length} bytes)`);
   if (res.status >= 400) {
-    _debugChannel?.appendLine(`[API] ERROR: ${res.body.slice(0, 200)}`);
     throw new Error(`API error: ${res.status} ${res.body}`);
   }
   return JSON.parse(res.body);
@@ -4244,7 +4236,6 @@ var BaseContentProvider = class {
   _onDidChange = new vscode4.EventEmitter();
   onDidChange = this._onDidChange.event;
   _cache = /* @__PURE__ */ new Map();
-  _cachedUris = [];
   _mergeBaseSha = null;
   _workspaceRoot;
   constructor(workspaceRoot) {
@@ -4276,32 +4267,28 @@ var BaseContentProvider = class {
         { cwd: this._workspaceRoot, maxBuffer: 10 * 1024 * 1024 }
       );
       this._cache.set(relativePath, stdout);
-      this._cachedUris.push(uri);
       return stdout;
     } catch {
       this._cache.set(relativePath, "");
-      this._cachedUris.push(uri);
       return "";
     }
+  }
+  _buildUri(key) {
+    return vscode4.Uri.parse(`${SCHEME_BASE}:/${key}`);
   }
   invalidate(path3) {
     if (path3) {
       const key = path3.startsWith("/") ? path3.slice(1) : path3;
-      this._cache.delete(key);
-      const idx = this._cachedUris.findIndex(
-        (u) => (u.path.startsWith("/") ? u.path.slice(1) : u.path) === key
-      );
-      if (idx !== -1) {
-        this._onDidChange.fire(this._cachedUris[idx]);
-        this._cachedUris.splice(idx, 1);
+      if (this._cache.delete(key)) {
+        this._onDidChange.fire(this._buildUri(key));
       }
     } else {
+      const keys = [...this._cache.keys()];
       this._cache.clear();
       this._mergeBaseSha = null;
-      for (const uri of this._cachedUris) {
-        this._onDidChange.fire(uri);
+      for (const key of keys) {
+        this._onDidChange.fire(this._buildUri(key));
       }
-      this._cachedUris = [];
     }
   }
   dispose() {
@@ -4656,10 +4643,6 @@ var WsClient = class _WsClient {
       this._ws.on("message", (raw) => {
         try {
           const event = JSON.parse(raw.toString());
-          const payload = event.data;
-          this._outputChannel.appendLine(
-            `[WS] ${event.event} fileName=${payload?.fileName ?? "?"} workspace=${payload?.workspaceName ?? "?"}`
-          );
           const handlers = this._handlers.get(event.event);
           if (handlers) {
             for (const handler of handlers) {
@@ -4932,6 +4915,7 @@ var DiffPanelManager = class {
     );
   }
   updateThreadCounts(threads) {
+    if (this._files.length === 0) return;
     this._treeProvider.updateThreadCounts(threads);
   }
   dispose() {
@@ -4941,13 +4925,9 @@ var DiffPanelManager = class {
 
 // src/extension.ts
 var execFileAsync3 = (0, import_util3.promisify)(import_child_process3.execFile);
-function getBaseUrl2() {
-  return vscode9.workspace.getConfiguration("local-review").get("serverUrl", "http://localhost:37003");
-}
 function activate(context) {
   const outputChannel = vscode9.window.createOutputChannel("Local Review");
   outputChannel.appendLine("Local Review extension activated");
-  setDebugChannel(outputChannel);
   const workspaceRoot = vscode9.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!workspaceRoot) {
     outputChannel.appendLine("No workspace folder found \u2014 going dormant");
@@ -4969,7 +4949,7 @@ function activate(context) {
   const statusBar = new StatusBar();
   const featureDetector = new FeatureDetector(workspaceRoot);
   const commentManager = new CommentManager(workspaceRoot, outputChannel);
-  const wsClient = new WsClient(getBaseUrl2(), outputChannel);
+  const wsClient = new WsClient(getBaseUrl(), outputChannel);
   const diffPanelManager = new DiffPanelManager(
     workspaceRoot,
     baseProvider,
@@ -5001,16 +4981,13 @@ function activate(context) {
       );
       commentManager.loadThreads(threads);
       statusBar.updateThreadCount(threads.length);
+      diffPanelManager.updateThreadCounts(threads);
     }),
     // Resolver progress events — update status bar during resolve runs
     wsClient.on("review:resolve-started", (data) => {
       const payload = data;
       if (payload.featureId !== currentFeatureId) return;
       statusBar.setResolving(0, payload.threadCount);
-    }),
-    wsClient.on("review:resolve-thread-done", (data) => {
-      const payload = data;
-      if (payload.featureId !== currentFeatureId) return;
     }),
     wsClient.on("review:resolve-completed", (data) => {
       const payload = data;
@@ -5246,16 +5223,6 @@ function activate(context) {
     }),
     vscode9.commands.registerCommand("local-review.closeDiff", () => {
       diffPanelManager.close();
-    })
-  );
-  context.subscriptions.push(
-    wsClient.on("review:session-updated", (data) => {
-      if (!currentFeatureId) return;
-      const payload = data;
-      const match = payload.fileName.match(/^(.+)-code\.json$/);
-      if (!match || match[1] !== currentFeatureId) return;
-      const threads = payload.session?.threads ?? [];
-      diffPanelManager.updateThreadCounts(threads);
     })
   );
   void init();

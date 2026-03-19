@@ -132,6 +132,7 @@ export class DiffPanelManager implements vscode.Disposable {
   }
 
   updateThreadCounts(threads: SessionThread[]): void {
+    if (this._files.length === 0) return;
     this._treeProvider.updateThreadCounts(threads);
   }
 

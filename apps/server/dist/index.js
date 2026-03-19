@@ -9858,11 +9858,10 @@ function registerSessionCRUD(app2, config, _sessionType, broadcast3) {
     session.threads = threads;
     writeSessionFile(workspaceName, fileName, JSON.stringify(session, null, 2));
     if (broadcast3) {
-      const fileName2 = `${featureId}${fileSuffix}`;
-      suppressWatcherBroadcast(workspaceName, fileName2);
+      suppressWatcherBroadcast(workspaceName, fileName);
       broadcast3({
         event: "review:session-updated",
-        data: { fileName: fileName2, session }
+        data: { fileName, session }
       });
     }
     if (broadcast3 && updatedThread.status === THREAD_STATUS.Resolved) {

@@ -210,7 +210,6 @@ function registerSessionCRUD(
     // Broadcast session-updated on every PATCH so VS Code extension sees
     // replies and status changes in real-time
     if (broadcast) {
-      const fileName = `${featureId}${fileSuffix}`;
       suppressWatcherBroadcast(workspaceName, fileName);
       broadcast({
         event: "review:session-updated",

@@ -3,11 +3,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import * as path from "path";
 import { FeatureDetector } from "./featureDetector";
-import {
-  serverClient,
-  setWorkspaceName,
-  setDebugChannel,
-} from "./serverClient";
+import { serverClient, setWorkspaceName, getBaseUrl } from "./serverClient";
 import type { SessionThread } from "./serverClient";
 import { StatusBar } from "./statusBar";
 import { CommentManager } from "./commentManager";
@@ -22,16 +18,9 @@ import { DiffPanelManager } from "./diffPanelManager";
 
 const execFileAsync = promisify(execFile);
 
-function getBaseUrl(): string {
-  return vscode.workspace
-    .getConfiguration("local-review")
-    .get<string>("serverUrl", "http://localhost:37003");
-}
-
 export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = vscode.window.createOutputChannel("Local Review");
   outputChannel.appendLine("Local Review extension activated");
-  setDebugChannel(outputChannel);
 
   const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!workspaceRoot) {
@@ -108,6 +97,7 @@ export function activate(context: vscode.ExtensionContext): void {
       );
       commentManager.loadThreads(threads);
       statusBar.updateThreadCount(threads.length);
+      diffPanelManager.updateThreadCounts(threads);
     }),
 
     // Resolver progress events — update status bar during resolve runs
@@ -115,12 +105,6 @@ export function activate(context: vscode.ExtensionContext): void {
       const payload = data as { featureId: string; threadCount: number };
       if (payload.featureId !== currentFeatureId) return;
       statusBar.setResolving(0, payload.threadCount);
-    }),
-
-    wsClient.on("review:resolve-thread-done", (data: unknown) => {
-      const payload = data as { featureId: string };
-      if (payload.featureId !== currentFeatureId) return;
-      // The status bar's resolving state will be updated by the next session-updated event
     }),
 
     wsClient.on("review:resolve-completed", (data: unknown) => {
@@ -406,21 +390,6 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand("local-review.closeDiff", () => {
       diffPanelManager.close();
-    }),
-  );
-
-  // Update diff panel thread counts on session updates
-  context.subscriptions.push(
-    wsClient.on("review:session-updated", (data: unknown) => {
-      if (!currentFeatureId) return;
-      const payload = data as {
-        fileName: string;
-        session: { threads: SessionThread[] };
-      };
-      const match = payload.fileName.match(/^(.+)-code\.json$/);
-      if (!match || match[1] !== currentFeatureId) return;
-      const threads = payload.session?.threads ?? [];
-      diffPanelManager.updateThreadCounts(threads);
     }),
   );
 

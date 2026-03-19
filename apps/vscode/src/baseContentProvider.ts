@@ -15,7 +15,6 @@ export class BaseContentProvider
   readonly onDidChange = this._onDidChange.event;
 
   private _cache = new Map<string, string>();
-  private _cachedUris: vscode.Uri[] = [];
   private _mergeBaseSha: string | null = null;
   private _workspaceRoot: string;
 
@@ -55,34 +54,31 @@ export class BaseContentProvider
         { cwd: this._workspaceRoot, maxBuffer: 10 * 1024 * 1024 },
       );
       this._cache.set(relativePath, stdout);
-      this._cachedUris.push(uri);
       return stdout;
     } catch {
       // File doesn't exist at ref (new file) — return empty
       this._cache.set(relativePath, "");
-      this._cachedUris.push(uri);
       return "";
     }
+  }
+
+  private _buildUri(key: string): vscode.Uri {
+    return vscode.Uri.parse(`${SCHEME_BASE}:/${key}`);
   }
 
   invalidate(path?: string): void {
     if (path) {
       const key = path.startsWith("/") ? path.slice(1) : path;
-      this._cache.delete(key);
-      const idx = this._cachedUris.findIndex(
-        (u) => (u.path.startsWith("/") ? u.path.slice(1) : u.path) === key,
-      );
-      if (idx !== -1) {
-        this._onDidChange.fire(this._cachedUris[idx]);
-        this._cachedUris.splice(idx, 1);
+      if (this._cache.delete(key)) {
+        this._onDidChange.fire(this._buildUri(key));
       }
     } else {
+      const keys = [...this._cache.keys()];
       this._cache.clear();
       this._mergeBaseSha = null;
-      for (const uri of this._cachedUris) {
-        this._onDidChange.fire(uri);
+      for (const key of keys) {
+        this._onDidChange.fire(this._buildUri(key));
       }
-      this._cachedUris = [];
     }
   }
 
