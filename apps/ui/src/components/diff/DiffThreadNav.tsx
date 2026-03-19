@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { ChevronRightIcon, MessageSquareIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { ReviewThread } from "../../services/localReviewApi";
 import { THREAD_SEVERITY } from "../../types/sessions";
 import { relativeTime } from "../../utils/timeFormat";
@@ -65,7 +67,8 @@ function ThreadNavCard({
   // Status dot color
   let dotColor: string;
   if (isResolving) {
-    dotColor = "text-[var(--accent-blue)] animate-pulse";
+    dotColor =
+      "text-[var(--accent-blue)] animate-[breathe_2s_ease-in-out_infinite]";
   } else if (thread.status === "resolved" || thread.status === "approved") {
     dotColor = "text-[var(--accent-emerald)]";
   } else if (thread.severity === THREAD_SEVERITY.Critical) {
@@ -84,24 +87,24 @@ function ThreadNavCard({
 
   const severityBadgeClasses: Record<string, string> = {
     [THREAD_SEVERITY.Critical]:
-      "bg-[var(--accent-rose)]/15 text-[var(--accent-rose)]",
+      "bg-[var(--accent-rose-dim)] text-[var(--accent-rose)]",
     [THREAD_SEVERITY.Style]:
       "bg-[var(--bg-overlay)] text-[var(--text-secondary)]",
     [THREAD_SEVERITY.Question]:
-      "bg-[var(--accent-amber)]/15 text-[var(--accent-amber)]",
+      "bg-[var(--accent-amber-dim)] text-[var(--accent-amber)]",
   };
   const badgeClasses =
     severityBadgeClasses[thread.severity ?? ""] ??
-    "bg-[var(--accent-blue)]/15 text-[var(--accent-blue)]";
+    "bg-[var(--accent-blue-dim)] text-[var(--accent-blue)]";
 
   return (
     <div
       onClick={onClick}
-      className={`cursor-pointer px-3 py-2 transition-colors hover:bg-[var(--bg-elevated)] ${
-        isActive
-          ? "-ml-0.5 border-l-2 border-[var(--accent-blue)] bg-[var(--accent-blue-dim)] pl-2.5"
-          : ""
-      }`}
+      className={cn(
+        "group cursor-pointer px-3 py-2 transition-colors hover:bg-[var(--bg-elevated)]",
+        isActive &&
+          "-ml-0.5 border-l-2 border-[var(--accent-blue)] bg-[var(--accent-blue-dim)] pl-2.5",
+      )}
     >
       {/* Row 1: dot + file:line + badge */}
       <div className="flex min-w-0 items-center gap-1.5">
@@ -112,7 +115,7 @@ function ThreadNavCard({
           {shortPath(thread.filePath)}:{lineLabel(thread.line, thread.lineEnd)}
         </span>
         {isResolving && (
-          <span className="bg-[var(--accent-blue)]/15 shrink-0 rounded px-1 py-0.5 text-[9px] text-[var(--accent-blue)]">
+          <span className="shrink-0 rounded bg-[var(--accent-blue-dim)] px-1 py-0.5 text-[9px] text-[var(--accent-blue)]">
             resolving…
           </span>
         )}
@@ -132,12 +135,18 @@ function ThreadNavCard({
         </p>
       )}
 
-      {/* Row 3: author + time */}
-      <p className="mt-0.5 text-[11px] text-[var(--text-tertiary)]">
-        {author}
-        {author && " \u00B7 "}
-        {time}
-      </p>
+      {/* Row 3: author + time + hover chevron */}
+      <div className="mt-0.5 flex items-center">
+        <p className="flex-1 text-[11px] text-[var(--text-tertiary)]">
+          {author}
+          {author && " \u00B7 "}
+          {time}
+        </p>
+        <ChevronRightIcon
+          size={12}
+          className="shrink-0 text-[var(--text-muted)] opacity-0 transition-opacity group-hover:opacity-100"
+        />
+      </div>
 
       {/* Row 4: analytics labels for resolved threads */}
       {(thread.status === "resolved" || thread.status === "approved") &&
@@ -145,12 +154,12 @@ function ThreadNavCard({
         Object.keys(thread.labels).length > 0 && (
           <div className="mt-1 flex flex-wrap gap-1">
             {thread.labels.severity && (
-              <span className="rounded bg-blue-500/20 px-2 py-0.5 text-[8px] font-medium text-blue-300">
+              <span className="rounded bg-[var(--accent-blue-dim)] px-2 py-0.5 text-[8px] font-medium text-[var(--accent-blue)]">
                 {formatSeverityLabel(thread.labels.severity)}
               </span>
             )}
             {thread.labels.model && (
-              <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-[8px] font-medium text-indigo-300">
+              <span className="rounded bg-[var(--bg-overlay)] px-2 py-0.5 text-[8px] font-medium text-[var(--text-secondary)]">
                 {formatModelLabel(thread.labels.model)}
               </span>
             )}
@@ -215,14 +224,7 @@ export function DiffThreadNav({
     // Minimal collapsed state: just an icon strip
     return (
       <div className="flex w-10 shrink-0 flex-col items-center border-l border-[var(--border-default)] bg-[var(--bg-surface)] pt-3">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 16 16"
-          fill="currentColor"
-          className="h-4 w-4 text-[var(--text-muted)]"
-        >
-          <path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v8.5A1.75 1.75 0 0 1 14.25 13H8.061l-2.574 2.573A1.458 1.458 0 0 1 3 14.543V13H1.75A1.75 1.75 0 0 1 0 11.25v-8.5C0 1.784.784 1 1.75 1Z" />
-        </svg>
+        <MessageSquareIcon size={16} className="text-[var(--text-muted)]" />
       </div>
     );
   }
