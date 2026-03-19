@@ -181,6 +181,29 @@ export const serverClient = {
     };
   },
 
+  async getDiff(worktreePath: string): Promise<{
+    worktreePath: string;
+    sourceBranch: string;
+    targetBranch: string;
+    committedDiff: string;
+    uncommittedDiff: string;
+    allDiff: string;
+  }> {
+    const url = `${getBaseUrl()}/api/diff?worktree=${encodeURIComponent(worktreePath)}`;
+    const res = await httpRequest(url, {});
+    if (res.status >= 400) {
+      throw new Error(`Diff API error: ${res.status} ${res.body}`);
+    }
+    return JSON.parse(res.body) as {
+      worktreePath: string;
+      sourceBranch: string;
+      targetBranch: string;
+      committedDiff: string;
+      uncommittedDiff: string;
+      allDiff: string;
+    };
+  },
+
   async checkConnection(): Promise<boolean> {
     try {
       const url = `${getBaseUrl()}/api/features`;

@@ -5,6 +5,13 @@ import type { SessionThread } from "./serverClient";
 import { StatusBar } from "./statusBar";
 import { CommentManager } from "./commentManager";
 import { WsClient } from "./wsClient";
+import {
+  BaseContentProvider,
+  EmptyContentProvider,
+  SCHEME_BASE,
+  SCHEME_EMPTY,
+} from "./baseContentProvider";
+import { DiffPanelManager } from "./diffPanelManager";
 
 function getBaseUrl(): string {
   return vscode.workspace
@@ -22,16 +29,39 @@ export function activate(context: vscode.ExtensionContext): void {
     return;
   }
 
+  // CRITICAL: Register content providers BEFORE CommentManager.
+  // CommentManager._buildNewThread calls openTextDocument on virtual URIs,
+  // which requires the provider to already be registered.
+  const baseProvider = new BaseContentProvider(workspaceRoot);
+  const emptyProvider = new EmptyContentProvider();
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(
+      SCHEME_BASE,
+      baseProvider,
+    ),
+    vscode.workspace.registerTextDocumentContentProvider(
+      SCHEME_EMPTY,
+      emptyProvider,
+    ),
+    baseProvider,
+  );
+
   const statusBar = new StatusBar();
   const featureDetector = new FeatureDetector(workspaceRoot);
   const commentManager = new CommentManager(workspaceRoot, outputChannel);
   const wsClient = new WsClient(getBaseUrl(), outputChannel);
+  const diffPanelManager = new DiffPanelManager(
+    workspaceRoot,
+    baseProvider,
+    outputChannel,
+  );
 
   context.subscriptions.push(
     statusBar,
     featureDetector,
     commentManager,
     wsClient,
+    diffPanelManager,
     outputChannel,
   );
 
@@ -298,6 +328,66 @@ export function activate(context: vscode.ExtensionContext): void {
         statusBar.setResolveFailed(msg);
         outputChannel.appendLine(`Request Changes failed: ${msg}`);
       }
+    }),
+
+    // Diff panel commands
+    vscode.commands.registerCommand("local-review.openDiff", async () => {
+      const featureId = featureDetector.featureId;
+      if (!featureId) {
+        void vscode.window.showWarningMessage(
+          "No feature branch detected. Switch to a feature/* branch first.",
+        );
+        return;
+      }
+      const connected = await serverClient.checkConnection();
+      if (!connected) {
+        void vscode.window.showErrorMessage(
+          "Local Review server is not reachable.",
+        );
+        return;
+      }
+      await diffPanelManager.open(featureId);
+    }),
+
+    vscode.commands.registerCommand(
+      "local-review.openDiffFile",
+      async (file: unknown) => {
+        if (file && typeof file === "object" && "path" in file) {
+          await diffPanelManager.openFile(
+            file as {
+              path: string;
+              oldPath: string;
+              newPath: string;
+              status: "A" | "M" | "D" | "R";
+            },
+          );
+        }
+      },
+    ),
+
+    vscode.commands.registerCommand("local-review.refreshDiff", async () => {
+      const featureId = featureDetector.featureId;
+      if (!featureId) return;
+      await diffPanelManager.refresh(featureId);
+    }),
+
+    vscode.commands.registerCommand("local-review.closeDiff", () => {
+      diffPanelManager.close();
+    }),
+  );
+
+  // Update diff panel thread counts on session updates
+  context.subscriptions.push(
+    wsClient.on("review:session-updated", (data: unknown) => {
+      if (!currentFeatureId) return;
+      const payload = data as {
+        fileName: string;
+        session: { threads: SessionThread[] };
+      };
+      const match = payload.fileName.match(/^(.+)-code\.json$/);
+      if (!match || match[1] !== currentFeatureId) return;
+      const threads = payload.session?.threads ?? [];
+      diffPanelManager.updateThreadCounts(threads);
     }),
   );
 
