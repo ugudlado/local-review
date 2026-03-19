@@ -117,24 +117,22 @@
 
 ---
 
-### T-6c: Request Changes + Approve commands (replicate browser UI verdict flow)
+### T-6c: Request Changes command (trigger resolver from VS Code)
 
-**Why**: R7 -- users need the same "Request Changes" / "Approve" flow as the browser UI. "Request Changes" sets verdict AND triggers the resolver agent. "Approve" sets verdict to approved.
+**Why**: R7 -- users need to trigger the resolver agent from VS Code, same as the browser UI's "Request Changes" button.
 
 **Files**:
 
-- `apps/vscode/src/commands/reviewActions.ts` -- Command handlers: `local-review.requestChanges` (set verdict + trigger resolver via POST /api/resolver/resolve), `local-review.approve` (set verdict to approved)
+- `apps/vscode/src/commands/reviewActions.ts` -- Command handler: `local-review.requestChanges` (set verdict + trigger resolver via POST /api/resolver/resolve)
 - `apps/vscode/src/serverClient.ts` -- Add `setVerdict(featureId, verdict)` method calling `PATCH /api/features/:id/code-session`, add `triggerResolve(featureId, sessionType)` method calling `POST /api/resolver/resolve`
-- `apps/vscode/src/statusBar.ts` -- Add "Request Changes" and "Approve" buttons alongside connection indicator. Show resolver progress during resolution ("Resolving 3/7 threads..."). Show verdict state ("✓ Approved" / "✗ Changes Requested"). Listen for WebSocket resolve events (resolve-started, resolve-thread-done, resolve-completed, resolve-failed).
-- `apps/vscode/src/extension.ts` -- Register both commands
+- `apps/vscode/src/statusBar.ts` -- Add "Request Changes" button alongside connection indicator. Show resolver progress during resolution ("Resolving 3/7 threads..."). Listen for WebSocket resolve events (resolve-started, resolve-thread-done, resolve-completed, resolve-failed).
+- `apps/vscode/src/extension.ts` -- Register command
 
 **Verify**:
 
 - Click "Request Changes" → verdict set AND resolver triggered, progress shows in status bar
 - Resolver completes → status bar shows "✓ N resolved", threads updated in editor
-- Click "Approve" → status bar shows "✓ Approved — Ready to merge", browser UI reflects
-- Run both from command palette → same behavior
-- Verdict persists across extension reload (loaded from session on activation)
+- Run from command palette → same behavior
 - Resolver failure → status bar shows error, no crash
 
 ---

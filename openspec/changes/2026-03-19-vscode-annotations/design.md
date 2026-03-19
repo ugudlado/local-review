@@ -136,16 +136,6 @@ This replicates the browser UI's `ReviewVerdict` component flow:
 7. Browser UI reflects verdict + resolver progress simultaneously
 ```
 
-### Approve
-
-```
-1. User clicks "Approve" in status bar OR command palette
-2. serverClient.setVerdict(featureId, "approved")
-   -> PATCH /api/features/{id}/code-session { verdict: "approved" }
-3. Status bar shows "✓ Approved — Ready to merge"
-4. Browser UI reflects verdict change
-```
-
 ### Agent Reply Loop (Full Back-and-Forth)
 
 ```

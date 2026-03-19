@@ -34,15 +34,9 @@ The extension detects the active feature ID by reading the current git branch na
 
 Add a POST endpoint for creating individual threads (currently, adding a new thread requires overwriting the entire session via POST). This avoids race conditions when both VS Code and browser create threads simultaneously.
 
-### R7: Request Changes + Approve from VS Code (replicate browser UI flow)
+### R7: Request Changes from VS Code (trigger resolver)
 
-The extension replicates the browser UI's review verdict flow:
-
-1. **"Request Changes"** — sets verdict to `changes_requested` AND triggers the resolver agent via `POST /api/resolver/resolve`. The extension shows resolver progress (resolving N/M threads) in the status bar, just like the browser UI shows a progress bar + per-thread log.
-2. **"Approve"** — sets verdict to `approved`, indicating the review is complete.
-3. Both actions accessible via command palette AND status bar buttons.
-
-This is the same flow as the browser UI's `ReviewVerdict` component — not a new UX, a port of the existing one.
+The extension provides a "Request Changes" action (status bar button + command palette) that sets verdict to `changes_requested` AND triggers the resolver agent via `POST /api/resolver/resolve`. The extension shows resolver progress (resolving N/M threads) in the status bar. Approve remains browser-only for now.
 
 ### R8: Agent reply loop — full back-and-forth from VS Code
 
