@@ -84,7 +84,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
 
-      const threads = payload.session.threads;
+      const threads = payload.session?.threads ?? [];
       outputChannel.appendLine(
         `WS session-updated: reconciling ${threads.length} threads for ${currentFeatureId}`,
       );
@@ -172,11 +172,10 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
 
-    const openThreads = session.threads.filter(
-      (t) => t.status === "open",
-    ).length;
-    commentManager.loadThreads(session.threads);
-    statusBar.setConnected(session.threads.length);
+    const threads = session.threads ?? [];
+    const openThreads = threads.filter((t) => t.status === "open").length;
+    commentManager.loadThreads(threads);
+    statusBar.setConnected(threads.length);
     outputChannel.appendLine(
       `Session loaded: ${session.threads.length} threads (${openThreads} open)`,
     );
@@ -210,8 +209,9 @@ export function activate(context: vscode.ExtensionContext): void {
       statusBar.setNoSession();
       return;
     }
-    commentManager.loadThreads(session.threads);
-    statusBar.setConnected(session.threads.length);
+    const threads = session.threads ?? [];
+    commentManager.loadThreads(threads);
+    statusBar.setConnected(threads.length);
     outputChannel.appendLine(
       `Session loaded for ${newFeatureId}: ${session.threads.length} threads`,
     );

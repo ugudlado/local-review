@@ -1,4 +1,7 @@
 import * as vscode from "vscode";
+import * as http from "http";
+import * as https from "https";
+import { URL } from "url";
 
 export interface SessionData {
   featureId: string;
@@ -45,27 +48,69 @@ function getBaseUrl(): string {
     .get<string>("serverUrl", "http://localhost:37003");
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const url = `${getBaseUrl()}/api/features${path}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options?.headers as Record<string, string> | undefined),
-    },
+/** Node.js http/https request wrapper — works in all VS Code extension host versions. */
+function httpRequest(
+  url: string,
+  options: { method?: string; body?: string },
+): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const parsed = new URL(url);
+    const mod = parsed.protocol === "https:" ? https : http;
+
+    const req = mod.request(
+      parsed,
+      {
+        method: options.method ?? "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.body
+            ? { "Content-Length": Buffer.byteLength(options.body).toString() }
+            : {}),
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (chunk: Buffer) => chunks.push(chunk));
+        res.on("end", () => {
+          resolve({
+            status: res.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString("utf-8"),
+          });
+        });
+      },
+    );
+
+    req.on("error", reject);
+
+    if (options.body) {
+      req.write(options.body);
+    }
+    req.end();
   });
-  if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`);
+}
+
+async function apiFetch<T>(
+  path: string,
+  options?: { method?: string; body?: string },
+): Promise<T> {
+  const url = `${getBaseUrl()}/api/features${path}`;
+  const res = await httpRequest(url, {
+    method: options?.method ?? "GET",
+    body: options?.body,
+  });
+  if (res.status >= 400) {
+    throw new Error(`API error: ${res.status} ${res.body}`);
   }
-  return res.json() as Promise<T>;
+  return JSON.parse(res.body) as T;
 }
 
 export const serverClient = {
   async getSession(featureId: string): Promise<SessionData | null> {
     try {
-      return await apiFetch<SessionData>(
+      const res = await apiFetch<{ session: SessionData | null }>(
         `/${encodeURIComponent(featureId)}/code-session`,
       );
+      return res.session ?? null;
     } catch (err) {
       if (err instanceof Error && err.message.includes("404")) {
         return null;
@@ -124,24 +169,23 @@ export const serverClient = {
     error?: string;
   }> {
     const url = `${getBaseUrl()}/api/resolver/resolve`;
-    const res = await fetch(url, {
+    const res = await httpRequest(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ featureId, sessionType }),
     });
-    return res.json() as Promise<{
+    return JSON.parse(res.body) as {
       ok: boolean;
       resolved?: number;
       clarifications?: number;
       error?: string;
-    }>;
+    };
   },
 
   async checkConnection(): Promise<boolean> {
     try {
       const url = `${getBaseUrl()}/api/features`;
-      const res = await fetch(url, { method: "GET" });
-      return res.ok;
+      const res = await httpRequest(url, {});
+      return res.status >= 200 && res.status < 400;
     } catch {
       return false;
     }

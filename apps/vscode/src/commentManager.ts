@@ -1,6 +1,10 @@
 import * as vscode from "vscode";
 import { createHash } from "crypto";
-import type { SessionThread, SessionMessage } from "./serverClient";
+import type {
+  SessionData,
+  SessionThread,
+  SessionMessage,
+} from "./serverClient";
 import { serverClient } from "./serverClient";
 import { ThreadMapper } from "./threadMapper";
 
@@ -41,6 +45,32 @@ export class CommentManager implements vscode.Disposable {
   }
 
   /**
+   * Ensure a code review session exists for the given feature.
+   * Creates one automatically if none exists (first-comment UX).
+   */
+  private async _ensureSession(featureId: string): Promise<void> {
+    const existing = await serverClient.getSession(featureId);
+    if (existing) return;
+
+    const session: SessionData = {
+      featureId,
+      worktreePath: this._workspaceRoot,
+      sourceBranch: `feature/${featureId}`,
+      targetBranch: "main",
+      verdict: null,
+      threads: [],
+      metadata: {
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    };
+    await serverClient.saveSession(featureId, session);
+    this._outputChannel.appendLine(
+      `Auto-created review session for ${featureId}`,
+    );
+  }
+
+  /**
    * Register the comment action commands (create, reply, resolve, unresolve).
    * Must be called after the extension context is ready and a featureId is known.
    * The getFeatureId callback is used at command invocation time so it always
@@ -67,6 +97,9 @@ export class CommentManager implements vscode.Disposable {
             return;
           }
           try {
+            // Auto-create session on first comment
+            await this._ensureSession(featureId);
+
             const sessionThread = await this._buildNewThread(
               thread,
               reply.text.trim(),

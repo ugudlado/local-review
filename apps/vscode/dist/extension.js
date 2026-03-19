@@ -2441,13 +2441,13 @@ var require_websocket = __commonJS({
   "../../node_modules/.pnpm/ws@8.19.0_bufferutil@4.0.9/node_modules/ws/lib/websocket.js"(exports2, module2) {
     "use strict";
     var EventEmitter3 = require("events");
-    var https = require("https");
-    var http = require("http");
+    var https2 = require("https");
+    var http2 = require("http");
     var net = require("net");
     var tls = require("tls");
     var { randomBytes, createHash: createHash2 } = require("crypto");
     var { Duplex, Readable } = require("stream");
-    var { URL } = require("url");
+    var { URL: URL2 } = require("url");
     var PerMessageDeflate = require_permessage_deflate();
     var Receiver2 = require_receiver();
     var Sender2 = require_sender();
@@ -2940,11 +2940,11 @@ var require_websocket = __commonJS({
         );
       }
       let parsedUrl;
-      if (address instanceof URL) {
+      if (address instanceof URL2) {
         parsedUrl = address;
       } else {
         try {
-          parsedUrl = new URL(address);
+          parsedUrl = new URL2(address);
         } catch (e) {
           throw new SyntaxError(`Invalid URL: ${address}`);
         }
@@ -2976,7 +2976,7 @@ var require_websocket = __commonJS({
       }
       const defaultPort = isSecure ? 443 : 80;
       const key = randomBytes(16).toString("base64");
-      const request = isSecure ? https.request : http.request;
+      const request = isSecure ? https2.request : http2.request;
       const protocolSet = /* @__PURE__ */ new Set();
       let perMessageDeflate;
       opts.createConnection = opts.createConnection || (isSecure ? tlsConnect : netConnect);
@@ -3081,7 +3081,7 @@ var require_websocket = __commonJS({
           req.abort();
           let addr;
           try {
-            addr = new URL(location, address);
+            addr = new URL2(location, address);
           } catch (e) {
             const err = new SyntaxError(`Invalid URL: ${location}`);
             emitErrorAndClose(websocket, err);
@@ -3470,7 +3470,7 @@ var require_websocket_server = __commonJS({
   "../../node_modules/.pnpm/ws@8.19.0_bufferutil@4.0.9/node_modules/ws/lib/websocket-server.js"(exports2, module2) {
     "use strict";
     var EventEmitter3 = require("events");
-    var http = require("http");
+    var http2 = require("http");
     var { Duplex } = require("stream");
     var { createHash: createHash2 } = require("crypto");
     var extension = require_extension();
@@ -3545,8 +3545,8 @@ var require_websocket_server = __commonJS({
           );
         }
         if (options.port != null) {
-          this._server = http.createServer((req, res) => {
-            const body = http.STATUS_CODES[426];
+          this._server = http2.createServer((req, res) => {
+            const body = http2.STATUS_CODES[426];
             res.writeHead(426, {
               "Content-Length": body.length,
               "Content-Type": "text/plain"
@@ -3833,7 +3833,7 @@ var require_websocket_server = __commonJS({
       this.destroy();
     }
     function abortHandshake(socket, code, message, headers) {
-      message = message || http.STATUS_CODES[code];
+      message = message || http2.STATUS_CODES[code];
       headers = {
         Connection: "close",
         "Content-Type": "text/html",
@@ -3842,7 +3842,7 @@ var require_websocket_server = __commonJS({
       };
       socket.once("finish", socket.destroy);
       socket.end(
-        `HTTP/1.1 ${code} ${http.STATUS_CODES[code]}\r
+        `HTTP/1.1 ${code} ${http2.STATUS_CODES[code]}\r
 ` + Object.keys(headers).map((h) => `${h}: ${headers[h]}`).join("\r\n") + "\r\n\r\n" + message
       );
     }
@@ -3946,29 +3946,61 @@ var FeatureDetector = class {
 
 // src/serverClient.ts
 var vscode2 = __toESM(require("vscode"));
+var http = __toESM(require("http"));
+var https = __toESM(require("https"));
+var import_url = require("url");
 function getBaseUrl() {
   return vscode2.workspace.getConfiguration("local-review").get("serverUrl", "http://localhost:37003");
 }
+function httpRequest(url, options) {
+  return new Promise((resolve2, reject) => {
+    const parsed = new import_url.URL(url);
+    const mod = parsed.protocol === "https:" ? https : http;
+    const req = mod.request(
+      parsed,
+      {
+        method: options.method ?? "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...options.body ? { "Content-Length": Buffer.byteLength(options.body).toString() } : {}
+        }
+      },
+      (res) => {
+        const chunks = [];
+        res.on("data", (chunk) => chunks.push(chunk));
+        res.on("end", () => {
+          resolve2({
+            status: res.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString("utf-8")
+          });
+        });
+      }
+    );
+    req.on("error", reject);
+    if (options.body) {
+      req.write(options.body);
+    }
+    req.end();
+  });
+}
 async function apiFetch(path2, options) {
   const url = `${getBaseUrl()}/api/features${path2}`;
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers
-    }
+  const res = await httpRequest(url, {
+    method: options?.method ?? "GET",
+    body: options?.body
   });
-  if (!res.ok) {
-    throw new Error(`API error: ${res.status} ${res.statusText}`);
+  if (res.status >= 400) {
+    throw new Error(`API error: ${res.status} ${res.body}`);
   }
-  return res.json();
+  return JSON.parse(res.body);
 }
 var serverClient = {
   async getSession(featureId) {
     try {
-      return await apiFetch(
+      const res = await apiFetch(
         `/${encodeURIComponent(featureId)}/code-session`
       );
+      return res.session ?? null;
     } catch (err) {
       if (err instanceof Error && err.message.includes("404")) {
         return null;
@@ -4005,18 +4037,17 @@ var serverClient = {
   },
   async triggerResolve(featureId, sessionType = "code") {
     const url = `${getBaseUrl()}/api/resolver/resolve`;
-    const res = await fetch(url, {
+    const res = await httpRequest(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ featureId, sessionType })
     });
-    return res.json();
+    return JSON.parse(res.body);
   },
   async checkConnection() {
     try {
       const url = `${getBaseUrl()}/api/features`;
-      const res = await fetch(url, { method: "GET" });
-      return res.ok;
+      const res = await httpRequest(url, {});
+      return res.status >= 200 && res.status < 400;
     } catch {
       return false;
     }
@@ -4205,6 +4236,30 @@ var CommentManager = class {
     this._threadMapper.reconcile(threads, (t) => this._createVSCodeThread(t));
   }
   /**
+   * Ensure a code review session exists for the given feature.
+   * Creates one automatically if none exists (first-comment UX).
+   */
+  async _ensureSession(featureId) {
+    const existing = await serverClient.getSession(featureId);
+    if (existing) return;
+    const session = {
+      featureId,
+      worktreePath: this._workspaceRoot,
+      sourceBranch: `feature/${featureId}`,
+      targetBranch: "main",
+      verdict: null,
+      threads: [],
+      metadata: {
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      }
+    };
+    await serverClient.saveSession(featureId, session);
+    this._outputChannel.appendLine(
+      `Auto-created review session for ${featureId}`
+    );
+  }
+  /**
    * Register the comment action commands (create, reply, resolve, unresolve).
    * Must be called after the extension context is ready and a featureId is known.
    * The getFeatureId callback is used at command invocation time so it always
@@ -4227,6 +4282,7 @@ var CommentManager = class {
             return;
           }
           try {
+            await this._ensureSession(featureId);
             const sessionThread = await this._buildNewThread(
               thread,
               reply.text.trim()
@@ -4608,7 +4664,7 @@ function activate(context) {
         );
         return;
       }
-      const threads = payload.session.threads;
+      const threads = payload.session?.threads ?? [];
       outputChannel.appendLine(
         `WS session-updated: reconciling ${threads.length} threads for ${currentFeatureId}`
       );
@@ -4675,11 +4731,10 @@ function activate(context) {
       outputChannel.appendLine("No review session found");
       return;
     }
-    const openThreads = session.threads.filter(
-      (t) => t.status === "open"
-    ).length;
-    commentManager.loadThreads(session.threads);
-    statusBar.setConnected(session.threads.length);
+    const threads = session.threads ?? [];
+    const openThreads = threads.filter((t) => t.status === "open").length;
+    commentManager.loadThreads(threads);
+    statusBar.setConnected(threads.length);
     outputChannel.appendLine(
       `Session loaded: ${session.threads.length} threads (${openThreads} open)`
     );
@@ -4707,8 +4762,9 @@ function activate(context) {
       statusBar.setNoSession();
       return;
     }
-    commentManager.loadThreads(session.threads);
-    statusBar.setConnected(session.threads.length);
+    const threads = session.threads ?? [];
+    commentManager.loadThreads(threads);
+    statusBar.setConnected(threads.length);
     outputChannel.appendLine(
       `Session loaded for ${newFeatureId}: ${session.threads.length} threads`
     );
