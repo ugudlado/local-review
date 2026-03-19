@@ -4476,14 +4476,14 @@ var Response2 = class _Response {
     }
   }
   get headers() {
-    const cache2 = this[cacheKey];
-    if (cache2) {
-      if (!(cache2[2] instanceof Headers)) {
-        cache2[2] = new Headers(
-          cache2[2] || { "content-type": "text/plain; charset=UTF-8" }
+    const cache = this[cacheKey];
+    if (cache) {
+      if (!(cache[2] instanceof Headers)) {
+        cache[2] = new Headers(
+          cache[2] || { "content-type": "text/plain; charset=UTF-8" }
         );
       }
-      return cache2[2];
+      return cache[2];
     }
     return this[getResponseCache]().headers;
   }
@@ -7238,7 +7238,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 var execFileAsync = promisify(execFile);
-var cache = null;
+var cacheMap = /* @__PURE__ */ new Map();
 async function execGit(args, cwd) {
   const { stdout } = await execFileAsync("git", args, {
     cwd,
@@ -7278,17 +7278,24 @@ async function refreshGitState(repoRoot2) {
     }
   } catch {
   }
-  cache = {
+  const state2 = {
     worktrees,
     localBranches,
     unmergedBranches,
     archivedFeatureIds,
     computedAt: Date.now()
   };
-  return cache;
+  cacheMap.set(repoRoot2, state2);
+  return state2;
 }
-function getGitState() {
-  return cache;
+function getGitState(repoPath) {
+  return cacheMap.get(repoPath) ?? null;
+}
+async function getOrRefreshGitState(repoPath) {
+  return cacheMap.get(repoPath) ?? refreshGitState(repoPath);
+}
+function clearGitState(repoPath) {
+  cacheMap.delete(repoPath);
 }
 
 // src/middleware/repo.ts
@@ -7299,48 +7306,134 @@ import path3 from "node:path";
 
 // src/workspaces.ts
 init_cjs_shim();
+import { execFileSync } from "node:child_process";
 import fs2 from "node:fs";
 import os from "node:os";
 import path2 from "node:path";
 var CONFIG_DIR = path2.join(os.homedir(), ".config", "local-review");
 var WORKSPACES_FILE = path2.join(CONFIG_DIR, "workspaces.json");
-function isRealRepo(p) {
-  try {
-    return fs2.statSync(path2.join(p, ".git")).isDirectory();
-  } catch {
-    return false;
-  }
+function atomicWriteSync(filePath, data) {
+  fs2.mkdirSync(path2.dirname(filePath), { recursive: true });
+  const tmpFile = filePath + ".tmp." + process.pid + "." + Date.now();
+  fs2.writeFileSync(tmpFile, data);
+  fs2.renameSync(tmpFile, filePath);
 }
-function getWorkspaces() {
+function readRegistry() {
   try {
     const raw2 = fs2.readFileSync(WORKSPACES_FILE, "utf-8");
     const data = JSON.parse(raw2);
-    if (!Array.isArray(data)) return [];
-    return data.filter(
-      (w) => typeof w === "object" && w !== null && typeof w.name === "string" && typeof w.path === "string" && isRealRepo(w.path)
-    );
+    if (Array.isArray(data)) {
+      const workspaces = data.filter(
+        (w) => typeof w === "object" && w !== null && typeof w.name === "string" && typeof w.path === "string"
+      );
+      const registry = {
+        lastActive: workspaces[0]?.path ?? null,
+        workspaces
+      };
+      atomicWriteSync(WORKSPACES_FILE, JSON.stringify(registry, null, 2));
+      return registry;
+    }
+    if (typeof data === "object" && data !== null && "workspaces" in data && Array.isArray(data.workspaces)) {
+      const reg = data;
+      return {
+        lastActive: typeof reg.lastActive === "string" ? reg.lastActive : null,
+        workspaces: reg.workspaces.filter(
+          (w) => typeof w === "object" && w !== null && typeof w.name === "string" && typeof w.path === "string"
+        )
+      };
+    }
+    return { lastActive: null, workspaces: [] };
   } catch {
-    return [];
+    return { lastActive: null, workspaces: [] };
   }
 }
-function registerWorkspace(repoPath) {
-  const resolved = path2.resolve(
-    repoPath.startsWith("~") ? os.homedir() + repoPath.slice(1) : repoPath
-  );
-  const gitPath = path2.join(resolved, ".git");
+function writeRegistry(registry) {
+  atomicWriteSync(WORKSPACES_FILE, JSON.stringify(registry, null, 2));
+}
+function resolveWorktreePath(inputPath) {
+  const gitPath = path2.join(inputPath, ".git");
   try {
     const stat4 = fs2.statSync(gitPath);
-    if (!stat4.isDirectory()) return false;
+    if (stat4.isDirectory()) return inputPath;
+    try {
+      const commonDir = execFileSync("git", ["rev-parse", "--git-common-dir"], {
+        cwd: inputPath,
+        encoding: "utf-8"
+      }).trim();
+      const resolved = path2.resolve(inputPath, commonDir);
+      return path2.dirname(resolved);
+    } catch {
+      return null;
+    }
   } catch {
-    return false;
+    return null;
   }
+}
+function getWorkspaces() {
+  return readRegistry().workspaces.filter((w) => {
+    try {
+      const stat4 = fs2.statSync(path2.join(w.path, ".git"));
+      return stat4.isDirectory();
+    } catch {
+      return true;
+    }
+  });
+}
+function getDefaultRepo() {
+  const registry = readRegistry();
+  if (registry.lastActive && fs2.existsSync(registry.lastActive)) {
+    return registry.lastActive;
+  }
+  for (const ws of registry.workspaces) {
+    if (fs2.existsSync(ws.path)) {
+      return ws.path;
+    }
+  }
+  return null;
+}
+function setLastActive(repoPath) {
+  const registry = readRegistry();
+  const resolved = path2.resolve(repoPath);
+  if (registry.lastActive === resolved) return;
+  registry.lastActive = resolved;
+  writeRegistry(registry);
+}
+function registerWorkspace(inputPath) {
+  const expanded = inputPath.startsWith("~") ? os.homedir() + inputPath.slice(1) : inputPath;
+  const absPath = path2.resolve(expanded);
+  const resolved = resolveWorktreePath(absPath);
+  if (!resolved) return null;
   const name = path2.basename(resolved);
-  const workspaces = getWorkspaces();
-  if (workspaces.some((w) => w.path === resolved)) return false;
-  workspaces.push({ name, path: resolved });
-  fs2.mkdirSync(CONFIG_DIR, { recursive: true });
-  fs2.writeFileSync(WORKSPACES_FILE, JSON.stringify(workspaces, null, 2));
-  return true;
+  const registry = readRegistry();
+  const existing = registry.workspaces.find((w) => w.path === resolved);
+  if (existing) {
+    registry.lastActive = resolved;
+    writeRegistry(registry);
+    return { added: false, workspace: existing };
+  }
+  const workspace = {
+    name,
+    path: resolved,
+    addedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  registry.workspaces.push(workspace);
+  registry.lastActive = resolved;
+  writeRegistry(registry);
+  return { added: true, workspace };
+}
+function ensureRegistered(repoPath) {
+  const expanded = repoPath.startsWith("~") ? os.homedir() + repoPath.slice(1) : repoPath;
+  const absPath = path2.resolve(expanded);
+  const resolved = resolveWorktreePath(absPath);
+  if (!resolved) return;
+  const registry = readRegistry();
+  if (registry.workspaces.some((w) => w.path === resolved)) return;
+  registry.workspaces.push({
+    name: path2.basename(resolved),
+    path: resolved,
+    addedAt: (/* @__PURE__ */ new Date()).toISOString()
+  });
+  writeRegistry(registry);
 }
 function resolveWorkspace(name) {
   const workspaces = getWorkspaces();
@@ -7356,7 +7449,7 @@ function repoMiddleware(defaultRepoRoot) {
     const repoParam = c.req.query("repo");
     const workspaceParam = c.req.query("workspace");
     if (!repoParam && !workspaceParam) {
-      c.set("repoRoot", defaultRepoRoot);
+      c.set("repoRoot", getDefaultRepo() ?? defaultRepoRoot);
       return next();
     }
     let targetPath = repoParam;
@@ -7441,8 +7534,7 @@ function chooseDefaultTarget(branches) {
   if (branches.includes("origin/master")) return "origin/master";
   return branches[0] || "main";
 }
-function resolveWorktree(requestedPath, repoRoot2) {
-  const state2 = getGitState();
+function resolveWorktree(requestedPath, repoRoot2, state2) {
   const worktrees = state2?.worktrees ?? [];
   if (!requestedPath) {
     const match2 = worktrees.find((wt) => wt.path === repoRoot2);
@@ -7589,17 +7681,17 @@ async function buildCommitList(worktreePath, requestedTarget, requestedSource, l
 }
 function createContextRoute(_repoRoot) {
   const app2 = new Hono2();
-  app2.get("/context", (c) => {
+  app2.get("/context", async (c) => {
     const repoRoot2 = c.get("repoRoot");
     const requestedWorktree = c.req.query("worktree") ?? null;
     const _requestedSource = c.req.query("source") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
-    const state2 = getGitState();
+    const state2 = await getOrRefreshGitState(repoRoot2);
     const rawWorktrees = state2?.worktrees ?? [];
     const localBranches = state2?.localBranches ?? [];
     let selectedWorktree;
     try {
-      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot2);
+      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot2, state2);
     } catch {
       return c.json({ error: "Unknown worktree path" }, 400);
     }
@@ -7627,15 +7719,15 @@ function createContextRoute(_repoRoot) {
     const requestedWorktree = c.req.query("worktree") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
     const requestedSource = c.req.query("source") ?? null;
+    const state2 = await getOrRefreshGitState(repoRoot2);
     let selectedWorktree;
     try {
-      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot2);
+      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot2, state2);
     } catch {
       return c.json({ error: "Unknown worktree path" }, 400);
     }
-    const state2 = getGitState();
-    const localBranches = state2?.localBranches ?? [];
-    const rawWorktrees = state2?.worktrees ?? [];
+    const localBranches = state2.localBranches;
+    const rawWorktrees = state2.worktrees;
     const effective = resolveEffectiveWorktree(
       selectedWorktree,
       requestedSource,
@@ -7660,15 +7752,15 @@ function createContextRoute(_repoRoot) {
     const requestedWorktree = c.req.query("worktree") ?? null;
     const requestedTarget = c.req.query("target") ?? null;
     const requestedSource = c.req.query("source") ?? null;
+    const state2 = await getOrRefreshGitState(repoRoot2);
     let selectedWorktree;
     try {
-      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot2);
+      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot2, state2);
     } catch {
       return c.json({ error: "Unknown worktree path" }, 400);
     }
-    const state2 = getGitState();
-    const localBranches = state2?.localBranches ?? [];
-    const rawWorktrees = state2?.worktrees ?? [];
+    const localBranches = state2.localBranches;
+    const rawWorktrees = state2.worktrees;
     const effective = resolveEffectiveWorktree(
       selectedWorktree,
       requestedSource,
@@ -7695,9 +7787,10 @@ function createContextRoute(_repoRoot) {
     if (!commit) {
       return c.json({ error: "commit is required" }, 400);
     }
+    const state2 = await getOrRefreshGitState(repoRoot2);
     let selectedWorktree;
     try {
-      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot2);
+      selectedWorktree = resolveWorktree(requestedWorktree, repoRoot2, state2);
     } catch {
       return c.json({ error: "Unknown worktree path" }, 400);
     }
@@ -7712,18 +7805,20 @@ function createContextRoute(_repoRoot) {
       return c.json({ error: message }, 500);
     }
   });
-  app2.get("/worktrees", (c) => {
-    const state2 = getGitState();
-    const rawWorktrees = state2?.worktrees ?? [];
-    const worktrees = rawWorktrees.map((wt, idx) => ({
+  app2.get("/worktrees", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const state2 = await getOrRefreshGitState(repoRoot2);
+    const worktrees = state2.worktrees.map((wt, idx) => ({
       path: wt.path,
       branch: wt.branch,
       isMain: idx === 0
     }));
     return c.json({ worktrees });
   });
-  app2.get("/branches", (c) => {
-    const branches = filterActiveBranches(getGitState());
+  app2.get("/branches", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
+    const state2 = await getOrRefreshGitState(repoRoot2);
+    const branches = filterActiveBranches(state2);
     return c.json({ branches });
   });
   return app2;
@@ -7733,7 +7828,7 @@ function createContextRoute(_repoRoot) {
 init_cjs_shim();
 import fs7 from "node:fs/promises";
 import path7 from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync as execFileSync2 } from "node:child_process";
 import os4 from "node:os";
 
 // src/utils.ts
@@ -7744,9 +7839,8 @@ var FEATURE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 function safeId(raw2) {
   return FEATURE_ID_RE.test(raw2) ? raw2 : null;
 }
-function findWorktreePath(featureId) {
-  const gitState = getGitState();
-  if (!gitState) return null;
+async function findWorktreePath(featureId, repoRoot2) {
+  const gitState = await getOrRefreshGitState(repoRoot2);
   const wt = gitState.worktrees.find(
     (w) => path5.basename(w.path) === featureId
   );
@@ -7947,7 +8041,7 @@ function tildefy(p) {
 }
 function getRepoName(repoRoot2) {
   try {
-    const commonDir = execFileSync("git", ["rev-parse", "--git-common-dir"], {
+    const commonDir = execFileSync2("git", ["rev-parse", "--git-common-dir"], {
       cwd: repoRoot2,
       encoding: "utf-8"
     }).trim();
@@ -8017,10 +8111,9 @@ function createFeaturesRoute(_repoRoot) {
     const repoRoot2 = c.get("repoRoot");
     const sessionsDir2 = path7.join(repoRoot2, ".review", "sessions");
     try {
-      const isOverride = repoRoot2 !== _repoRoot;
-      const gitState = isOverride ? await refreshGitState(repoRoot2) : getGitState();
+      let gitState = getGitState(repoRoot2);
       if (!gitState) {
-        return c.json({ features: [], error: "git state not yet computed" });
+        gitState = await refreshGitState(repoRoot2);
       }
       const features = [];
       await Promise.all(
@@ -8147,6 +8240,7 @@ function createFeaturesRoute(_repoRoot) {
         })
       );
       features.push(...branchFeatures);
+      setLastActive(repoRoot2);
       return c.json({ features, repoName: getRepoName(repoRoot2) });
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown error";
@@ -8160,8 +8254,8 @@ function createFeaturesRoute(_repoRoot) {
 init_cjs_shim();
 import fs8 from "node:fs/promises";
 import path8 from "node:path";
-function resolveSpecPath(featureId, repoRoot2) {
-  const wtPath = findWorktreePath(featureId);
+async function resolveSpecPath(featureId, repoRoot2) {
+  const wtPath = await findWorktreePath(featureId, repoRoot2);
   if (wtPath) {
     return path8.join(wtPath, "specs", "active", featureId, "spec.md");
   }
@@ -8175,7 +8269,7 @@ function createSpecRoute(_repoRoot) {
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    const specMdPath = resolveSpecPath(featureId, repoRoot2);
+    const specMdPath = await resolveSpecPath(featureId, repoRoot2);
     if (!specMdPath) {
       return c.json({ error: "Feature not found" }, 404);
     }
@@ -8195,7 +8289,7 @@ function createSpecRoute(_repoRoot) {
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    const specMdPath = resolveSpecPath(featureId, repoRoot2);
+    const specMdPath = await resolveSpecPath(featureId, repoRoot2);
     if (!specMdPath) {
       return c.json({ error: "Feature not found" }, 404);
     }
@@ -8211,11 +8305,12 @@ function createSpecRoute(_repoRoot) {
     }
   });
   app2.get("/:id/diagrams", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
     const featureId = safeId(c.req.param("id"));
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    const wtPath = findWorktreePath(featureId);
+    const wtPath = await findWorktreePath(featureId, repoRoot2);
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }
@@ -8246,7 +8341,8 @@ function createSpecRoute(_repoRoot) {
     if (diagramName.includes("/") || diagramName.includes("\\") || diagramName.includes("..")) {
       return c.json({ error: "Invalid diagram name" }, 400);
     }
-    const wtPath = findWorktreePath(featureId);
+    const repoRoot2 = c.get("repoRoot");
+    const wtPath = await findWorktreePath(featureId, repoRoot2);
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }
@@ -8272,10 +8368,7 @@ function createSpecRoute(_repoRoot) {
     if (!filePath) {
       return c.json({ error: "path is required" }, 400);
     }
-    const gitState = getGitState();
-    if (!gitState) {
-      return c.json({ error: "git state not yet computed" }, 503);
-    }
+    const gitState = await getOrRefreshGitState(repoRoot2);
     let selectedPath;
     if (worktreeParam) {
       const match2 = gitState.worktrees.find((wt) => wt.path === worktreeParam);
@@ -8411,7 +8504,7 @@ function createTasksRoute(_repoRoot) {
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    const wtPath = findWorktreePath(featureId);
+    const wtPath = await findWorktreePath(featureId, repoRoot2);
     let tasksFilePath = null;
     if (wtPath) {
       const openspecDir = await findOpenspecChangeDir(wtPath, featureId);
@@ -8471,12 +8564,13 @@ function createTasksRoute(_repoRoot) {
     return c.json({ tasks });
   });
   app2.put("/:id/tasks", async (c) => {
+    const repoRoot2 = c.get("repoRoot");
     const rawId = c.req.param("id");
     const featureId = safeId(rawId);
     if (!featureId) {
       return c.json({ error: "Invalid feature id" }, 400);
     }
-    const wtPath = findWorktreePath(featureId);
+    const wtPath = await findWorktreePath(featureId, repoRoot2);
     if (!wtPath) {
       return c.json({ error: "Feature worktree not found" }, 404);
     }
@@ -10211,7 +10305,9 @@ function setBroadcaster(fn) {
 function broadcast(event) {
   broadcaster(event);
 }
+var gitWatchers = /* @__PURE__ */ new Map();
 function startGitWatcher(repoRoot2) {
+  if (gitWatchers.has(repoRoot2)) return;
   const gitDir = path10.join(repoRoot2, ".git");
   const watchPaths = [
     path10.join(gitDir, "HEAD"),
@@ -10219,14 +10315,16 @@ function startGitWatcher(repoRoot2) {
     path10.join(gitDir, "worktrees")
   ];
   let debounceTimer = null;
-  esm_default.watch(watchPaths, { ignoreInitial: true, depth: 2 }).on("all", () => {
+  const watcher = esm_default.watch(watchPaths, { ignoreInitial: true, depth: 2 }).on("all", () => {
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
+      clearGitState(repoRoot2);
       void refreshGitState(repoRoot2).then(() => {
         broadcast({ event: WS_EVENTS.FEATURES_UPDATED, data: {} });
       });
     }, 300);
   });
+  gitWatchers.set(repoRoot2, watcher);
 }
 function startSessionWatcher(sessionsDir2) {
   esm_default.watch(sessionsDir2, {
@@ -10277,10 +10375,14 @@ app.get("/api/workspaces", (c) => c.json({ workspaces: getWorkspaces() }));
 app.post("/api/workspaces/register", async (c) => {
   const body = await c.req.json();
   if (!body.path) return c.json({ error: "path required" }, 400);
-  const added = registerWorkspace(body.path);
-  return c.json({ ok: true, added });
+  const result = registerWorkspace(body.path);
+  if (!result) return c.json({ ok: false, error: "not a git repository" }, 400);
+  if (result.added) {
+    startGitWatcher(result.workspace.path);
+  }
+  return c.json({ ok: true, added: result.added, workspace: result.workspace });
 });
-registerWorkspace(repoRoot);
+ensureRegistered(repoRoot);
 app.post("/api/resolver/cold-start", (c) => {
   void coldStart(repoRoot);
   return c.json({ ok: true, message: "Cold-start initiated" });
@@ -10348,10 +10450,12 @@ if (!isDev) {
   });
   app.use("/*", serveStatic({ root: uiDist, rewriteRequestPath: (p) => p }));
 }
+var effectiveDefault = getDefaultRepo() ?? repoRoot;
+console.log(`[local-review] Default workspace: ${effectiveDefault}`);
 console.log("[local-review] Warming git state cache...");
-await refreshGitState(repoRoot);
+await refreshGitState(effectiveDefault);
 console.log("[local-review] Git state ready.");
-startGitWatcher(repoRoot);
+startGitWatcher(effectiveDefault);
 startSessionWatcher(sessionsDir);
 var port = parseInt(process.env.PORT ?? "", 10) || 37003;
 var honoListener = getRequestListener(app.fetch);

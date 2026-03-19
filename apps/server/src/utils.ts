@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { getGitState } from "./git.js";
+import { getOrRefreshGitState } from "./git.js";
 
 const FEATURE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 
@@ -10,9 +10,11 @@ export function safeId(raw: string): string | null {
 }
 
 /** Find a worktree path by feature ID (basename of worktree path). */
-export function findWorktreePath(featureId: string): string | null {
-  const gitState = getGitState();
-  if (!gitState) return null;
+export async function findWorktreePath(
+  featureId: string,
+  repoRoot: string,
+): Promise<string | null> {
+  const gitState = await getOrRefreshGitState(repoRoot);
   const wt = gitState.worktrees.find(
     (w) => path.basename(w.path) === featureId,
   );
