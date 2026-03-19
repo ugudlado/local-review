@@ -107,12 +107,10 @@ export class CommentManager implements vscode.Disposable {
               reply.text.trim(),
             );
             await serverClient.createThread(featureId, sessionThread);
-            this._threadMapper.register(sessionThread.id, thread);
 
-            // Update the VS Code thread with the saved comment
-            thread.comments = [this._createComment(sessionThread.messages[0])];
-            thread.collapsibleState =
-              vscode.CommentThreadCollapsibleState.Expanded;
+            // Dispose the temporary VS Code thread — the WS reconcile
+            // will recreate it from server data (single source of truth)
+            thread.dispose();
 
             outputChannel.appendLine(
               `Created thread ${sessionThread.id} on ${sessionThread.anchor.path}:${sessionThread.anchor.line}`,

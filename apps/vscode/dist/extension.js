@@ -4290,9 +4290,7 @@ var CommentManager = class {
               reply.text.trim()
             );
             await serverClient.createThread(featureId, sessionThread);
-            this._threadMapper.register(sessionThread.id, thread);
-            thread.comments = [this._createComment(sessionThread.messages[0])];
-            thread.collapsibleState = vscode4.CommentThreadCollapsibleState.Expanded;
+            thread.dispose();
             outputChannel.appendLine(
               `Created thread ${sessionThread.id} on ${sessionThread.anchor.path}:${sessionThread.anchor.line}`
             );
