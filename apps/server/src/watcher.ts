@@ -2,7 +2,7 @@ import chokidar from "chokidar";
 import fs from "node:fs/promises";
 import path from "node:path";
 import type { FSWatcher } from "chokidar";
-import { clearGitState, refreshGitState } from "./git.js";
+import { clearGitState, refreshGitState } from "./git";
 
 /** Well-known WebSocket event names shared between server and client. */
 export const WS_EVENTS = {
@@ -68,15 +68,6 @@ export function startGitWatcher(repoRoot: string): void {
   gitWatchers.set(repoRoot, watcher);
 }
 
-/** Stop watching a specific repo. */
-export function stopGitWatcher(repoRoot: string): void {
-  const watcher = gitWatchers.get(repoRoot);
-  if (watcher) {
-    void watcher.close();
-    gitWatchers.delete(repoRoot);
-  }
-}
-
 /** Per-workspace session watcher instances. Keyed by workspace name. */
 const sessionWatchers = new Map<string, FSWatcher>();
 
@@ -113,13 +104,4 @@ export function startSessionWatcher(
     });
 
   sessionWatchers.set(workspaceName, watcher);
-}
-
-/** Stop watching a workspace's sessions directory. */
-export function stopSessionWatcher(workspaceName: string): void {
-  const watcher = sessionWatchers.get(workspaceName);
-  if (watcher) {
-    void watcher.close();
-    sessionWatchers.delete(workspaceName);
-  }
 }

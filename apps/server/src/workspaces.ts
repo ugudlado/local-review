@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { atomicWriteSync } from "./fs-utils.js";
+import { atomicWriteSync } from "./fs-utils";
 
 export interface Workspace {
   name: string;

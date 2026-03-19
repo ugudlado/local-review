@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { AppEnv } from "../types.js";
-import { findOpenspecChangeDir, findWorktreePath, safeId } from "../utils.js";
+import type { AppEnv } from "../types";
+import { findOpenspecChangeDir, findWorktreePath, safeId } from "../utils";
 
 interface ParsedTask {
   id: string;

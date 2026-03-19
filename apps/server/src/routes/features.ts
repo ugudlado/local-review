@@ -1,13 +1,13 @@
 import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { getGitState, refreshGitState } from "../git.js";
-import { getSessionsDir } from "../sessions.js";
-import { setLastActive } from "../workspaces.js";
+import { getGitState, refreshGitState } from "../git";
+import { getSessionsDir } from "../sessions";
+import { setLastActive } from "../workspaces";
 import os from "node:os";
-import type { AppEnv } from "../types.js";
-import { findOpenspecChangeDir } from "../utils.js";
-import { THREAD_STATUS } from "./sessions.js";
+import type { AppEnv } from "../types";
+import { findOpenspecChangeDir } from "../utils";
+import { THREAD_STATUS } from "./sessions";
 
 const HOME = os.homedir();
 function tildefy(p: string): string {

@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { getOrRefreshGitState } from "../git.js";
-import type { AppEnv } from "../types.js";
-import { findWorktreePath, safeId } from "../utils.js";
+import { getOrRefreshGitState } from "../git";
+import type { AppEnv } from "../types";
+import { findWorktreePath, safeId } from "../utils";
 
 /** Resolve the spec.md path: active worktree first, then archived. */
 async function resolveSpecPath(

@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { getOrRefreshGitState } from "./git.js";
+import { getOrRefreshGitState } from "./git";
 
 const FEATURE_ID_RE = /^[a-zA-Z0-9._-]+$/;
 

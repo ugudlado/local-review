@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import os from "node:os";
-import type { GitState } from "../git.js";
-import { execFileAsync, execGit, getOrRefreshGitState } from "../git.js";
-import type { AppEnv } from "../types.js";
+import type { GitState } from "../git";
+import { execFileAsync, execGit, getOrRefreshGitState } from "../git";
+import type { AppEnv } from "../types";
 
 // ---------------------------------------------------------------------------
 // Helpers

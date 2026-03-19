@@ -7,34 +7,34 @@ import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer, type WebSocket } from "ws";
-import { refreshGitState } from "./git.js";
-import { repoMiddleware } from "./middleware/repo.js";
+import { refreshGitState } from "./git";
+import { repoMiddleware } from "./middleware/repo";
 import {
   getSessionsDir,
   migrateRepoSessions,
   readSessionFile,
-} from "./sessions.js";
-import type { AppEnv } from "./types.js";
+} from "./sessions";
+import type { AppEnv } from "./types";
 import {
   ensureRegistered,
   getDefaultRepo,
   getWorkspaces,
   registerWorkspace,
-} from "./workspaces.js";
+} from "./workspaces";
 import {
   coldStart as resolverColdStart,
   getStatus as resolverStatus,
-} from "./resolver-daemon.js";
-import { createContextRoute } from "./routes/context.js";
-import { createFeaturesRoute } from "./routes/features.js";
-import { createSessionsRoute } from "./routes/sessions.js";
-import { createSpecRoute } from "./routes/spec.js";
-import { createTasksRoute } from "./routes/tasks.js";
+} from "./resolver-daemon";
+import { createContextRoute } from "./routes/context";
+import { createFeaturesRoute } from "./routes/features";
+import { createSessionsRoute } from "./routes/sessions";
+import { createSpecRoute } from "./routes/spec";
+import { createTasksRoute } from "./routes/tasks";
 import {
   setBroadcaster,
   startGitWatcher,
   startSessionWatcher,
-} from "./watcher.js";
+} from "./watcher";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../../..");
@@ -150,7 +150,7 @@ app.post("/api/resolver/resolve", async (c) => {
   });
 
   try {
-    const { resolve: daemonResolve } = await import("./resolver-daemon.js");
+    const { resolve: daemonResolve } = await import("./resolver-daemon");
     const result = await daemonResolve(
       sessionFile,
       sessionType,

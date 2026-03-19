@@ -1,12 +1,12 @@
 import { Hono } from "hono";
-import type { AppEnv } from "../types.js";
+import type { AppEnv } from "../types";
 import {
   deleteSessionFile,
   readSessionFile,
   writeSessionFile,
-} from "../sessions.js";
-import { safeId } from "../utils.js";
-import type { Broadcaster } from "../watcher.js";
+} from "../sessions";
+import { safeId } from "../utils";
+import type { Broadcaster } from "../watcher";
 
 // ---------------------------------------------------------------------------
 // Thread status and severity enums

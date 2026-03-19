@@ -2,12 +2,8 @@ import type { Context, Next } from "hono";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { AppEnv } from "../types.js";
-import {
-  getDefaultRepo,
-  getWorkspaces,
-  resolveWorkspace,
-} from "../workspaces.js";
+import type { AppEnv } from "../types";
+import { getDefaultRepo, getWorkspaces, resolveWorkspace } from "../workspaces";
 
 /** Resolve workspaceName from workspace registry, falling back to path.basename(). */
 function resolveWorkspaceName(repoRoot: string): string {

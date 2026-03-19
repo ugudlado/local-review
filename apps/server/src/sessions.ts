@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { atomicWriteSync } from "./fs-utils.js";
+import { atomicWriteSync } from "./fs-utils";
 
 /** Lazily resolved to support test injection via setConfigDir(). */
 let configDir: string | null = null;
