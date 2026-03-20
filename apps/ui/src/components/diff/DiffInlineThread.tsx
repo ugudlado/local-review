@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -192,15 +192,6 @@ export function DiffInlineThread({
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [collapsed, setCollapsed] = useState(() => isClosed(thread.status));
 
-  // Auto-collapse/expand on status change
-  const prevStatusRef = useRef(thread.status);
-  useEffect(() => {
-    if (prevStatusRef.current !== thread.status) {
-      prevStatusRef.current = thread.status;
-      setCollapsed(isClosed(thread.status));
-    }
-  }, [thread.status]);
-
   const firstMessage = thread.messages[0];
   const replies = thread.messages.slice(1);
   const styles = getStatusStyles(thread);
@@ -215,6 +206,8 @@ export function DiffInlineThread({
   };
 
   const handleStatusChange = (status: ThreadStatus) => {
+    // Auto-collapse/expand at the point of action — no useEffect needed
+    setCollapsed(isClosed(status));
     onStatusChange?.(thread.id, status);
   };
 
