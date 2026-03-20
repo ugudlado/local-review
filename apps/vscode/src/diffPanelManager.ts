@@ -4,8 +4,12 @@ import {
   SCHEME_BASE,
   SCHEME_EMPTY,
 } from "./baseContentProvider";
-import { ChangedFilesTreeProvider } from "./changedFilesTree";
-import type { DiffFileItem } from "./changedFilesTree";
+import {
+  ChangedFilesTreeProvider,
+  cycleMode,
+  parseFileViewMode,
+} from "./changedFilesTree";
+import type { TreeNode } from "./changedFilesTree";
 import { parseDiffFileList } from "./diffParser";
 import type { DiffFileEntry } from "./diffParser";
 import { ReviewFileDecorationProvider } from "./fileDecorationProvider";
@@ -31,7 +35,8 @@ export class DiffPanelManager implements vscode.Disposable {
   private _decorationDisposable: vscode.Disposable;
   private _workspaceRoot: string;
   private _outputChannel: vscode.OutputChannel;
-  private _treeView: vscode.TreeView<DiffFileItem>;
+  private _treeView: vscode.TreeView<TreeNode>;
+  private _context: vscode.ExtensionContext;
 
   get treeProvider(): ChangedFilesTreeProvider {
     return this._treeProvider;
@@ -41,19 +46,47 @@ export class DiffPanelManager implements vscode.Disposable {
     workspaceRoot: string,
     baseProvider: BaseContentProvider,
     outputChannel: vscode.OutputChannel,
+    context: vscode.ExtensionContext,
   ) {
     this._workspaceRoot = workspaceRoot;
     this._baseProvider = baseProvider;
     this._outputChannel = outputChannel;
+    this._context = context;
     this._treeProvider = new ChangedFilesTreeProvider();
     this._decorationProvider = new ReviewFileDecorationProvider();
     this._decorationDisposable = vscode.window.registerFileDecorationProvider(
       this._decorationProvider,
     );
 
+    // Restore persisted view mode
+    const savedMode = parseFileViewMode(
+      context.workspaceState.get<string>("fileViewMode"),
+    );
+    this._treeProvider.setMode(savedMode);
+    void vscode.commands.executeCommand(
+      "setContext",
+      "local-review.fileViewMode",
+      savedMode,
+    );
+
     this._treeView = vscode.window.createTreeView("localReview.changedFiles", {
       treeDataProvider: this._treeProvider,
     });
+  }
+
+  /** Toggle view mode: flat ↔ compact-tree. */
+  toggleViewMode(): void {
+    const nextMode = cycleMode(this._treeProvider.mode);
+    this._treeProvider.setMode(nextMode);
+
+    void this._context.workspaceState.update("fileViewMode", nextMode);
+    void vscode.commands.executeCommand(
+      "setContext",
+      "local-review.fileViewMode",
+      nextMode,
+    );
+
+    this._outputChannel.appendLine(`File view mode: ${nextMode}`);
   }
 
   /**
@@ -101,9 +134,8 @@ export class DiffPanelManager implements vscode.Disposable {
     const firstItem = this._treeProvider.getFirstFile();
     if (firstItem) {
       void this._treeView.reveal(firstItem, { focus: true });
+      await this.openFile(firstItem);
     }
-
-    await this.openFile(this._files[0]);
   }
 
   async openFile(file: DiffFileRef): Promise<void> {

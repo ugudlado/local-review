@@ -47,8 +47,8 @@ interface FileSidebarProps {
   visibleFiles: DiffFile[];
   selectedFilePath: string;
   onFileSelect: (path: string) => void;
-  showFolderTree: boolean;
-  onFolderTreeChange: (v: boolean) => void;
+  fileViewMode: "flat" | "compact-tree";
+  onFileViewModeChange: (mode: "flat" | "compact-tree") => void;
   unresolvedThreadCountByFile: Map<string, number>;
   changeCountByFile: Map<string, number>;
   threads?: ReviewThread[];
@@ -76,8 +76,8 @@ export function FileSidebar({
   visibleFiles,
   selectedFilePath,
   onFileSelect,
-  showFolderTree,
-  onFolderTreeChange,
+  fileViewMode,
+  onFileViewModeChange,
   unresolvedThreadCountByFile,
   changeCountByFile,
   threads,
@@ -130,8 +130,31 @@ export function FileSidebar({
       }
     }
 
+    // Compact-tree: merge single-child folder chains (bottom-up DFS)
+    if (fileViewMode === "compact-tree") {
+      const compact = (id: string): void => {
+        const node = items[id];
+        if (!node || node.kind !== "folder") return;
+        // Recurse children first (post-order)
+        for (const cid of [...node.children]) compact(cid);
+        // Absorb single-child folder chains
+        while (
+          node.children.length === 1 &&
+          items[node.children[0]]?.kind === "folder"
+        ) {
+          const childId = node.children[0];
+          const child = items[childId] as Extract<TreeItem, { kind: "folder" }>;
+          node.name = node.name + "/" + child.name;
+          node.children = child.children;
+          delete items[childId];
+        }
+      };
+      const root = items["root"] as Extract<TreeItem, { kind: "folder" }>;
+      for (const cid of [...root.children]) compact(cid);
+    }
+
     return items;
-  }, [visibleFiles]);
+  }, [visibleFiles, fileViewMode]);
 
   // O(1) lookup from file path → index in visibleFiles (avoids O(n) indexOf per tree item)
   const fileIndexMap = useMemo(
@@ -257,15 +280,23 @@ export function FileSidebar({
               </span>
               <KeyboardHint label="↑↓" />
             </div>
-            <label className="flex items-center gap-1 text-[10px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
-              <input
-                type="checkbox"
-                checked={showFolderTree}
-                onChange={(e) => onFolderTreeChange(e.target.checked)}
-                className="accent-indigo-500"
-              />
-              tree
-            </label>
+            <button
+              type="button"
+              aria-label={
+                fileViewMode === "flat"
+                  ? "Switch to tree view"
+                  : "Switch to flat list"
+              }
+              title={fileViewMode === "flat" ? "Tree view" : "Flat list"}
+              onClick={() =>
+                onFileViewModeChange(
+                  fileViewMode === "flat" ? "compact-tree" : "flat",
+                )
+              }
+              className="rounded px-1 py-0.5 text-[10px] leading-none text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+            >
+              {fileViewMode === "flat" ? "⊞" : "≡"}
+            </button>
           </div>
 
           <div ref={fileListRef} className="flex-1 overflow-auto py-1">
@@ -274,7 +305,7 @@ export function FileSidebar({
                 No changed files
               </p>
             )}
-            {visibleFiles.length > 0 && showFolderTree && (
+            {visibleFiles.length > 0 && fileViewMode !== "flat" && (
               <div
                 {...tree.getContainerProps()}
                 tabIndex={0}
@@ -319,7 +350,6 @@ export function FileSidebar({
                           ? "var(--accent-rose)"
                           : undefined;
                   const fileNameWeight = changeCount > 20 ? "font-medium" : "";
-                  const fileNameClass = "";
                   return (
                     <div key={item.getId()}>
                       <button
@@ -343,7 +373,7 @@ export function FileSidebar({
                         <div className="flex min-w-0 items-center gap-1.5">
                           <FileIcon status={file.status} />
                           <span
-                            className={`min-w-0 truncate font-mono ${fileNameWeight} ${fileNameClass}`}
+                            className={`min-w-0 truncate font-mono ${fileNameWeight}`}
                             style={{ color: fileNameColor }}
                           >
                             {data.name}
@@ -370,7 +400,7 @@ export function FileSidebar({
               </div>
             )}
             {visibleFiles.length > 0 &&
-              !showFolderTree &&
+              fileViewMode === "flat" &&
               visibleFiles.map((file, index) => {
                 const active = file.path === selectedFilePath;
                 const keyboardActive = keyboardSelectedIndex === index;
@@ -386,7 +416,6 @@ export function FileSidebar({
                         ? "var(--accent-rose)"
                         : undefined;
                 const fileNameWeight = changeCount > 20 ? "font-medium" : "";
-                const fileNameClass = "";
                 return (
                   <div key={file.path}>
                     <button
@@ -408,7 +437,7 @@ export function FileSidebar({
                       <div className="flex min-w-0 items-center gap-1.5">
                         <FileIcon status={file.status} />
                         <span
-                          className={`truncate font-mono ${fileNameWeight} ${fileNameClass}`}
+                          className={`truncate font-mono ${fileNameWeight}`}
                           style={{ color: fileNameColor }}
                         >
                           {fileName(file.path)}

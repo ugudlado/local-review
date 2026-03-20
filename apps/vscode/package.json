@@ -74,17 +74,13 @@
       {
         "command": "local-review.goToThread",
         "title": "Local Review: Go to Thread"
+      },
+      {
+        "command": "local-review.toggleFileViewMode",
+        "title": "Local Review: Toggle Tree/Flat View",
+        "icon": "$(list-tree)"
       }
     ],
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "local-review",
-          "title": "Local Review",
-          "icon": "$(comment-discussion)"
-        }
-      ]
-    },
     "views": {
       "scm": [
         {
@@ -125,12 +121,21 @@
         {
           "command": "local-review.goToThread",
           "when": "false"
+        },
+        {
+          "command": "local-review.toggleFileViewMode",
+          "when": "false"
         }
       ],
       "view/title": [
         {
           "command": "local-review.refreshDiff",
           "when": "view == localReview.changedFiles",
+          "group": "navigation"
+        },
+        {
+          "command": "local-review.toggleFileViewMode",
+          "when": "view == localReview.changedFiles && local-review.hasDiffPanel",
           "group": "navigation"
         }
       ],

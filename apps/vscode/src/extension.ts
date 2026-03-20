@@ -63,6 +63,7 @@ export function activate(context: vscode.ExtensionContext): void {
     workspaceRoot,
     baseProvider,
     outputChannel,
+    context,
   );
 
   // Threads tree view — grouped by status (below Changed Files)
@@ -365,6 +366,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
     vscode.commands.registerCommand("local-review.closeDiff", () => {
       diffPanelManager.close();
+    }),
+
+    // View mode toggle: flat ↔ compact-tree
+    vscode.commands.registerCommand("local-review.toggleFileViewMode", () => {
+      diffPanelManager.toggleViewMode();
     }),
   );
 

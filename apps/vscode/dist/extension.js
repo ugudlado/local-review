@@ -888,6 +888,13 @@ var ReviewFileDecorationProvider = class {
 };
 
 // src/changedFilesTree.ts
+var VALID_MODES = ["flat", "compact-tree"];
+function parseFileViewMode(raw) {
+  return typeof raw === "string" && VALID_MODES.includes(raw) ? raw : "flat";
+}
+function cycleMode(current) {
+  return current === "flat" ? "compact-tree" : "flat";
+}
 var EXT_ICON_MAP = {
   ts: "symbol-file",
   tsx: "symbol-file",
@@ -924,13 +931,98 @@ var STATUS_LABELS = {
   M: "Modified",
   R: "Renamed"
 };
+function buildFolderTree(files) {
+  if (files.length === 0) return [];
+  const sorted = [...files].sort((a, b) => a.path.localeCompare(b.path));
+  const folderMap = /* @__PURE__ */ new Map();
+  const rootChildren = [];
+  for (const file of sorted) {
+    const segments = file.path.split("/");
+    let parentChildren = rootChildren;
+    for (let i = 0; i < segments.length - 1; i++) {
+      const folderPath = segments.slice(0, i + 1).join("/");
+      let folder = folderMap.get(folderPath);
+      if (!folder) {
+        folder = {
+          kind: "folder",
+          label: segments[i],
+          folderPath,
+          children: [],
+          openThreads: 0
+        };
+        folderMap.set(folderPath, folder);
+        parentChildren.push(folder);
+      }
+      parentChildren = folder.children;
+    }
+    parentChildren.push(file);
+  }
+  return rootChildren;
+}
+function compactFolders(nodes) {
+  return nodes.map((node) => {
+    if (node.kind === "file") return node;
+    node.children = compactFolders(node.children);
+    while (node.children.length === 1 && node.children[0].kind === "folder") {
+      const child = node.children[0];
+      node.label = node.label + "/" + child.label;
+      node.folderPath = child.folderPath;
+      node.children = child.children;
+    }
+    return node;
+  });
+}
+function aggregateThreadCounts(nodes) {
+  for (const node of nodes) {
+    if (node.kind === "folder") {
+      aggregateThreadCounts(node.children);
+      node.openThreads = node.children.reduce(
+        (sum, child) => sum + (child.openThreads ?? 0),
+        0
+      );
+    }
+  }
+}
+function buildParentMap(nodes, parent, map) {
+  for (const node of nodes) {
+    map.set(node, parent);
+    if (node.kind === "folder") {
+      buildParentMap(node.children, node, map);
+    }
+  }
+}
+function findFirstFile(nodes) {
+  for (const node of nodes) {
+    if (node.kind === "file") return node;
+    if (node.kind === "folder") {
+      const found = findFirstFile(node.children);
+      if (found) return found;
+    }
+  }
+  return void 0;
+}
 var ChangedFilesTreeProvider = class {
   _onDidChangeTreeData = new vscode7.EventEmitter();
   onDidChangeTreeData = this._onDidChangeTreeData.event;
+  _mode = "flat";
   _files = [];
+  _rootChildren = [];
+  _parentMap = /* @__PURE__ */ new Map();
+  get mode() {
+    return this._mode;
+  }
+  setMode(mode) {
+    if (this._mode === mode) return;
+    this._mode = mode;
+    this._rebuild();
+  }
   setFiles(files) {
-    this._files = files.map((f) => ({ ...f, openThreads: 0 }));
-    this._onDidChangeTreeData.fire();
+    this._files = files.map((f) => ({
+      ...f,
+      kind: "file",
+      openThreads: 0
+    }));
+    this._rebuild();
   }
   updateThreadCounts(threads) {
     const counts = /* @__PURE__ */ new Map();
@@ -947,15 +1039,64 @@ var ChangedFilesTreeProvider = class {
         changed = true;
       }
     }
-    if (changed) this._onDidChangeTreeData.fire();
+    if (!changed) return;
+    if (this._mode !== "flat") {
+      aggregateThreadCounts(this._rootChildren);
+    }
+    this._onDidChangeTreeData.fire();
   }
   get fileCount() {
     return this._files.length;
   }
   getFirstFile() {
-    return this._files[0];
+    if (this._mode === "flat") return this._files[0];
+    return findFirstFile(this._rootChildren);
   }
+  // -----------------------------------------------------------------------
+  // TreeDataProvider interface
+  // -----------------------------------------------------------------------
   getTreeItem(element) {
+    if (element.kind === "folder") {
+      return this._getFolderTreeItem(element);
+    }
+    return this._getFileTreeItem(element);
+  }
+  getChildren(element) {
+    if (!element) return this._rootChildren;
+    if (element.kind === "folder") return element.children;
+    return [];
+  }
+  getParent(element) {
+    return this._parentMap.get(element);
+  }
+  // -----------------------------------------------------------------------
+  // Private
+  // -----------------------------------------------------------------------
+  _rebuild() {
+    if (this._mode === "flat") {
+      this._rootChildren = this._files;
+    } else {
+      this._rootChildren = compactFolders(buildFolderTree(this._files));
+      aggregateThreadCounts(this._rootChildren);
+    }
+    this._parentMap.clear();
+    buildParentMap(this._rootChildren, void 0, this._parentMap);
+    this._onDidChangeTreeData.fire();
+  }
+  _getFolderTreeItem(folder) {
+    const item = new vscode7.TreeItem(
+      folder.label,
+      vscode7.TreeItemCollapsibleState.Expanded
+    );
+    item.iconPath = vscode7.ThemeIcon.Folder;
+    item.contextValue = "folder";
+    if (folder.openThreads > 0) {
+      item.description = `${folder.openThreads} comment${folder.openThreads > 1 ? "s" : ""}`;
+    }
+    item.tooltip = folder.folderPath;
+    return item;
+  }
+  _getFileTreeItem(element) {
     const label = element.path.split("/").pop() ?? element.path;
     const item = new vscode7.TreeItem(
       label,
@@ -963,7 +1104,7 @@ var ChangedFilesTreeProvider = class {
     );
     item.resourceUri = makeReviewFileUri(element.path);
     const parts = [];
-    if (element.path.includes("/")) {
+    if (this._mode === "flat" && element.path.includes("/")) {
       parts.push(element.path.slice(0, element.path.lastIndexOf("/")));
     }
     if (element.additions + element.deletions > 0) {
@@ -1000,12 +1141,6 @@ var ChangedFilesTreeProvider = class {
     }
     item.tooltip = tooltipLines.join("\n");
     return item;
-  }
-  getParent(_element) {
-    return void 0;
-  }
-  getChildren() {
-    return this._files;
   }
 };
 
@@ -1113,21 +1248,44 @@ var DiffPanelManager = class {
   _workspaceRoot;
   _outputChannel;
   _treeView;
+  _context;
   get treeProvider() {
     return this._treeProvider;
   }
-  constructor(workspaceRoot, baseProvider, outputChannel) {
+  constructor(workspaceRoot, baseProvider, outputChannel, context) {
     this._workspaceRoot = workspaceRoot;
     this._baseProvider = baseProvider;
     this._outputChannel = outputChannel;
+    this._context = context;
     this._treeProvider = new ChangedFilesTreeProvider();
     this._decorationProvider = new ReviewFileDecorationProvider();
     this._decorationDisposable = vscode8.window.registerFileDecorationProvider(
       this._decorationProvider
     );
+    const savedMode = parseFileViewMode(
+      context.workspaceState.get("fileViewMode")
+    );
+    this._treeProvider.setMode(savedMode);
+    void vscode8.commands.executeCommand(
+      "setContext",
+      "local-review.fileViewMode",
+      savedMode
+    );
     this._treeView = vscode8.window.createTreeView("localReview.changedFiles", {
       treeDataProvider: this._treeProvider
     });
+  }
+  /** Toggle view mode: flat ↔ compact-tree. */
+  toggleViewMode() {
+    const nextMode = cycleMode(this._treeProvider.mode);
+    this._treeProvider.setMode(nextMode);
+    void this._context.workspaceState.update("fileViewMode", nextMode);
+    void vscode8.commands.executeCommand(
+      "setContext",
+      "local-review.fileViewMode",
+      nextMode
+    );
+    this._outputChannel.appendLine(`File view mode: ${nextMode}`);
   }
   /**
    * Populate the sidebar tree with changed files without opening a diff tab.
@@ -1166,8 +1324,8 @@ var DiffPanelManager = class {
     const firstItem = this._treeProvider.getFirstFile();
     if (firstItem) {
       void this._treeView.reveal(firstItem, { focus: true });
+      await this.openFile(firstItem);
     }
-    await this.openFile(this._files[0]);
   }
   async openFile(file) {
     let oldUri;
@@ -1355,7 +1513,8 @@ function activate(context) {
   const diffPanelManager = new DiffPanelManager(
     workspaceRoot,
     baseProvider,
-    outputChannel
+    outputChannel,
+    context
   );
   const threadsTree = new ThreadsTreeProvider();
   const threadsTreeView = vscode10.window.createTreeView("localReview.threads", {
@@ -1615,6 +1774,10 @@ function activate(context) {
     }),
     vscode10.commands.registerCommand("local-review.closeDiff", () => {
       diffPanelManager.close();
+    }),
+    // View mode toggle: flat ↔ compact-tree
+    vscode10.commands.registerCommand("local-review.toggleFileViewMode", () => {
+      diffPanelManager.toggleViewMode();
     })
   );
   void init();
