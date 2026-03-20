@@ -2440,7 +2440,7 @@ var require_extension = __commonJS({
 var require_websocket = __commonJS({
   "../../node_modules/.pnpm/ws@8.19.0_bufferutil@4.0.9/node_modules/ws/lib/websocket.js"(exports2, module2) {
     "use strict";
-    var EventEmitter5 = require("events");
+    var EventEmitter6 = require("events");
     var https2 = require("https");
     var http2 = require("http");
     var net = require("net");
@@ -2472,7 +2472,7 @@ var require_websocket = __commonJS({
     var protocolVersions = [8, 13];
     var readyStates = ["CONNECTING", "OPEN", "CLOSING", "CLOSED"];
     var subprotocolRegex = /^[!#$%&'*+\-.0-9A-Z^_`|a-z~]+$/;
-    var WebSocket2 = class _WebSocket extends EventEmitter5 {
+    var WebSocket2 = class _WebSocket extends EventEmitter6 {
       /**
        * Create a new `WebSocket`.
        *
@@ -3469,7 +3469,7 @@ var require_subprotocol = __commonJS({
 var require_websocket_server = __commonJS({
   "../../node_modules/.pnpm/ws@8.19.0_bufferutil@4.0.9/node_modules/ws/lib/websocket-server.js"(exports2, module2) {
     "use strict";
-    var EventEmitter5 = require("events");
+    var EventEmitter6 = require("events");
     var http2 = require("http");
     var { Duplex } = require("stream");
     var { createHash: createHash2 } = require("crypto");
@@ -3482,7 +3482,7 @@ var require_websocket_server = __commonJS({
     var RUNNING = 0;
     var CLOSING = 1;
     var CLOSED = 2;
-    var WebSocketServer2 = class extends EventEmitter5 {
+    var WebSocketServer2 = class extends EventEmitter6 {
       /**
        * Create a `WebSocketServer` instance.
        *
@@ -3865,7 +3865,7 @@ __export(extension_exports, {
   deactivate: () => deactivate
 });
 module.exports = __toCommonJS(extension_exports);
-var vscode9 = __toESM(require("vscode"));
+var vscode10 = __toESM(require("vscode"));
 var import_child_process3 = require("child_process");
 var import_util3 = require("util");
 var path2 = __toESM(require("path"));
@@ -4722,12 +4722,83 @@ var WsClient = class _WsClient {
 };
 
 // src/diffPanelManager.ts
-var vscode8 = __toESM(require("vscode"));
+var vscode9 = __toESM(require("vscode"));
 
 // src/changedFilesTree.ts
+var vscode8 = __toESM(require("vscode"));
+
+// src/fileDecorationProvider.ts
 var vscode7 = __toESM(require("vscode"));
+var SCHEME_REVIEW_FILE = "local-review-file";
+var STATUS_DECORATIONS = {
+  A: {
+    badge: "A",
+    color: "gitDecoration.addedResourceForeground",
+    tooltip: "Added"
+  },
+  D: {
+    badge: "D",
+    color: "gitDecoration.deletedResourceForeground",
+    tooltip: "Deleted"
+  },
+  M: {
+    badge: "M",
+    color: "gitDecoration.modifiedResourceForeground",
+    tooltip: "Modified"
+  },
+  R: {
+    badge: "R",
+    color: "gitDecoration.renamedResourceForeground",
+    tooltip: "Renamed"
+  }
+};
+function makeReviewFileUri(relativePath) {
+  return vscode7.Uri.from({
+    scheme: SCHEME_REVIEW_FILE,
+    path: "/" + relativePath
+  });
+}
+var ReviewFileDecorationProvider = class {
+  _onDidChange = new vscode7.EventEmitter();
+  onDidChangeFileDecorations = this._onDidChange.event;
+  _decorations = /* @__PURE__ */ new Map();
+  _uris = [];
+  setFiles(files) {
+    this._decorations.clear();
+    this._uris = [];
+    for (const file of files) {
+      const uri = makeReviewFileUri(file.path);
+      const def = STATUS_DECORATIONS[file.status];
+      const tooltip = file.status === "R" ? `Renamed: ${file.oldPath} \u2192 ${file.newPath}` : def.tooltip;
+      this._decorations.set(
+        uri.path,
+        new vscode7.FileDecoration(
+          def.badge,
+          tooltip,
+          new vscode7.ThemeColor(def.color)
+        )
+      );
+      this._uris.push(uri);
+    }
+    this._onDidChange.fire(this._uris);
+  }
+  clear() {
+    const prev = this._uris;
+    this._decorations.clear();
+    this._uris = [];
+    if (prev.length > 0) {
+      this._onDidChange.fire(prev);
+    }
+  }
+  provideFileDecoration(uri) {
+    if (uri.scheme !== SCHEME_REVIEW_FILE) return void 0;
+    return this._decorations.get(uri.path);
+  }
+};
+
+// src/changedFilesTree.ts
 var ChangedFilesTreeProvider = class {
-  _onDidChangeTreeData = new vscode7.EventEmitter();
+  _onDidChangeTreeData = new vscode8.EventEmitter();
   onDidChangeTreeData = this._onDidChangeTreeData.event;
   _files = [];
   setFiles(files) {
@@ -4759,26 +4830,36 @@ var ChangedFilesTreeProvider = class {
   }
   getTreeItem(element) {
     const label = element.path.split("/").pop() ?? element.path;
-    const item = new vscode7.TreeItem(
+    const item = new vscode8.TreeItem(
       label,
-      vscode7.TreeItemCollapsibleState.None
+      vscode8.TreeItemCollapsibleState.None
     );
-    item.description = element.path.includes("/") ? element.path.slice(0, element.path.lastIndexOf("/")) : void 0;
-    if (element.openThreads > 0) {
-      item.description = `${item.description ? item.description + " " : ""}\xB7 ${element.openThreads} comment${element.openThreads > 1 ? "s" : ""}`;
+    item.resourceUri = makeReviewFileUri(element.path);
+    const parts = [];
+    if (element.path.includes("/")) {
+      parts.push(element.path.slice(0, element.path.lastIndexOf("/")));
     }
+    const hasStats = element.additions + element.deletions > 0;
+    if (hasStats) {
+      parts.push(`+${element.additions}/\u2212${element.deletions}`);
+    }
+    if (element.openThreads > 0) {
+      const suffix = `${element.openThreads} comment${element.openThreads > 1 ? "s" : ""}`;
+      parts.push(parts.length > 0 ? `\xB7 ${suffix}` : suffix);
+    }
+    item.description = parts.length > 0 ? parts.join(" ") : void 0;
     switch (element.status) {
       case "A":
-        item.iconPath = new vscode7.ThemeIcon("diff-added");
+        item.iconPath = new vscode8.ThemeIcon("diff-added");
         break;
       case "D":
-        item.iconPath = new vscode7.ThemeIcon("diff-removed");
+        item.iconPath = new vscode8.ThemeIcon("diff-removed");
         break;
       case "R":
-        item.iconPath = new vscode7.ThemeIcon("file-renamed");
+        item.iconPath = new vscode8.ThemeIcon("file-renamed");
         break;
       default:
-        item.iconPath = new vscode7.ThemeIcon("diff-modified");
+        item.iconPath = new vscode8.ThemeIcon("diff-modified");
     }
     item.command = {
       command: "local-review.openDiffFile",
@@ -4814,21 +4895,35 @@ function parseDiffFileList(unifiedDiff) {
     } else if (/^rename from /m.test(block)) {
       status = "R";
     }
+    let additions = 0;
+    let deletions = 0;
+    const lines = block.split("\n");
+    for (const line of lines) {
+      if (line.startsWith("+") && !line.startsWith("+++")) additions++;
+      else if (line.startsWith("-") && !line.startsWith("---")) deletions++;
+    }
     entries.push({
       path: status === "D" ? oldPath : newPath,
       oldPath,
       newPath,
-      status
+      status,
+      additions,
+      deletions
     });
   }
   return entries;
 }
 
 // src/diffPanelManager.ts
+function makeSchemeUri(scheme, relativePath) {
+  return vscode9.Uri.from({ scheme, path: "/" + relativePath });
+}
 var DiffPanelManager = class {
   _files = [];
   _baseProvider;
   _treeProvider;
+  _decorationProvider;
+  _decorationDisposable;
   _workspaceRoot;
   _outputChannel;
   _treeView;
@@ -4840,7 +4935,11 @@ var DiffPanelManager = class {
     this._baseProvider = baseProvider;
     this._outputChannel = outputChannel;
     this._treeProvider = new ChangedFilesTreeProvider();
-    this._treeView = vscode8.window.createTreeView("localReview.changedFiles", {
+    this._decorationProvider = new ReviewFileDecorationProvider();
+    this._decorationDisposable = vscode9.window.registerFileDecorationProvider(
+      this._decorationProvider
+    );
+    this._treeView = vscode9.window.createTreeView("localReview.changedFiles", {
       treeDataProvider: this._treeProvider
     });
   }
@@ -4849,12 +4948,14 @@ var DiffPanelManager = class {
    * Used on activation so the activity bar shows file list immediately.
    */
   async populate(featureId) {
+    this._decorationProvider.clear();
     try {
       const diff = await serverClient.getDiff(this._workspaceRoot);
       this._files = parseDiffFileList(diff.allDiff);
       this._treeProvider.setFiles(this._files);
+      this._decorationProvider.setFiles(this._files);
       this._treeView.title = `Changed Files (${this._files.length})`;
-      void vscode8.commands.executeCommand(
+      void vscode9.commands.executeCommand(
         "setContext",
         "local-review.hasDiffPanel",
         this._files.length > 0
@@ -4871,7 +4972,7 @@ var DiffPanelManager = class {
   async open(featureId) {
     await this.populate(featureId);
     if (this._files.length === 0) {
-      void vscode8.window.showInformationMessage(
+      void vscode9.window.showInformationMessage(
         "No changes found between main and working tree."
       );
       return;
@@ -4887,23 +4988,23 @@ var DiffPanelManager = class {
     let newUri;
     switch (file.status) {
       case "D":
-        oldUri = vscode8.Uri.parse(`${SCHEME_BASE}:/${file.oldPath}`);
-        newUri = vscode8.Uri.parse(`${SCHEME_EMPTY}:/${file.oldPath}`);
+        oldUri = makeSchemeUri(SCHEME_BASE, file.oldPath);
+        newUri = makeSchemeUri(SCHEME_EMPTY, file.oldPath);
         break;
       case "A":
-        oldUri = vscode8.Uri.parse(`${SCHEME_EMPTY}:/${file.newPath}`);
-        newUri = vscode8.Uri.file(`${this._workspaceRoot}/${file.newPath}`);
+        oldUri = makeSchemeUri(SCHEME_EMPTY, file.newPath);
+        newUri = vscode9.Uri.file(`${this._workspaceRoot}/${file.newPath}`);
         break;
       case "R":
-        oldUri = vscode8.Uri.parse(`${SCHEME_BASE}:/${file.oldPath}`);
-        newUri = vscode8.Uri.file(`${this._workspaceRoot}/${file.newPath}`);
+        oldUri = makeSchemeUri(SCHEME_BASE, file.oldPath);
+        newUri = vscode9.Uri.file(`${this._workspaceRoot}/${file.newPath}`);
         break;
       default:
-        oldUri = vscode8.Uri.parse(`${SCHEME_BASE}:/${file.path}`);
-        newUri = vscode8.Uri.file(`${this._workspaceRoot}/${file.path}`);
+        oldUri = makeSchemeUri(SCHEME_BASE, file.path);
+        newUri = vscode9.Uri.file(`${this._workspaceRoot}/${file.path}`);
     }
     const title = file.status === "R" ? `${file.oldPath} \u2192 ${file.newPath} (Review Diff)` : `${file.path} (Review Diff)`;
-    await vscode8.commands.executeCommand("vscode.diff", oldUri, newUri, title);
+    await vscode9.commands.executeCommand("vscode.diff", oldUri, newUri, title);
   }
   async refresh(featureId) {
     this._baseProvider.invalidate();
@@ -4912,8 +5013,9 @@ var DiffPanelManager = class {
   close() {
     if (this._files.length === 0) return;
     this._treeProvider.setFiles([]);
+    this._decorationProvider.clear();
     this._files = [];
-    void vscode8.commands.executeCommand(
+    void vscode9.commands.executeCommand(
       "setContext",
       "local-review.hasDiffPanel",
       false
@@ -4925,15 +5027,16 @@ var DiffPanelManager = class {
   }
   dispose() {
     this._treeView.dispose();
+    this._decorationDisposable.dispose();
   }
 };
 
 // src/extension.ts
 var execFileAsync3 = (0, import_util3.promisify)(import_child_process3.execFile);
 function activate(context) {
-  const outputChannel = vscode9.window.createOutputChannel("Local Review");
+  const outputChannel = vscode10.window.createOutputChannel("Local Review");
   outputChannel.appendLine("Local Review extension activated");
-  const workspaceRoot = vscode9.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  const workspaceRoot = vscode10.workspace.workspaceFolders?.[0]?.uri.fsPath;
   if (!workspaceRoot) {
     outputChannel.appendLine("No workspace folder found \u2014 going dormant");
     return;
@@ -4941,11 +5044,11 @@ function activate(context) {
   const baseProvider = new BaseContentProvider(workspaceRoot);
   const emptyProvider = new EmptyContentProvider();
   context.subscriptions.push(
-    vscode9.workspace.registerTextDocumentContentProvider(
+    vscode10.workspace.registerTextDocumentContentProvider(
       SCHEME_BASE,
       baseProvider
     ),
-    vscode9.workspace.registerTextDocumentContentProvider(
+    vscode10.workspace.registerTextDocumentContentProvider(
       SCHEME_EMPTY,
       emptyProvider
     ),
@@ -5108,30 +5211,30 @@ function activate(context) {
     );
   });
   context.subscriptions.push(
-    vscode9.commands.registerCommand("local-review.refresh", () => {
+    vscode10.commands.registerCommand("local-review.refresh", () => {
       outputChannel.appendLine("Refresh command invoked");
       void init();
     }),
-    vscode9.commands.registerCommand("local-review.connect", () => {
+    vscode10.commands.registerCommand("local-review.connect", () => {
       outputChannel.appendLine("Connect command invoked");
       void init();
     }),
-    vscode9.commands.registerCommand("local-review.disconnect", () => {
+    vscode10.commands.registerCommand("local-review.disconnect", () => {
       outputChannel.appendLine("Disconnect command invoked");
       wsClient.disconnect();
       statusBar.setDisconnected();
     }),
-    vscode9.commands.registerCommand("local-review.startReview", async () => {
+    vscode10.commands.registerCommand("local-review.startReview", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
-        void vscode9.window.showWarningMessage(
+        void vscode10.window.showWarningMessage(
           "No feature branch detected. Switch to a feature/* branch first."
         );
         return;
       }
       const existing = await serverClient.getSession(featureId);
       if (existing) {
-        void vscode9.window.showInformationMessage(
+        void vscode10.window.showInformationMessage(
           "Review session already exists for this feature."
         );
         return;
@@ -5157,21 +5260,21 @@ function activate(context) {
         wsClient.connect();
         currentFeatureId = featureId;
         outputChannel.appendLine("Review session created");
-        void vscode9.window.showInformationMessage(
+        void vscode10.window.showInformationMessage(
           `Review session created for ${featureId}`
         );
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         outputChannel.appendLine(`Failed to create session: ${msg}`);
-        void vscode9.window.showErrorMessage(
+        void vscode10.window.showErrorMessage(
           `Failed to create review session: ${msg}`
         );
       }
     }),
-    vscode9.commands.registerCommand("local-review.requestChanges", async () => {
+    vscode10.commands.registerCommand("local-review.requestChanges", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
-        void vscode9.window.showWarningMessage("No active feature.");
+        void vscode10.window.showWarningMessage("No active feature.");
         return;
       }
       outputChannel.appendLine(
@@ -5201,24 +5304,24 @@ function activate(context) {
       }
     }),
     // Diff panel commands
-    vscode9.commands.registerCommand("local-review.openDiff", async () => {
+    vscode10.commands.registerCommand("local-review.openDiff", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) {
-        void vscode9.window.showWarningMessage(
+        void vscode10.window.showWarningMessage(
           "No feature branch detected. Switch to a feature/* branch first."
         );
         return;
       }
       const connected = await serverClient.checkConnection();
       if (!connected) {
-        void vscode9.window.showErrorMessage(
+        void vscode10.window.showErrorMessage(
           "Local Review server is not reachable."
         );
         return;
       }
       await diffPanelManager.open(featureId);
     }),
-    vscode9.commands.registerCommand(
+    vscode10.commands.registerCommand(
       "local-review.openDiffFile",
       async (file) => {
         if (file && typeof file === "object" && "path" in file) {
@@ -5228,12 +5331,12 @@ function activate(context) {
         }
       }
     ),
-    vscode9.commands.registerCommand("local-review.refreshDiff", async () => {
+    vscode10.commands.registerCommand("local-review.refreshDiff", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) return;
       await diffPanelManager.refresh(featureId);
     }),
-    vscode9.commands.registerCommand("local-review.closeDiff", () => {
+    vscode10.commands.registerCommand("local-review.closeDiff", () => {
       diffPanelManager.close();
     })
   );
