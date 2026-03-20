@@ -232,6 +232,56 @@ export class CommentManager implements vscode.Disposable {
           }
         },
       ),
+
+      // Mark thread as Won't Fix
+      vscode.commands.registerCommand(
+        "local-review.wontfixThread",
+        async (thread: vscode.CommentThread) => {
+          const featureId = getFeatureId();
+          if (!featureId) return;
+          const sessionId = this._threadMapper.getSessionId(thread);
+          if (!sessionId) return;
+          try {
+            await serverClient.updateThread(featureId, sessionId, {
+              status: "wontfix",
+            });
+            thread.state = 1; // CommentThreadState.Resolved
+            thread.collapsibleState =
+              vscode.CommentThreadCollapsibleState.Collapsed;
+            outputChannel.appendLine(`Marked thread ${sessionId} as won't fix`);
+          } catch (err) {
+            outputChannel.appendLine(`Failed to set won't fix: ${String(err)}`);
+            void vscode.window.showErrorMessage(
+              `Local Review: Failed to mark as won't fix — ${String(err)}`,
+            );
+          }
+        },
+      ),
+
+      // Mark thread as Outdated
+      vscode.commands.registerCommand(
+        "local-review.outdatedThread",
+        async (thread: vscode.CommentThread) => {
+          const featureId = getFeatureId();
+          if (!featureId) return;
+          const sessionId = this._threadMapper.getSessionId(thread);
+          if (!sessionId) return;
+          try {
+            await serverClient.updateThread(featureId, sessionId, {
+              status: "outdated",
+            });
+            thread.state = 1; // CommentThreadState.Resolved
+            thread.collapsibleState =
+              vscode.CommentThreadCollapsibleState.Collapsed;
+            outputChannel.appendLine(`Marked thread ${sessionId} as outdated`);
+          } catch (err) {
+            outputChannel.appendLine(`Failed to mark outdated: ${String(err)}`);
+            void vscode.window.showErrorMessage(
+              `Local Review: Failed to mark as outdated — ${String(err)}`,
+            );
+          }
+        },
+      ),
     );
   }
 

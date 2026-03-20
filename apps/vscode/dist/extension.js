@@ -4495,6 +4495,52 @@ var CommentManager = class {
             );
           }
         }
+      ),
+      // Mark thread as Won't Fix
+      vscode5.commands.registerCommand(
+        "local-review.wontfixThread",
+        async (thread) => {
+          const featureId = getFeatureId();
+          if (!featureId) return;
+          const sessionId = this._threadMapper.getSessionId(thread);
+          if (!sessionId) return;
+          try {
+            await serverClient.updateThread(featureId, sessionId, {
+              status: "wontfix"
+            });
+            thread.state = 1;
+            thread.collapsibleState = vscode5.CommentThreadCollapsibleState.Collapsed;
+            outputChannel.appendLine(`Marked thread ${sessionId} as won't fix`);
+          } catch (err) {
+            outputChannel.appendLine(`Failed to set won't fix: ${String(err)}`);
+            void vscode5.window.showErrorMessage(
+              `Local Review: Failed to mark as won't fix \u2014 ${String(err)}`
+            );
+          }
+        }
+      ),
+      // Mark thread as Outdated
+      vscode5.commands.registerCommand(
+        "local-review.outdatedThread",
+        async (thread) => {
+          const featureId = getFeatureId();
+          if (!featureId) return;
+          const sessionId = this._threadMapper.getSessionId(thread);
+          if (!sessionId) return;
+          try {
+            await serverClient.updateThread(featureId, sessionId, {
+              status: "outdated"
+            });
+            thread.state = 1;
+            thread.collapsibleState = vscode5.CommentThreadCollapsibleState.Collapsed;
+            outputChannel.appendLine(`Marked thread ${sessionId} as outdated`);
+          } catch (err) {
+            outputChannel.appendLine(`Failed to mark outdated: ${String(err)}`);
+            void vscode5.window.showErrorMessage(
+              `Local Review: Failed to mark as outdated \u2014 ${String(err)}`
+            );
+          }
+        }
       )
     );
   }
@@ -4574,10 +4620,11 @@ var CommentManager = class {
       comments2
     );
     thread.label = void 0;
+    const isNonOpen = sessionThread.status !== "open";
     const lastMsg = sessionThread.messages[sessionThread.messages.length - 1];
-    const hasAgentReply = lastMsg?.authorType === "agent" && sessionThread.status === "resolved";
-    thread.collapsibleState = sessionThread.status === "open" || hasAgentReply ? vscode5.CommentThreadCollapsibleState.Expanded : vscode5.CommentThreadCollapsibleState.Collapsed;
-    thread.state = sessionThread.status === "resolved" ? 1 : 0;
+    const hasAgentReply = lastMsg?.authorType === "agent" && isNonOpen;
+    thread.collapsibleState = !isNonOpen || hasAgentReply ? vscode5.CommentThreadCollapsibleState.Expanded : vscode5.CommentThreadCollapsibleState.Collapsed;
+    thread.state = isNonOpen ? 1 : 0;
     return thread;
   }
   _createComment(msg) {

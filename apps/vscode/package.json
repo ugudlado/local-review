@@ -54,6 +54,14 @@
         "title": "Re-open"
       },
       {
+        "command": "local-review.wontfixThread",
+        "title": "Won't Fix"
+      },
+      {
+        "command": "local-review.outdatedThread",
+        "title": "Mark Outdated"
+      },
+      {
         "command": "local-review.openDiff",
         "title": "Local Review: Open Diff",
         "icon": "$(diff)"
@@ -111,6 +119,16 @@
         {
           "command": "local-review.resolveThread",
           "group": "inline",
+          "when": "commentController == local-review && !commentThreadIsEmpty"
+        },
+        {
+          "command": "local-review.wontfixThread",
+          "group": "2_status",
+          "when": "commentController == local-review && !commentThreadIsEmpty"
+        },
+        {
+          "command": "local-review.outdatedThread",
+          "group": "2_status",
           "when": "commentController == local-review && !commentThreadIsEmpty"
         }
       ],
