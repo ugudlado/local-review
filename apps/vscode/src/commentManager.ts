@@ -13,6 +13,18 @@ export class CommentManager implements vscode.Disposable {
   /** Timestamp of last self-initiated status change — skip reconciles within the cooldown window. */
   private _lastOutboundAt = 0;
   private static readonly RECONCILE_COOLDOWN_MS = 1000;
+
+  private static readonly STATUS_LABELS: Record<string, string | undefined> = {
+    open: undefined,
+    resolved: "Resolved",
+    wontfix: "Won't Fix",
+    outdated: "Outdated",
+    approved: "Resolved",
+  };
+
+  private static _statusLabel(status: string): string | undefined {
+    return CommentManager.STATUS_LABELS[status];
+  }
   private _controller: vscode.CommentController;
   private _threadMapper: ThreadMapper;
   private _workspaceRoot: string;
@@ -246,6 +258,7 @@ export class CommentManager implements vscode.Disposable {
             thread.collapsibleState = closed
               ? vscode.CommentThreadCollapsibleState.Collapsed
               : vscode.CommentThreadCollapsibleState.Expanded;
+            thread.label = CommentManager._statusLabel(status);
             outputChannel.appendLine(`${label} thread ${sessionId}`);
           } catch (err) {
             outputChannel.appendLine(
@@ -368,7 +381,7 @@ export class CommentManager implements vscode.Disposable {
       comments,
     );
 
-    thread.label = undefined;
+    thread.label = CommentManager._statusLabel(sessionThread.status);
 
     // Non-open threads are collapsed UNLESS the last message is from an agent
     // (user needs to read the agent's response before deciding next action)

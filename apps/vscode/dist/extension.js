@@ -4308,6 +4308,16 @@ var CommentManager = class _CommentManager {
   /** Timestamp of last self-initiated status change — skip reconciles within the cooldown window. */
   _lastOutboundAt = 0;
   static RECONCILE_COOLDOWN_MS = 1e3;
+  static STATUS_LABELS = {
+    open: void 0,
+    resolved: "Resolved",
+    wontfix: "Won't Fix",
+    outdated: "Outdated",
+    approved: "Resolved"
+  };
+  static _statusLabel(status) {
+    return _CommentManager.STATUS_LABELS[status];
+  }
   _controller;
   _threadMapper;
   _workspaceRoot;
@@ -4498,6 +4508,7 @@ var CommentManager = class _CommentManager {
             await serverClient.updateThread(featureId, sessionId, { status });
             thread.state = closed ? 1 : 0;
             thread.collapsibleState = closed ? vscode5.CommentThreadCollapsibleState.Collapsed : vscode5.CommentThreadCollapsibleState.Expanded;
+            thread.label = _CommentManager._statusLabel(status);
             outputChannel.appendLine(`${label} thread ${sessionId}`);
           } catch (err) {
             outputChannel.appendLine(
@@ -4586,7 +4597,7 @@ var CommentManager = class _CommentManager {
       range,
       comments2
     );
-    thread.label = void 0;
+    thread.label = _CommentManager._statusLabel(sessionThread.status);
     const isNonOpen = sessionThread.status !== "open";
     const lastMsg = sessionThread.messages[sessionThread.messages.length - 1];
     const hasAgentReply = lastMsg?.authorType === "agent" && isNonOpen;
