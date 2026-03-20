@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-03-21
+
+### VS Code Extension
+
+- Improve comment handling — fix inline buttons to show Reopen for resolved threads, fix threads tree refresh after status changes
+- Add context menu actions (Resolve/Reopen) to threads tree view items
+- Replace file status string literals with DiffStatus enum for type safety
+
+! Fix thread clicks on deleted files opening plain file instead of diff view
+! Fix commentThread.isResolved when clause (doesn't exist) — use contextValue instead
+
+### Plugin
+
+- Simplify /resolve command — detect feature from branch, direct file I/O, remove --spec/--code flags
+
 ## [2.0.0] - 2026-03-21
 
 ### VS Code Extension
