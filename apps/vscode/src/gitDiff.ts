@@ -58,17 +58,26 @@ export async function getLocalDiff(
     }
   }
 
+  // Force standard a/b prefixes regardless of diff.mnemonicprefix config
+  const prefixArgs = ["--src-prefix=a/", "--dst-prefix=b/"];
+
   // Committed diff: changes between target branch and HEAD
   const committedDiff = await gitExec(
-    ["diff", `${targetBranch}...HEAD`],
+    ["diff", ...prefixArgs, `${targetBranch}...HEAD`],
     workspaceRoot,
   );
 
   // Uncommitted diff: staged + unstaged vs HEAD
-  const uncommittedDiff = await gitExec(["diff", "HEAD"], workspaceRoot);
+  const uncommittedDiff = await gitExec(
+    ["diff", ...prefixArgs, "HEAD"],
+    workspaceRoot,
+  );
 
   // All diff: everything between target branch and working tree
-  const allDiff = await gitExec(["diff", targetBranch], workspaceRoot);
+  const allDiff = await gitExec(
+    ["diff", ...prefixArgs, targetBranch],
+    workspaceRoot,
+  );
 
   return {
     worktreePath: workspaceRoot,

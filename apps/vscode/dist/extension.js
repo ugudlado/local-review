@@ -1076,12 +1076,19 @@ async function getLocalDiff(workspaceRoot, featureId) {
       targetBranch = session.targetBranch;
     }
   }
+  const prefixArgs = ["--src-prefix=a/", "--dst-prefix=b/"];
   const committedDiff = await gitExec(
-    ["diff", `${targetBranch}...HEAD`],
+    ["diff", ...prefixArgs, `${targetBranch}...HEAD`],
     workspaceRoot
   );
-  const uncommittedDiff = await gitExec(["diff", "HEAD"], workspaceRoot);
-  const allDiff = await gitExec(["diff", targetBranch], workspaceRoot);
+  const uncommittedDiff = await gitExec(
+    ["diff", ...prefixArgs, "HEAD"],
+    workspaceRoot
+  );
+  const allDiff = await gitExec(
+    ["diff", ...prefixArgs, targetBranch],
+    workspaceRoot
+  );
   return {
     worktreePath: workspaceRoot,
     sourceBranch,
