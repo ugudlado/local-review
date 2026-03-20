@@ -10,6 +10,10 @@ import { ThreadMapper } from "./threadMapper";
 import { SCHEME_BASE } from "./baseContentProvider";
 
 export class CommentManager implements vscode.Disposable {
+  private readonly _onDidUpdateThread = new vscode.EventEmitter<string>();
+  /** Fires after a thread status change with the featureId. */
+  readonly onDidUpdateThread = this._onDidUpdateThread.event;
+
   private static readonly STATUS_LABELS: Record<string, string | undefined> = {
     open: undefined,
     resolved: "Resolved",
@@ -244,32 +248,55 @@ export class CommentManager implements vscode.Disposable {
     ];
 
     return statusCommands.map(({ command, status, label }) =>
-      vscode.commands.registerCommand(
-        command,
-        async (thread: vscode.CommentThread) => {
-          const featureId = getFeatureId();
-          if (!featureId) return;
-          const sessionId = this._threadMapper.getSessionId(thread);
-          if (!sessionId) return;
-          const closed = status !== "open";
-          try {
-            await sessionStore.updateThread(featureId, sessionId, { status });
-            thread.state = closed ? 1 : 0;
-            thread.collapsibleState = closed
+      vscode.commands.registerCommand(command, async (arg: unknown) => {
+        const featureId = getFeatureId();
+        if (!featureId) return;
+
+        // Determine session thread ID — arg is either a VS Code CommentThread
+        // (from inline comments) or a TreeNode (from threads tree view)
+        let sessionId: string | undefined;
+        let commentThread: vscode.CommentThread | undefined;
+
+        if (
+          arg &&
+          typeof arg === "object" &&
+          "kind" in arg &&
+          (arg as { kind: string }).kind === "thread"
+        ) {
+          // Tree view item
+          sessionId = (arg as unknown as { thread: { id: string } }).thread.id;
+        } else if (arg) {
+          // Inline comment thread
+          commentThread = arg as vscode.CommentThread;
+          sessionId = this._threadMapper.getSessionId(commentThread);
+        }
+
+        if (!sessionId) return;
+        const closed = status !== "open";
+        try {
+          await sessionStore.updateThread(featureId, sessionId, { status });
+
+          // Update inline comment thread UI if available
+          if (commentThread) {
+            commentThread.state = closed ? 1 : 0;
+            commentThread.contextValue = closed ? "closed" : "open";
+            commentThread.collapsibleState = closed
               ? vscode.CommentThreadCollapsibleState.Collapsed
               : vscode.CommentThreadCollapsibleState.Expanded;
-            thread.label = CommentManager._statusLabel(status);
-            outputChannel.appendLine(`${label} thread ${sessionId}`);
-          } catch (err) {
-            outputChannel.appendLine(
-              `Failed to set ${label.toLowerCase()}: ${String(err)}`,
-            );
-            void vscode.window.showErrorMessage(
-              `Local Review: Failed to set ${label.toLowerCase()} — ${String(err)}`,
-            );
+            commentThread.label = CommentManager._statusLabel(status);
           }
-        },
-      ),
+
+          this._onDidUpdateThread.fire(featureId);
+          outputChannel.appendLine(`${label} thread ${sessionId}`);
+        } catch (err) {
+          outputChannel.appendLine(
+            `Failed to set ${label.toLowerCase()}: ${String(err)}`,
+          );
+          void vscode.window.showErrorMessage(
+            `Local Review: Failed to set ${label.toLowerCase()} — ${String(err)}`,
+          );
+        }
+      }),
     );
   }
 
@@ -397,6 +424,7 @@ export class CommentManager implements vscode.Disposable {
     // Map all non-open statuses to Resolved in VS Code
     // 0 = Unresolved, 1 = Resolved (CommentThreadState available since VS Code 1.88)
     thread.state = isNonOpen ? 1 : 0;
+    thread.contextValue = isNonOpen ? "closed" : "open";
 
     return thread;
   }
@@ -413,6 +441,7 @@ export class CommentManager implements vscode.Disposable {
   }
 
   dispose(): void {
+    this._onDidUpdateThread.dispose();
     this._threadMapper.dispose();
     this._controller.dispose();
   }

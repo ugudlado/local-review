@@ -3,11 +3,18 @@
  * Extracts file paths, statuses, and per-file diff stats from unified diff output.
  */
 
+export enum DiffStatus {
+  Added = "A",
+  Modified = "M",
+  Deleted = "D",
+  Renamed = "R",
+}
+
 export interface DiffFileEntry {
   path: string; // display path (new path for renames)
   oldPath: string; // path in base ref
   newPath: string; // path in HEAD / working tree
-  status: "A" | "M" | "D" | "R";
+  status: DiffStatus;
   additions: number; // lines added (from hunk content)
   deletions: number; // lines removed (from hunk content)
 }
@@ -27,13 +34,13 @@ export function parseDiffFileList(unifiedDiff: string): DiffFileEntry[] {
     const oldPath = headerMatch[1];
     const newPath = headerMatch[2];
 
-    let status: DiffFileEntry["status"] = "M";
+    let status: DiffStatus = DiffStatus.Modified;
     if (/^new file mode/m.test(block)) {
-      status = "A";
+      status = DiffStatus.Added;
     } else if (/^deleted file mode/m.test(block)) {
-      status = "D";
+      status = DiffStatus.Deleted;
     } else if (/^rename from /m.test(block)) {
-      status = "R";
+      status = DiffStatus.Renamed;
     }
 
     // Count insertions/deletions from hunk content lines
@@ -46,7 +53,7 @@ export function parseDiffFileList(unifiedDiff: string): DiffFileEntry[] {
     }
 
     entries.push({
-      path: status === "D" ? oldPath : newPath,
+      path: status === DiffStatus.Deleted ? oldPath : newPath,
       oldPath,
       newPath,
       status,

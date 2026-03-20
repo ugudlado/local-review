@@ -1,28 +1,29 @@
 import * as vscode from "vscode";
+import { DiffStatus } from "./diffParser";
 import type { DiffFileEntry } from "./diffParser";
 
 export const SCHEME_REVIEW_FILE = "local-review-file";
 
 const STATUS_DECORATIONS: Record<
-  DiffFileEntry["status"],
+  DiffStatus,
   { badge: string; color: string; tooltip: string }
 > = {
-  A: {
+  [DiffStatus.Added]: {
     badge: "A",
     color: "gitDecoration.addedResourceForeground",
     tooltip: "Added",
   },
-  D: {
+  [DiffStatus.Deleted]: {
     badge: "D",
     color: "gitDecoration.deletedResourceForeground",
     tooltip: "Deleted",
   },
-  M: {
+  [DiffStatus.Modified]: {
     badge: "M",
     color: "gitDecoration.modifiedResourceForeground",
     tooltip: "Modified",
   },
-  R: {
+  [DiffStatus.Renamed]: {
     badge: "R",
     color: "gitDecoration.renamedResourceForeground",
     tooltip: "Renamed",
@@ -53,7 +54,7 @@ export class ReviewFileDecorationProvider
       const uri = makeReviewFileUri(file.path);
       const def = STATUS_DECORATIONS[file.status];
       const tooltip =
-        file.status === "R"
+        file.status === DiffStatus.Renamed
           ? `Renamed: ${file.oldPath} → ${file.newPath}`
           : def.tooltip;
 

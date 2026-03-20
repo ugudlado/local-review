@@ -10,7 +10,7 @@ import {
   parseFileViewMode,
 } from "./changedFilesTree";
 import type { TreeNode } from "./changedFilesTree";
-import { parseDiffFileList } from "./diffParser";
+import { DiffStatus, parseDiffFileList } from "./diffParser";
 import type { DiffFileEntry } from "./diffParser";
 import { ReviewFileDecorationProvider } from "./fileDecorationProvider";
 import { getLocalDiff } from "./gitDiff";
@@ -40,6 +40,14 @@ export class DiffPanelManager implements vscode.Disposable {
 
   get treeProvider(): ChangedFilesTreeProvider {
     return this._treeProvider;
+  }
+
+  /** Look up a diff file entry by path (matches path, oldPath, or newPath) */
+  getFileByPath(filePath: string): DiffFileRef | undefined {
+    return this._files.find(
+      (f) =>
+        f.path === filePath || f.oldPath === filePath || f.newPath === filePath,
+    );
   }
 
   constructor(
@@ -143,17 +151,17 @@ export class DiffPanelManager implements vscode.Disposable {
     let newUri: vscode.Uri;
 
     switch (file.status) {
-      case "D":
+      case DiffStatus.Deleted:
         // Deleted file: old has content, new is empty
         oldUri = makeSchemeUri(SCHEME_BASE, file.oldPath);
         newUri = makeSchemeUri(SCHEME_EMPTY, file.oldPath);
         break;
-      case "A":
+      case DiffStatus.Added:
         // New file: old is empty, new is working tree
         oldUri = makeSchemeUri(SCHEME_EMPTY, file.newPath);
         newUri = vscode.Uri.file(`${this._workspaceRoot}/${file.newPath}`);
         break;
-      case "R":
+      case DiffStatus.Renamed:
         // Renamed: old path for base, new path for working tree
         oldUri = makeSchemeUri(SCHEME_BASE, file.oldPath);
         newUri = vscode.Uri.file(`${this._workspaceRoot}/${file.newPath}`);
@@ -165,7 +173,7 @@ export class DiffPanelManager implements vscode.Disposable {
     }
 
     const title =
-      file.status === "R"
+      file.status === DiffStatus.Renamed
         ? `${file.oldPath} → ${file.newPath} (Review Diff)`
         : `${file.path} (Review Diff)`;
 

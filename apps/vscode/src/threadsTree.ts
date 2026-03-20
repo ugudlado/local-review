@@ -109,6 +109,7 @@ export class ThreadsTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     item.description = preview;
     item.tooltip = `${filePath}:${line}\n${preview}`;
     item.iconPath = new vscode.ThemeIcon("comment");
+    item.contextValue = t.status === "open" ? "thread-open" : "thread-closed";
 
     // Click opens the diff view and scrolls to the thread's line
     if (filePath) {

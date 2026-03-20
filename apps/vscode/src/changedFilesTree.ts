@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { DiffStatus } from "./diffParser";
 import type { DiffFileEntry } from "./diffParser";
 import { makeReviewFileUri } from "./fileDecorationProvider";
 import type { SessionThread } from "./sessionStore";
@@ -66,18 +67,18 @@ function getFileIcon(filePath: string): string {
   return EXT_ICON_MAP[ext] ?? "file";
 }
 
-const STATUS_COLORS: Record<DiffFileEntry["status"], string> = {
-  A: "gitDecoration.addedResourceForeground",
-  D: "gitDecoration.deletedResourceForeground",
-  M: "gitDecoration.modifiedResourceForeground",
-  R: "gitDecoration.renamedResourceForeground",
+const STATUS_COLORS: Record<DiffStatus, string> = {
+  [DiffStatus.Added]: "gitDecoration.addedResourceForeground",
+  [DiffStatus.Deleted]: "gitDecoration.deletedResourceForeground",
+  [DiffStatus.Modified]: "gitDecoration.modifiedResourceForeground",
+  [DiffStatus.Renamed]: "gitDecoration.renamedResourceForeground",
 };
 
-const STATUS_LABELS: Record<DiffFileEntry["status"], string> = {
-  A: "Added",
-  D: "Deleted",
-  M: "Modified",
-  R: "Renamed",
+const STATUS_LABELS: Record<DiffStatus, string> = {
+  [DiffStatus.Added]: "Added",
+  [DiffStatus.Deleted]: "Deleted",
+  [DiffStatus.Modified]: "Modified",
+  [DiffStatus.Renamed]: "Renamed",
 };
 
 // ---------------------------------------------------------------------------
@@ -344,7 +345,7 @@ export class ChangedFilesTreeProvider
 
     const statusLabel = STATUS_LABELS[element.status];
     const tooltipLines = [`${statusLabel}: ${element.path}`];
-    if (element.status === "R") {
+    if (element.status === DiffStatus.Renamed) {
       tooltipLines.push(`${element.oldPath} → ${element.newPath}`);
     }
     if (element.additions + element.deletions > 0) {

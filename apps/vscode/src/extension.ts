@@ -20,6 +20,7 @@ import {
   SCHEME_EMPTY,
 } from "./baseContentProvider";
 import { DiffPanelManager } from "./diffPanelManager";
+import { DiffStatus } from "./diffParser";
 import { ThreadsTreeProvider } from "./threadsTree";
 
 const execFileAsync = promisify(execFile);
@@ -101,6 +102,19 @@ export function activate(context: vscode.ExtensionContext): void {
         `Session file changed: reconciling ${threads.length} threads for ${currentFeatureId}`,
       );
       commentManager.loadThreads(threads);
+      statusBar.updateThreadCount(threads.length);
+      diffPanelManager.updateThreadCounts(threads);
+      threadsTree.updateThreads(threads);
+    }),
+  );
+
+  // Refresh threads tree after in-process status changes (resolve, wontfix, etc.)
+  // File watcher is suppressed for self-writes, so we refresh manually here.
+  context.subscriptions.push(
+    commentManager.onDidUpdateThread(async (featureId) => {
+      const session = await sessionStore.getSession(featureId);
+      if (!session) return;
+      const threads = session.threads ?? [];
       statusBar.updateThreadCount(threads.length);
       diffPanelManager.updateThreadCounts(threads);
       threadsTree.updateThreads(threads);
@@ -324,7 +338,7 @@ export function activate(context: vscode.ExtensionContext): void {
               path: string;
               oldPath: string;
               newPath: string;
-              status: "A" | "M" | "D" | "R";
+              status: DiffStatus;
             },
           );
         }
@@ -334,12 +348,13 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand(
       "local-review.goToThread",
       async (filePath: string, line: number) => {
-        await diffPanelManager.openFile({
+        const fileRef = diffPanelManager.getFileByPath(filePath) ?? {
           path: filePath,
           oldPath: filePath,
           newPath: filePath,
-          status: "M",
-        });
+          status: DiffStatus.Modified,
+        };
+        await diffPanelManager.openFile(fileRef);
         setTimeout(() => {
           const editor = vscode.window.activeTextEditor;
           if (editor) {
