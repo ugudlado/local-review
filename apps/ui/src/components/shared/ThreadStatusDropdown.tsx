@@ -68,11 +68,17 @@ export function ThreadStatusDropdown({
   }
 
   return (
-    <div className="flex items-center">
+    <div
+      className="flex items-center rounded"
+      style={{
+        border: "1px solid rgba(255,255,255,0.12)",
+        background: "rgba(255,255,255,0.04)",
+      }}
+    >
       <button
         type="button"
         onClick={handlePrimary}
-        className="rounded-l px-2 py-1 text-[12px] transition-colors hover:bg-[var(--bg-overlay)]"
+        className="rounded-l px-2.5 py-1 text-[12px] font-medium transition-colors hover:bg-[var(--bg-overlay)]"
         style={{ color: primaryColor }}
       >
         {primaryLabel}
@@ -81,10 +87,10 @@ export function ThreadStatusDropdown({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="rounded-r px-1 py-1 transition-colors hover:bg-[var(--bg-overlay)]"
+            className="rounded-r px-1.5 py-1 transition-colors hover:bg-[var(--bg-overlay)]"
             style={{
               color: "var(--text-secondary)",
-              borderLeft: "1px solid rgba(255,255,255,0.08)",
+              borderLeft: "1px solid rgba(255,255,255,0.15)",
             }}
           >
             <ChevronDownIcon size={12} />
