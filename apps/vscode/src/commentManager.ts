@@ -10,9 +10,13 @@ import { ThreadMapper } from "./threadMapper";
 import { SCHEME_BASE } from "./baseContentProvider";
 
 export class CommentManager implements vscode.Disposable {
-  /** Timestamp of last self-initiated status change — skip reconciles within the cooldown window. */
-  private _lastOutboundAt = 0;
-  private static readonly RECONCILE_COOLDOWN_MS = 1000;
+  /**
+   * Number of incoming reconcile calls to skip.
+   * Each outbound action (create, reply, status change) sets this to 2
+   * to absorb the server broadcast echo AND the browser auto-save echo.
+   * Decremented on each skipped loadThreads call. Resets to 0 naturally.
+   */
+  private _pendingSkips = 0;
 
   private static readonly STATUS_LABELS: Record<string, string | undefined> = {
     open: undefined,
@@ -63,10 +67,8 @@ export class CommentManager implements vscode.Disposable {
   }
 
   loadThreads(threads: SessionThread[]): void {
-    if (
-      Date.now() - this._lastOutboundAt <
-      CommentManager.RECONCILE_COOLDOWN_MS
-    ) {
+    if (this._pendingSkips > 0) {
+      this._pendingSkips--;
       return;
     }
     this._threadMapper.reconcile(threads, (t) => this._createVSCodeThread(t));
@@ -140,6 +142,9 @@ export class CommentManager implements vscode.Disposable {
             // will recreate it from server data (single source of truth)
             thread.dispose();
 
+            // Skip only the browser auto-save echo (1), let server echo through for reconcile
+            this._pendingSkips = 1;
+
             outputChannel.appendLine(
               `Created thread ${sessionThread.id} on ${sessionThread.anchor.path}:${sessionThread.anchor.line}`,
             );
@@ -184,7 +189,7 @@ export class CommentManager implements vscode.Disposable {
           };
           try {
             // Send only the new message — server appends to existing messages
-            this._lastOutboundAt = Date.now();
+            this._pendingSkips = 2;
             await serverClient.updateThread(featureId, sessionId, {
               messages: [newMessage],
             });
@@ -252,7 +257,7 @@ export class CommentManager implements vscode.Disposable {
           if (!sessionId) return;
           const closed = status !== "open";
           try {
-            this._lastOutboundAt = Date.now();
+            this._pendingSkips = 2;
             await serverClient.updateThread(featureId, sessionId, { status });
             thread.state = closed ? 1 : 0;
             thread.collapsibleState = closed
