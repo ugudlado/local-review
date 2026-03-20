@@ -1409,14 +1409,25 @@ function activate(context) {
   };
   const loadSession = async (featureId) => {
     try {
-      const session = await sessionStore.getSession(featureId);
+      let session = await sessionStore.getSession(featureId);
       if (!session) {
-        commentManager.loadThreads([]);
-        threadsTree.updateThreads([]);
-        diffPanelManager.close();
-        statusBar.setNoSession();
-        outputChannel.appendLine("No review session found");
-        return;
+        const sourceBranch = `feature/${featureId}`;
+        session = {
+          featureId,
+          worktreePath: workspaceRoot,
+          sourceBranch,
+          targetBranch: "main",
+          verdict: null,
+          threads: [],
+          metadata: {
+            createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+            updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+          }
+        };
+        sessionStore.saveSession(featureId, session);
+        outputChannel.appendLine(
+          `Auto-created review session for ${featureId}`
+        );
       }
       const threads = session.threads ?? [];
       const openThreads = threads.filter(
