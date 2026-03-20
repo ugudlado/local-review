@@ -74,17 +74,23 @@
       {
         "command": "local-review.goToThread",
         "title": "Local Review: Go to Thread"
+      },
+      {
+        "command": "local-review.viewAsTree",
+        "title": "Local Review: View as Tree",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "local-review.viewAsFlat",
+        "title": "Local Review: View as Flat List",
+        "icon": "$(list-flat)"
+      },
+      {
+        "command": "local-review.viewAsCompactTree",
+        "title": "Local Review: View as Compact Tree",
+        "icon": "$(list-tree)"
       }
     ],
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "local-review",
-          "title": "Local Review",
-          "icon": "$(comment-discussion)"
-        }
-      ]
-    },
     "views": {
       "scm": [
         {
@@ -125,12 +131,39 @@
         {
           "command": "local-review.goToThread",
           "when": "false"
+        },
+        {
+          "command": "local-review.viewAsTree",
+          "when": "false"
+        },
+        {
+          "command": "local-review.viewAsFlat",
+          "when": "false"
+        },
+        {
+          "command": "local-review.viewAsCompactTree",
+          "when": "false"
         }
       ],
       "view/title": [
         {
           "command": "local-review.refreshDiff",
           "when": "view == localReview.changedFiles",
+          "group": "navigation"
+        },
+        {
+          "command": "local-review.viewAsTree",
+          "when": "view == localReview.changedFiles && local-review.hasDiffPanel && local-review.fileViewMode == flat",
+          "group": "navigation"
+        },
+        {
+          "command": "local-review.viewAsCompactTree",
+          "when": "view == localReview.changedFiles && local-review.hasDiffPanel && local-review.fileViewMode == tree",
+          "group": "navigation"
+        },
+        {
+          "command": "local-review.viewAsFlat",
+          "when": "view == localReview.changedFiles && local-review.hasDiffPanel && local-review.fileViewMode == compact-tree",
           "group": "navigation"
         }
       ],

@@ -3,11 +3,49 @@ import type { DiffFileEntry } from "./diffParser";
 import { makeReviewFileUri } from "./fileDecorationProvider";
 import type { SessionThread } from "./sessionStore";
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type FileViewMode = "flat" | "tree" | "compact-tree";
+
+const VALID_MODES: FileViewMode[] = ["flat", "tree", "compact-tree"];
+
+export function parseFileViewMode(raw: unknown): FileViewMode {
+  return typeof raw === "string" && VALID_MODES.includes(raw as FileViewMode)
+    ? (raw as FileViewMode)
+    : "flat";
+}
+
+const NEXT_MODE: Record<FileViewMode, FileViewMode> = {
+  flat: "tree",
+  tree: "compact-tree",
+  "compact-tree": "flat",
+};
+
+export function cycleMode(current: FileViewMode): FileViewMode {
+  return NEXT_MODE[current];
+}
+
 export interface DiffFileItem extends DiffFileEntry {
+  kind: "file";
   openThreads: number;
 }
 
-/** Map file extensions to VS Code codicon IDs for file-type icons */
+export interface FolderNode {
+  kind: "folder";
+  label: string;
+  folderPath: string;
+  children: TreeNode[];
+  openThreads: number;
+}
+
+export type TreeNode = FolderNode | DiffFileItem;
+
+// ---------------------------------------------------------------------------
+// File icons & status colors (unchanged from original)
+// ---------------------------------------------------------------------------
+
 const EXT_ICON_MAP: Record<string, string> = {
   ts: "symbol-file",
   tsx: "symbol-file",
@@ -34,7 +72,6 @@ function getFileIcon(filePath: string): string {
   return EXT_ICON_MAP[ext] ?? "file";
 }
 
-/** Status color applied to file-type icon for at-a-glance scanning */
 const STATUS_COLORS: Record<DiffFileEntry["status"], string> = {
   A: "gitDecoration.addedResourceForeground",
   D: "gitDecoration.deletedResourceForeground",
@@ -49,17 +86,139 @@ const STATUS_LABELS: Record<DiffFileEntry["status"], string> = {
   R: "Renamed",
 };
 
+// ---------------------------------------------------------------------------
+// Tree building helpers
+// ---------------------------------------------------------------------------
+
+/** Build a folder tree from a flat file list. Files are sorted by path first. */
+function buildFolderTree(files: DiffFileItem[]): TreeNode[] {
+  if (files.length === 0) return [];
+
+  const sorted = [...files].sort((a, b) => a.path.localeCompare(b.path));
+  const folderMap = new Map<string, FolderNode>();
+  const rootChildren: TreeNode[] = [];
+
+  for (const file of sorted) {
+    const segments = file.path.split("/");
+    let parentChildren = rootChildren;
+
+    for (let i = 0; i < segments.length - 1; i++) {
+      const folderPath = segments.slice(0, i + 1).join("/");
+      let folder = folderMap.get(folderPath);
+      if (!folder) {
+        folder = {
+          kind: "folder",
+          label: segments[i],
+          folderPath,
+          children: [],
+          openThreads: 0,
+        };
+        folderMap.set(folderPath, folder);
+        parentChildren.push(folder);
+      }
+      parentChildren = folder.children;
+    }
+
+    parentChildren.push(file);
+  }
+
+  return rootChildren;
+}
+
+/**
+ * Compact single-child folder chains into one node with a joined label.
+ * Bottom-up (post-order DFS) — O(n) where n = total nodes.
+ */
+function compactFolders(nodes: TreeNode[]): TreeNode[] {
+  return nodes.map((node) => {
+    if (node.kind === "file") return node;
+
+    // Recurse first
+    node.children = compactFolders(node.children);
+
+    // Merge single-child folder chains
+    while (node.children.length === 1 && node.children[0].kind === "folder") {
+      const child = node.children[0];
+      node.label = node.label + "/" + child.label;
+      node.folderPath = child.folderPath;
+      node.children = child.children;
+    }
+
+    return node;
+  });
+}
+
+/** Aggregate openThreads from descendant files up into folder nodes. */
+function aggregateThreadCounts(nodes: TreeNode[]): void {
+  for (const node of nodes) {
+    if (node.kind === "folder") {
+      aggregateThreadCounts(node.children);
+      node.openThreads = node.children.reduce(
+        (sum, child) => sum + (child.openThreads ?? 0),
+        0,
+      );
+    }
+  }
+}
+
+/** Build a parent map for O(1) getParent() lookups. */
+function buildParentMap(
+  nodes: TreeNode[],
+  parent: TreeNode | undefined,
+  map: Map<TreeNode, TreeNode | undefined>,
+): void {
+  for (const node of nodes) {
+    map.set(node, parent);
+    if (node.kind === "folder") {
+      buildParentMap(node.children, node, map);
+    }
+  }
+}
+
+/** DFS to find the first file node in tree traversal order. */
+function findFirstFile(nodes: TreeNode[]): DiffFileItem | undefined {
+  for (const node of nodes) {
+    if (node.kind === "file") return node;
+    if (node.kind === "folder") {
+      const found = findFirstFile(node.children);
+      if (found) return found;
+    }
+  }
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// TreeDataProvider
+// ---------------------------------------------------------------------------
+
 export class ChangedFilesTreeProvider
-  implements vscode.TreeDataProvider<DiffFileItem>
+  implements vscode.TreeDataProvider<TreeNode>
 {
   private _onDidChangeTreeData = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
+  private _mode: FileViewMode = "flat";
   private _files: DiffFileItem[] = [];
+  private _rootChildren: TreeNode[] = [];
+  private _parentMap = new Map<TreeNode, TreeNode | undefined>();
+
+  get mode(): FileViewMode {
+    return this._mode;
+  }
+
+  setMode(mode: FileViewMode): void {
+    if (this._mode === mode) return;
+    this._mode = mode;
+    this._rebuild();
+  }
 
   setFiles(files: DiffFileEntry[]): void {
-    this._files = files.map((f) => ({ ...f, openThreads: 0 }));
-    this._onDidChangeTreeData.fire();
+    this._files = files.map((f) => ({
+      ...f,
+      kind: "file" as const,
+      openThreads: 0,
+    }));
+    this._rebuild();
   }
 
   updateThreadCounts(threads: SessionThread[]): void {
@@ -71,7 +230,6 @@ export class ChangedFilesTreeProvider
     }
     let changed = false;
     for (const file of this._files) {
-      // For renamed files, threads may reference the old path
       const count =
         (counts.get(file.path) ?? 0) +
         (file.oldPath !== file.path ? (counts.get(file.oldPath) ?? 0) : 0);
@@ -80,7 +238,13 @@ export class ChangedFilesTreeProvider
         changed = true;
       }
     }
-    if (changed) this._onDidChangeTreeData.fire();
+    if (!changed) return;
+
+    // Re-aggregate folder counts if in tree modes
+    if (this._mode !== "flat") {
+      aggregateThreadCounts(this._rootChildren);
+    }
+    this._onDidChangeTreeData.fire();
   }
 
   get fileCount(): number {
@@ -88,34 +252,91 @@ export class ChangedFilesTreeProvider
   }
 
   getFirstFile(): DiffFileItem | undefined {
-    return this._files[0];
+    if (this._mode === "flat") return this._files[0];
+    return findFirstFile(this._rootChildren);
   }
 
-  getTreeItem(element: DiffFileItem): vscode.TreeItem {
-    // Filename as label for fast scanning; dir path goes in description
+  // -----------------------------------------------------------------------
+  // TreeDataProvider interface
+  // -----------------------------------------------------------------------
+
+  getTreeItem(element: TreeNode): vscode.TreeItem {
+    if (element.kind === "folder") {
+      return this._getFolderTreeItem(element);
+    }
+    return this._getFileTreeItem(element);
+  }
+
+  getChildren(element?: TreeNode): TreeNode[] {
+    if (!element) return this._rootChildren;
+    if (element.kind === "folder") return element.children;
+    return [];
+  }
+
+  getParent(element: TreeNode): TreeNode | undefined {
+    return this._parentMap.get(element);
+  }
+
+  // -----------------------------------------------------------------------
+  // Private
+  // -----------------------------------------------------------------------
+
+  private _rebuild(): void {
+    switch (this._mode) {
+      case "flat":
+        this._rootChildren = this._files;
+        break;
+      case "tree":
+        this._rootChildren = buildFolderTree(this._files);
+        aggregateThreadCounts(this._rootChildren);
+        break;
+      case "compact-tree":
+        this._rootChildren = compactFolders(buildFolderTree(this._files));
+        aggregateThreadCounts(this._rootChildren);
+        break;
+    }
+
+    this._parentMap.clear();
+    buildParentMap(this._rootChildren, undefined, this._parentMap);
+    this._onDidChangeTreeData.fire();
+  }
+
+  private _getFolderTreeItem(folder: FolderNode): vscode.TreeItem {
+    const item = new vscode.TreeItem(
+      folder.label,
+      vscode.TreeItemCollapsibleState.Expanded,
+    );
+    item.iconPath = vscode.ThemeIcon.Folder;
+    item.contextValue = "folder";
+
+    if (folder.openThreads > 0) {
+      item.description = `${folder.openThreads} comment${folder.openThreads > 1 ? "s" : ""}`;
+    }
+
+    item.tooltip = folder.folderPath;
+    return item;
+  }
+
+  private _getFileTreeItem(element: DiffFileItem): vscode.TreeItem {
     const label = element.path.split("/").pop() ?? element.path;
     const item = new vscode.TreeItem(
       label,
       vscode.TreeItemCollapsibleState.None,
     );
 
-    // Resource URI enables FileDecorationProvider to apply colored status badges
     item.resourceUri = makeReviewFileUri(element.path);
 
-    // Build description: dir path + diff stats + thread count
+    // Build description — in tree modes, skip directory path (already shown by folder hierarchy)
     const parts: string[] = [];
 
-    // Directory path
-    if (element.path.includes("/")) {
+    if (this._mode === "flat" && element.path.includes("/")) {
       parts.push(element.path.slice(0, element.path.lastIndexOf("/")));
     }
 
-    // Diff stats (omit when zero changes — pure renames, mode changes, binary diffs)
     if (element.additions + element.deletions > 0) {
       parts.push(`+${element.additions}/\u2212${element.deletions}`);
     }
 
-    // Thread count
     if (element.openThreads > 0) {
       const suffix = `${element.openThreads} comment${element.openThreads > 1 ? "s" : ""}`;
       parts.push(parts.length > 0 ? `\u00b7 ${suffix}` : suffix);
@@ -123,7 +344,6 @@ export class ChangedFilesTreeProvider
 
     item.description = parts.length > 0 ? parts.join(" ") : undefined;
 
-    // File-type icon tinted by status color for at-a-glance scanning
     item.iconPath = new vscode.ThemeIcon(
       getFileIcon(element.path),
       new vscode.ThemeColor(STATUS_COLORS[element.status]),
@@ -135,7 +355,6 @@ export class ChangedFilesTreeProvider
       arguments: [element],
     };
 
-    // Tooltip: status context + path + stats (not repeating visible label)
     const statusLabel = STATUS_LABELS[element.status];
     const tooltipLines = [`${statusLabel}: ${element.path}`];
     if (element.status === "R") {
@@ -154,14 +373,5 @@ export class ChangedFilesTreeProvider
     item.tooltip = tooltipLines.join("\n");
 
     return item;
-  }
-
-  getParent(_element: DiffFileItem): DiffFileItem | undefined {
-    // Flat list — no parent hierarchy. Required for TreeView.reveal() to work.
-    return undefined;
-  }
-
-  getChildren(): DiffFileItem[] {
-    return this._files;
   }
 }
