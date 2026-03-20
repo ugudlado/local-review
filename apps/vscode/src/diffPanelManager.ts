@@ -38,6 +38,34 @@ export class DiffPanelManager implements vscode.Disposable {
     });
   }
 
+  /**
+   * Populate the sidebar tree with changed files without opening a diff tab.
+   * Used on activation so the activity bar shows file list immediately.
+   */
+  async populate(featureId: string): Promise<void> {
+    try {
+      const diff = await serverClient.getDiff(this._workspaceRoot);
+      this._files = parseDiffFileList(diff.allDiff);
+
+      this._treeProvider.setFiles(this._files);
+      this._treeView.title = `Changed Files (${this._files.length})`;
+
+      void vscode.commands.executeCommand(
+        "setContext",
+        "local-review.hasDiffPanel",
+        this._files.length > 0,
+      );
+
+      this._outputChannel.appendLine(
+        `Diff tree populated for ${featureId}: ${this._files.length} files`,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this._outputChannel.appendLine(`Failed to populate diff tree: ${msg}`);
+      this._treeProvider.setFiles([]);
+    }
+  }
+
   async open(featureId: string): Promise<void> {
     try {
       const diff = await serverClient.getDiff(this._workspaceRoot);

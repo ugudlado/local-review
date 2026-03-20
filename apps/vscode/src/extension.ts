@@ -205,6 +205,10 @@ export function activate(context: vscode.ExtensionContext): void {
       `Session loaded: ${session.threads.length} threads (${openThreads} open)`,
     );
 
+    // Populate sidebar tree with changed files (without opening a diff tab)
+    await diffPanelManager.populate(featureId);
+    diffPanelManager.updateThreadCounts(threads);
+
     // Connect WebSocket for live updates (idempotent — reconnects if dropped)
     wsClient.connect();
   };
@@ -218,6 +222,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     if (!newFeatureId) {
       commentManager.loadThreads([]);
+      diffPanelManager.close();
       statusBar.setNoFeature();
       return;
     }
@@ -225,18 +230,25 @@ export function activate(context: vscode.ExtensionContext): void {
     const connected = await serverClient.checkConnection();
     if (!connected) {
       commentManager.loadThreads([]);
+      diffPanelManager.close();
       statusBar.setDisconnected();
       return;
     }
     const session = await serverClient.getSession(newFeatureId);
     if (!session) {
       commentManager.loadThreads([]);
+      diffPanelManager.close();
       statusBar.setNoSession();
       return;
     }
     const threads = session.threads ?? [];
     commentManager.loadThreads(threads);
     statusBar.setConnected(threads.length);
+
+    // Populate sidebar tree for new feature
+    await diffPanelManager.populate(newFeatureId);
+    diffPanelManager.updateThreadCounts(threads);
+
     outputChannel.appendLine(
       `Session loaded for ${newFeatureId}: ${session.threads.length} threads`,
     );
