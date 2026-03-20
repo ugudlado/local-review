@@ -34,6 +34,21 @@ function getFileIcon(filePath: string): string {
   return EXT_ICON_MAP[ext] ?? "file";
 }
 
+/** Status color applied to file-type icon for at-a-glance scanning */
+const STATUS_COLORS: Record<DiffFileEntry["status"], string> = {
+  A: "gitDecoration.addedResourceForeground",
+  D: "gitDecoration.deletedResourceForeground",
+  M: "gitDecoration.modifiedResourceForeground",
+  R: "gitDecoration.renamedResourceForeground",
+};
+
+const STATUS_LABELS: Record<DiffFileEntry["status"], string> = {
+  A: "Added",
+  D: "Deleted",
+  M: "Modified",
+  R: "Renamed",
+};
+
 export class ChangedFilesTreeProvider
   implements vscode.TreeDataProvider<DiffFileItem>
 {
@@ -77,17 +92,23 @@ export class ChangedFilesTreeProvider
   }
 
   getTreeItem(element: DiffFileItem): vscode.TreeItem {
-    // Show relative path as label for full context
+    // Filename as label for fast scanning; dir path goes in description
+    const label = element.path.split("/").pop() ?? element.path;
     const item = new vscode.TreeItem(
-      element.path,
+      label,
       vscode.TreeItemCollapsibleState.None,
     );
 
     // Resource URI enables FileDecorationProvider to apply colored status badges
     item.resourceUri = makeReviewFileUri(element.path);
 
-    // Build description: diff stats + thread count
+    // Build description: dir path + diff stats + thread count
     const parts: string[] = [];
+
+    // Directory path
+    if (element.path.includes("/")) {
+      parts.push(element.path.slice(0, element.path.lastIndexOf("/")));
+    }
 
     // Diff stats (omit when zero changes — pure renames, mode changes, binary diffs)
     if (element.additions + element.deletions > 0) {
@@ -102,8 +123,11 @@ export class ChangedFilesTreeProvider
 
     item.description = parts.length > 0 ? parts.join(" ") : undefined;
 
-    // File-type icon based on extension
-    item.iconPath = new vscode.ThemeIcon(getFileIcon(element.path));
+    // File-type icon tinted by status color for at-a-glance scanning
+    item.iconPath = new vscode.ThemeIcon(
+      getFileIcon(element.path),
+      new vscode.ThemeColor(STATUS_COLORS[element.status]),
+    );
 
     item.command = {
       command: "local-review.openDiffFile",
@@ -111,15 +135,20 @@ export class ChangedFilesTreeProvider
       arguments: [element],
     };
 
-    // Rich tooltip with full path and stats
-    const tooltipLines = [
-      element.status === "R"
-        ? `Renamed: ${element.oldPath} → ${element.newPath}`
-        : element.path,
-    ];
+    // Tooltip: status context + path + stats (not repeating visible label)
+    const statusLabel = STATUS_LABELS[element.status];
+    const tooltipLines = [`${statusLabel}: ${element.path}`];
+    if (element.status === "R") {
+      tooltipLines.push(`${element.oldPath} → ${element.newPath}`);
+    }
     if (element.additions + element.deletions > 0) {
       tooltipLines.push(
         `+${element.additions} additions, ${element.deletions} deletions`,
+      );
+    }
+    if (element.openThreads > 0) {
+      tooltipLines.push(
+        `${element.openThreads} open comment${element.openThreads > 1 ? "s" : ""}`,
       );
     }
     item.tooltip = tooltipLines.join("\n");

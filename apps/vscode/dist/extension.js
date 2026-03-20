@@ -4826,6 +4826,18 @@ function getFileIcon(filePath) {
   const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
   return EXT_ICON_MAP[ext] ?? "file";
 }
+var STATUS_COLORS = {
+  A: "gitDecoration.addedResourceForeground",
+  D: "gitDecoration.deletedResourceForeground",
+  M: "gitDecoration.modifiedResourceForeground",
+  R: "gitDecoration.renamedResourceForeground"
+};
+var STATUS_LABELS = {
+  A: "Added",
+  D: "Deleted",
+  M: "Modified",
+  R: "Renamed"
+};
 var ChangedFilesTreeProvider = class {
   _onDidChangeTreeData = new vscode8.EventEmitter();
   onDidChangeTreeData = this._onDidChangeTreeData.event;
@@ -4858,12 +4870,16 @@ var ChangedFilesTreeProvider = class {
     return this._files[0];
   }
   getTreeItem(element) {
+    const label = element.path.split("/").pop() ?? element.path;
     const item = new vscode8.TreeItem(
-      element.path,
+      label,
       vscode8.TreeItemCollapsibleState.None
     );
     item.resourceUri = makeReviewFileUri(element.path);
     const parts = [];
+    if (element.path.includes("/")) {
+      parts.push(element.path.slice(0, element.path.lastIndexOf("/")));
+    }
     if (element.additions + element.deletions > 0) {
       parts.push(`+${element.additions}/\u2212${element.deletions}`);
     }
@@ -4872,18 +4888,28 @@ var ChangedFilesTreeProvider = class {
       parts.push(parts.length > 0 ? `\xB7 ${suffix}` : suffix);
     }
     item.description = parts.length > 0 ? parts.join(" ") : void 0;
-    item.iconPath = new vscode8.ThemeIcon(getFileIcon(element.path));
+    item.iconPath = new vscode8.ThemeIcon(
+      getFileIcon(element.path),
+      new vscode8.ThemeColor(STATUS_COLORS[element.status])
+    );
     item.command = {
       command: "local-review.openDiffFile",
       title: "Open Diff",
       arguments: [element]
     };
-    const tooltipLines = [
-      element.status === "R" ? `Renamed: ${element.oldPath} \u2192 ${element.newPath}` : element.path
-    ];
+    const statusLabel = STATUS_LABELS[element.status];
+    const tooltipLines = [`${statusLabel}: ${element.path}`];
+    if (element.status === "R") {
+      tooltipLines.push(`${element.oldPath} \u2192 ${element.newPath}`);
+    }
     if (element.additions + element.deletions > 0) {
       tooltipLines.push(
         `+${element.additions} additions, ${element.deletions} deletions`
+      );
+    }
+    if (element.openThreads > 0) {
+      tooltipLines.push(
+        `${element.openThreads} open comment${element.openThreads > 1 ? "s" : ""}`
       );
     }
     item.tooltip = tooltipLines.join("\n");
