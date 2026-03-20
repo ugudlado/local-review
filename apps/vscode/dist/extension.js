@@ -4573,7 +4573,7 @@ var CommentManager = class {
       range,
       comments2
     );
-    thread.label = sessionThread.severity ? `[${sessionThread.severity}]` : void 0;
+    thread.label = void 0;
     const lastMsg = sessionThread.messages[sessionThread.messages.length - 1];
     const hasAgentReply = lastMsg?.authorType === "agent" && sessionThread.status === "resolved";
     thread.collapsibleState = sessionThread.status === "open" || hasAgentReply ? vscode5.CommentThreadCollapsibleState.Expanded : vscode5.CommentThreadCollapsibleState.Collapsed;
@@ -4844,39 +4844,43 @@ var DiffPanelManager = class {
       treeDataProvider: this._treeProvider
     });
   }
-  async open(featureId) {
+  /**
+   * Populate the sidebar tree with changed files without opening a diff tab.
+   * Used on activation so the activity bar shows file list immediately.
+   */
+  async populate(featureId) {
     try {
       const diff = await serverClient.getDiff(this._workspaceRoot);
       this._files = parseDiffFileList(diff.allDiff);
-      if (this._files.length === 0) {
-        void vscode8.window.showInformationMessage(
-          "No changes found between main and working tree."
-        );
-        return;
-      }
       this._treeProvider.setFiles(this._files);
       this._treeView.title = `Changed Files (${this._files.length})`;
       void vscode8.commands.executeCommand(
         "setContext",
         "local-review.hasDiffPanel",
-        true
+        this._files.length > 0
       );
-      const firstItem = this._treeProvider.getFirstFile();
-      if (firstItem) {
-        void this._treeView.reveal(firstItem, { focus: true });
-      }
-      await this.openFile(this._files[0]);
       this._outputChannel.appendLine(
-        `Diff panel opened for ${featureId}: ${this._files.length} files changed`
+        `Diff tree populated for ${featureId}: ${this._files.length} files`
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this._outputChannel.appendLine(`Failed to open diff panel: ${msg}`);
-      void vscode8.window.showErrorMessage(
-        `Local Review: Failed to load diff \u2014 ${msg}`
-      );
+      this._outputChannel.appendLine(`Failed to populate diff tree: ${msg}`);
       this._treeProvider.setFiles([]);
     }
+  }
+  async open(featureId) {
+    await this.populate(featureId);
+    if (this._files.length === 0) {
+      void vscode8.window.showInformationMessage(
+        "No changes found between main and working tree."
+      );
+      return;
+    }
+    const firstItem = this._treeProvider.getFirstFile();
+    if (firstItem) {
+      void this._treeView.reveal(firstItem, { focus: true });
+    }
+    await this.openFile(this._files[0]);
   }
   async openFile(file) {
     let oldUri;
@@ -4903,9 +4907,10 @@ var DiffPanelManager = class {
   }
   async refresh(featureId) {
     this._baseProvider.invalidate();
-    await this.open(featureId);
+    await this.populate(featureId);
   }
   close() {
+    if (this._files.length === 0) return;
     this._treeProvider.setFiles([]);
     this._files = [];
     void vscode8.commands.executeCommand(
@@ -5064,6 +5069,8 @@ function activate(context) {
     outputChannel.appendLine(
       `Session loaded: ${session.threads.length} threads (${openThreads} open)`
     );
+    await diffPanelManager.populate(featureId);
+    diffPanelManager.updateThreadCounts(threads);
     wsClient.connect();
   };
   featureDetector.onDidChangeFeature(async (newFeatureId) => {
@@ -5073,24 +5080,29 @@ function activate(context) {
     currentFeatureId = newFeatureId;
     if (!newFeatureId) {
       commentManager.loadThreads([]);
+      diffPanelManager.close();
       statusBar.setNoFeature();
       return;
     }
     const connected = await serverClient.checkConnection();
     if (!connected) {
       commentManager.loadThreads([]);
+      diffPanelManager.close();
       statusBar.setDisconnected();
       return;
     }
     const session = await serverClient.getSession(newFeatureId);
     if (!session) {
       commentManager.loadThreads([]);
+      diffPanelManager.close();
       statusBar.setNoSession();
       return;
     }
     const threads = session.threads ?? [];
     commentManager.loadThreads(threads);
     statusBar.setConnected(threads.length);
+    await diffPanelManager.populate(newFeatureId);
+    diffPanelManager.updateThreadCounts(threads);
     outputChannel.appendLine(
       `Session loaded for ${newFeatureId}: ${session.threads.length} threads`
     );

@@ -85,11 +85,17 @@
       "local-review": [
         {
           "id": "localReview.changedFiles",
-          "name": "Changed Files",
-          "when": "local-review.hasDiffPanel"
+          "name": "Changed Files"
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "localReview.changedFiles",
+        "contents": "No review session active.\n[Open Diff](command:local-review.openDiff)",
+        "when": "!local-review.hasDiffPanel"
+      }
+    ],
     "menus": {
       "comments/commentThread/context": [
         {
