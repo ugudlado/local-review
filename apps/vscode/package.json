@@ -155,6 +155,16 @@
           "command": "local-review.unresolveThread",
           "group": "inline@2",
           "when": "commentController == local-review && !commentThreadIsEmpty"
+        },
+        {
+          "command": "local-review.wontfixThread",
+          "group": "inline@3",
+          "when": "commentController == local-review && !commentThreadIsEmpty"
+        },
+        {
+          "command": "local-review.outdatedThread",
+          "group": "inline@4",
+          "when": "commentController == local-review && !commentThreadIsEmpty"
         }
       ]
     },
