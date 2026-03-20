@@ -94,6 +94,10 @@
         {
           "id": "localReview.changedFiles",
           "name": "Changed Files"
+        },
+        {
+          "id": "localReview.threads",
+          "name": "Threads"
         }
       ]
     },

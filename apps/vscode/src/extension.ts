@@ -15,6 +15,7 @@ import {
   SCHEME_EMPTY,
 } from "./baseContentProvider";
 import { DiffPanelManager } from "./diffPanelManager";
+import { ThreadsTreeProvider } from "./threadsTree";
 
 const execFileAsync = promisify(execFile);
 
@@ -55,12 +56,21 @@ export function activate(context: vscode.ExtensionContext): void {
     outputChannel,
   );
 
+  // Threads tree view — grouped by status (below Changed Files)
+  const threadsTree = new ThreadsTreeProvider();
+  threadsTree.setWorkspaceRoot(workspaceRoot);
+  const threadsTreeView = vscode.window.createTreeView("localReview.threads", {
+    treeDataProvider: threadsTree,
+    showCollapseAll: true,
+  });
+
   context.subscriptions.push(
     statusBar,
     featureDetector,
     commentManager,
     wsClient,
     diffPanelManager,
+    threadsTreeView,
     outputChannel,
   );
 
@@ -98,6 +108,7 @@ export function activate(context: vscode.ExtensionContext): void {
       commentManager.loadThreads(threads);
       statusBar.updateThreadCount(threads.length);
       diffPanelManager.updateThreadCounts(threads);
+      threadsTree.updateThreads(threads);
     }),
 
     // Resolver progress events — update status bar during resolve runs
@@ -201,6 +212,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const openThreads = threads.filter((t) => t.status === "open").length;
     commentManager.loadThreads(threads);
     statusBar.setConnected(threads.length);
+    threadsTree.updateThreads(threads);
     outputChannel.appendLine(
       `Session loaded: ${session.threads.length} threads (${openThreads} open)`,
     );
@@ -222,6 +234,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
     if (!newFeatureId) {
       commentManager.loadThreads([]);
+      threadsTree.updateThreads([]);
       diffPanelManager.close();
       statusBar.setNoFeature();
       return;
@@ -230,6 +243,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const connected = await serverClient.checkConnection();
     if (!connected) {
       commentManager.loadThreads([]);
+      threadsTree.updateThreads([]);
       diffPanelManager.close();
       statusBar.setDisconnected();
       return;
@@ -237,12 +251,14 @@ export function activate(context: vscode.ExtensionContext): void {
     const session = await serverClient.getSession(newFeatureId);
     if (!session) {
       commentManager.loadThreads([]);
+      threadsTree.updateThreads([]);
       diffPanelManager.close();
       statusBar.setNoSession();
       return;
     }
     const threads = session.threads ?? [];
     commentManager.loadThreads(threads);
+    threadsTree.updateThreads(threads);
     statusBar.setConnected(threads.length);
 
     // Populate sidebar tree for new feature
