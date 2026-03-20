@@ -97,11 +97,11 @@
       "scm": [
         {
           "id": "localReview.changedFiles",
-          "name": "Review: Changed Files"
+          "name": "Local Review: Changed Files"
         },
         {
           "id": "localReview.threads",
-          "name": "Review: Threads"
+          "name": "Local Review: Threads"
         }
       ]
     },
