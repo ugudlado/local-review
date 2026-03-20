@@ -78,6 +78,10 @@
       {
         "command": "local-review.closeDiff",
         "title": "Local Review: Close Diff"
+      },
+      {
+        "command": "local-review.goToThread",
+        "title": "Local Review: Go to Thread"
       }
     ],
     "viewsContainers": {
@@ -124,6 +128,10 @@
       "commandPalette": [
         {
           "command": "local-review.openDiffFile",
+          "when": "false"
+        },
+        {
+          "command": "local-review.goToThread",
           "when": "false"
         }
       ],

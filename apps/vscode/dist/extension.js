@@ -5178,11 +5178,9 @@ ${preview}`;
     item.iconPath = new vscode10.ThemeIcon("comment");
     if (filePath) {
       item.command = {
-        command: "local-review.openDiffFile",
-        title: "Open Diff",
-        arguments: [
-          { path: filePath, oldPath: filePath, newPath: filePath, status: "M" }
-        ]
+        command: "local-review.goToThread",
+        title: "Go to Thread",
+        arguments: [filePath, line]
       };
     }
     return item;
@@ -5522,6 +5520,27 @@ function activate(context) {
             file
           );
         }
+      }
+    ),
+    vscode11.commands.registerCommand(
+      "local-review.goToThread",
+      async (filePath, line) => {
+        await diffPanelManager.openFile({
+          path: filePath,
+          oldPath: filePath,
+          newPath: filePath,
+          status: "M"
+        });
+        setTimeout(() => {
+          const editor = vscode11.window.activeTextEditor;
+          if (editor) {
+            const pos = new vscode11.Position(Math.max(0, line - 1), 0);
+            editor.revealRange(
+              new vscode11.Range(pos, pos),
+              vscode11.TextEditorRevealType.InCenter
+            );
+          }
+        }, 300);
       }
     ),
     vscode11.commands.registerCommand("local-review.refreshDiff", async () => {

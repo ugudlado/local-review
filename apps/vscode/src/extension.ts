@@ -409,6 +409,30 @@ export function activate(context: vscode.ExtensionContext): void {
       },
     ),
 
+    vscode.commands.registerCommand(
+      "local-review.goToThread",
+      async (filePath: string, line: number) => {
+        // Open the diff for this file
+        await diffPanelManager.openFile({
+          path: filePath,
+          oldPath: filePath,
+          newPath: filePath,
+          status: "M",
+        });
+        // After diff opens, scroll to the thread's line
+        setTimeout(() => {
+          const editor = vscode.window.activeTextEditor;
+          if (editor) {
+            const pos = new vscode.Position(Math.max(0, line - 1), 0);
+            editor.revealRange(
+              new vscode.Range(pos, pos),
+              vscode.TextEditorRevealType.InCenter,
+            );
+          }
+        }, 300);
+      },
+    ),
+
     vscode.commands.registerCommand("local-review.refreshDiff", async () => {
       const featureId = featureDetector.featureId;
       if (!featureId) return;

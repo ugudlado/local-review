@@ -110,14 +110,12 @@ export class ThreadsTreeProvider implements vscode.TreeDataProvider<TreeNode> {
     item.tooltip = `${filePath}:${line}\n${preview}`;
     item.iconPath = new vscode.ThemeIcon("comment");
 
-    // Click opens the diff view for this file
+    // Click opens the diff view and scrolls to the thread's line
     if (filePath) {
       item.command = {
-        command: "local-review.openDiffFile",
-        title: "Open Diff",
-        arguments: [
-          { path: filePath, oldPath: filePath, newPath: filePath, status: "M" },
-        ],
+        command: "local-review.goToThread",
+        title: "Go to Thread",
+        arguments: [filePath, line],
       };
     }
 
