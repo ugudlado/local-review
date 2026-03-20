@@ -10,6 +10,9 @@ import { ThreadMapper } from "./threadMapper";
 import { SCHEME_BASE } from "./baseContentProvider";
 
 export class CommentManager implements vscode.Disposable {
+  /** Timestamp of last self-initiated status change — skip reconciles within the cooldown window. */
+  private _lastStatusChangeAt = 0;
+  private static readonly RECONCILE_COOLDOWN_MS = 1000;
   private _controller: vscode.CommentController;
   private _threadMapper: ThreadMapper;
   private _workspaceRoot: string;
@@ -48,6 +51,12 @@ export class CommentManager implements vscode.Disposable {
   }
 
   loadThreads(threads: SessionThread[]): void {
+    if (
+      Date.now() - this._lastStatusChangeAt <
+      CommentManager.RECONCILE_COOLDOWN_MS
+    ) {
+      return;
+    }
     this._threadMapper.reconcile(threads, (t) => this._createVSCodeThread(t));
   }
 
@@ -230,6 +239,7 @@ export class CommentManager implements vscode.Disposable {
           if (!sessionId) return;
           const closed = status !== "open";
           try {
+            this._lastStatusChangeAt = Date.now();
             await serverClient.updateThread(featureId, sessionId, { status });
             thread.state = closed ? 1 : 0;
             thread.collapsibleState = closed

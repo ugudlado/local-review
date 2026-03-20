@@ -4304,7 +4304,10 @@ var SCHEME_BASE = "local-review-base";
 var SCHEME_EMPTY = "local-review-empty";
 
 // src/commentManager.ts
-var CommentManager = class {
+var CommentManager = class _CommentManager {
+  /** Timestamp of last self-initiated status change — skip reconciles within the cooldown window. */
+  _lastStatusChangeAt = 0;
+  static RECONCILE_COOLDOWN_MS = 1e3;
   _controller;
   _threadMapper;
   _workspaceRoot;
@@ -4334,6 +4337,9 @@ var CommentManager = class {
     };
   }
   loadThreads(threads) {
+    if (Date.now() - this._lastStatusChangeAt < _CommentManager.RECONCILE_COOLDOWN_MS) {
+      return;
+    }
     this._threadMapper.reconcile(threads, (t) => this._createVSCodeThread(t));
   }
   /**
@@ -4487,6 +4493,7 @@ var CommentManager = class {
           if (!sessionId) return;
           const closed = status !== "open";
           try {
+            this._lastStatusChangeAt = Date.now();
             await serverClient.updateThread(featureId, sessionId, { status });
             thread.state = closed ? 1 : 0;
             thread.collapsibleState = closed ? vscode5.CommentThreadCollapsibleState.Collapsed : vscode5.CommentThreadCollapsibleState.Expanded;
