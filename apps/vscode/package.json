@@ -98,10 +98,12 @@
         {
           "id": "localReview.changedFiles",
           "name": "Changed Files"
-        },
+        }
+      ],
+      "scm": [
         {
           "id": "localReview.threads",
-          "name": "Threads"
+          "name": "Review Threads"
         }
       ]
     },
