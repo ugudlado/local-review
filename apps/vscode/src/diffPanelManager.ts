@@ -9,7 +9,7 @@ import {
   cycleMode,
   parseFileViewMode,
 } from "./changedFilesTree";
-import type { FileViewMode, TreeNode } from "./changedFilesTree";
+import type { TreeNode } from "./changedFilesTree";
 import { parseDiffFileList } from "./diffParser";
 import type { DiffFileEntry } from "./diffParser";
 import { ReviewFileDecorationProvider } from "./fileDecorationProvider";
@@ -37,7 +37,6 @@ export class DiffPanelManager implements vscode.Disposable {
   private _outputChannel: vscode.OutputChannel;
   private _treeView: vscode.TreeView<TreeNode>;
   private _context: vscode.ExtensionContext;
-  private _currentMode: FileViewMode = "flat";
 
   get treeProvider(): ChangedFilesTreeProvider {
     return this._treeProvider;
@@ -60,14 +59,14 @@ export class DiffPanelManager implements vscode.Disposable {
     );
 
     // Restore persisted view mode
-    this._currentMode = parseFileViewMode(
+    const savedMode = parseFileViewMode(
       context.workspaceState.get<string>("fileViewMode"),
     );
-    this._treeProvider.setMode(this._currentMode);
+    this._treeProvider.setMode(savedMode);
     void vscode.commands.executeCommand(
       "setContext",
       "local-review.fileViewMode",
-      this._currentMode,
+      savedMode,
     );
 
     this._treeView = vscode.window.createTreeView("localReview.changedFiles", {
@@ -75,19 +74,19 @@ export class DiffPanelManager implements vscode.Disposable {
     });
   }
 
-  /** Cycle to the next view mode (flat → tree → compact-tree → flat). */
+  /** Toggle view mode: flat ↔ compact-tree. */
   toggleViewMode(): void {
-    this._currentMode = cycleMode(this._currentMode);
-    this._treeProvider.setMode(this._currentMode);
+    const nextMode = cycleMode(this._treeProvider.mode);
+    this._treeProvider.setMode(nextMode);
 
-    void this._context.workspaceState.update("fileViewMode", this._currentMode);
+    void this._context.workspaceState.update("fileViewMode", nextMode);
     void vscode.commands.executeCommand(
       "setContext",
       "local-review.fileViewMode",
-      this._currentMode,
+      nextMode,
     );
 
-    this._outputChannel.appendLine(`File view mode: ${this._currentMode}`);
+    this._outputChannel.appendLine(`File view mode: ${nextMode}`);
   }
 
   /**

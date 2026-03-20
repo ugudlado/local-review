@@ -1249,7 +1249,6 @@ var DiffPanelManager = class {
   _outputChannel;
   _treeView;
   _context;
-  _currentMode = "flat";
   get treeProvider() {
     return this._treeProvider;
   }
@@ -1263,30 +1262,30 @@ var DiffPanelManager = class {
     this._decorationDisposable = vscode8.window.registerFileDecorationProvider(
       this._decorationProvider
     );
-    this._currentMode = parseFileViewMode(
+    const savedMode = parseFileViewMode(
       context.workspaceState.get("fileViewMode")
     );
-    this._treeProvider.setMode(this._currentMode);
+    this._treeProvider.setMode(savedMode);
     void vscode8.commands.executeCommand(
       "setContext",
       "local-review.fileViewMode",
-      this._currentMode
+      savedMode
     );
     this._treeView = vscode8.window.createTreeView("localReview.changedFiles", {
       treeDataProvider: this._treeProvider
     });
   }
-  /** Cycle to the next view mode (flat → tree → compact-tree → flat). */
+  /** Toggle view mode: flat ↔ compact-tree. */
   toggleViewMode() {
-    this._currentMode = cycleMode(this._currentMode);
-    this._treeProvider.setMode(this._currentMode);
-    void this._context.workspaceState.update("fileViewMode", this._currentMode);
+    const nextMode = cycleMode(this._treeProvider.mode);
+    this._treeProvider.setMode(nextMode);
+    void this._context.workspaceState.update("fileViewMode", nextMode);
     void vscode8.commands.executeCommand(
       "setContext",
       "local-review.fileViewMode",
-      this._currentMode
+      nextMode
     );
-    this._outputChannel.appendLine(`File view mode: ${this._currentMode}`);
+    this._outputChannel.appendLine(`File view mode: ${nextMode}`);
   }
   /**
    * Populate the sidebar tree with changed files without opening a diff tab.

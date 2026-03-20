@@ -131,7 +131,6 @@ export function FileSidebar({
     }
 
     // Compact-tree: merge single-child folder chains (bottom-up DFS)
-    // Compact-tree: merge single-child folder chains bottom-up
     if (fileViewMode === "compact-tree") {
       const compact = (id: string): void => {
         const node = items[id];
@@ -351,7 +350,6 @@ export function FileSidebar({
                           ? "var(--accent-rose)"
                           : undefined;
                   const fileNameWeight = changeCount > 20 ? "font-medium" : "";
-                  const fileNameClass = "";
                   return (
                     <div key={item.getId()}>
                       <button
@@ -375,7 +373,7 @@ export function FileSidebar({
                         <div className="flex min-w-0 items-center gap-1.5">
                           <FileIcon status={file.status} />
                           <span
-                            className={`min-w-0 truncate font-mono ${fileNameWeight} ${fileNameClass}`}
+                            className={`min-w-0 truncate font-mono ${fileNameWeight}`}
                             style={{ color: fileNameColor }}
                           >
                             {data.name}
@@ -418,7 +416,6 @@ export function FileSidebar({
                         ? "var(--accent-rose)"
                         : undefined;
                 const fileNameWeight = changeCount > 20 ? "font-medium" : "";
-                const fileNameClass = "";
                 return (
                   <div key={file.path}>
                     <button
@@ -440,7 +437,7 @@ export function FileSidebar({
                       <div className="flex min-w-0 items-center gap-1.5">
                         <FileIcon status={file.status} />
                         <span
-                          className={`truncate font-mono ${fileNameWeight} ${fileNameClass}`}
+                          className={`truncate font-mono ${fileNameWeight}`}
                           style={{ color: fileNameColor }}
                         >
                           {fileName(file.path)}
