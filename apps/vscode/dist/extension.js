@@ -404,6 +404,9 @@ var SCHEME_EMPTY = "local-review-empty";
 
 // src/commentManager.ts
 var CommentManager = class _CommentManager {
+  _onDidUpdateThread = new vscode4.EventEmitter();
+  /** Fires after a thread status change with the featureId. */
+  onDidUpdateThread = this._onDidUpdateThread.event;
   static STATUS_LABELS = {
     open: void 0,
     resolved: "Resolved",
@@ -598,30 +601,38 @@ var CommentManager = class _CommentManager {
       }
     ];
     return statusCommands.map(
-      ({ command, status, label }) => vscode4.commands.registerCommand(
-        command,
-        async (thread) => {
-          const featureId = getFeatureId();
-          if (!featureId) return;
-          const sessionId = this._threadMapper.getSessionId(thread);
-          if (!sessionId) return;
-          const closed = status !== "open";
-          try {
-            await sessionStore.updateThread(featureId, sessionId, { status });
-            thread.state = closed ? 1 : 0;
-            thread.collapsibleState = closed ? vscode4.CommentThreadCollapsibleState.Collapsed : vscode4.CommentThreadCollapsibleState.Expanded;
-            thread.label = _CommentManager._statusLabel(status);
-            outputChannel.appendLine(`${label} thread ${sessionId}`);
-          } catch (err) {
-            outputChannel.appendLine(
-              `Failed to set ${label.toLowerCase()}: ${String(err)}`
-            );
-            void vscode4.window.showErrorMessage(
-              `Local Review: Failed to set ${label.toLowerCase()} \u2014 ${String(err)}`
-            );
-          }
+      ({ command, status, label }) => vscode4.commands.registerCommand(command, async (arg) => {
+        const featureId = getFeatureId();
+        if (!featureId) return;
+        let sessionId;
+        let commentThread;
+        if (arg && typeof arg === "object" && "kind" in arg && arg.kind === "thread") {
+          sessionId = arg.thread.id;
+        } else if (arg) {
+          commentThread = arg;
+          sessionId = this._threadMapper.getSessionId(commentThread);
         }
-      )
+        if (!sessionId) return;
+        const closed = status !== "open";
+        try {
+          await sessionStore.updateThread(featureId, sessionId, { status });
+          if (commentThread) {
+            commentThread.state = closed ? 1 : 0;
+            commentThread.contextValue = closed ? "closed" : "open";
+            commentThread.collapsibleState = closed ? vscode4.CommentThreadCollapsibleState.Collapsed : vscode4.CommentThreadCollapsibleState.Expanded;
+            commentThread.label = _CommentManager._statusLabel(status);
+          }
+          this._onDidUpdateThread.fire(featureId);
+          outputChannel.appendLine(`${label} thread ${sessionId}`);
+        } catch (err) {
+          outputChannel.appendLine(
+            `Failed to set ${label.toLowerCase()}: ${String(err)}`
+          );
+          void vscode4.window.showErrorMessage(
+            `Local Review: Failed to set ${label.toLowerCase()} \u2014 ${String(err)}`
+          );
+        }
+      })
     );
   }
   async _buildNewThread(vsThread, text) {
@@ -705,6 +716,7 @@ var CommentManager = class _CommentManager {
     const hasAgentReply = lastMsg?.authorType === "agent" && isNonOpen;
     thread.collapsibleState = !isNonOpen || hasAgentReply ? vscode4.CommentThreadCollapsibleState.Expanded : vscode4.CommentThreadCollapsibleState.Collapsed;
     thread.state = isNonOpen ? 1 : 0;
+    thread.contextValue = isNonOpen ? "closed" : "open";
     return thread;
   }
   _createComment(msg) {
@@ -718,6 +730,7 @@ var CommentManager = class _CommentManager {
     };
   }
   dispose() {
+    this._onDidUpdateThread.dispose();
     this._threadMapper.dispose();
     this._controller.dispose();
   }
@@ -813,26 +826,63 @@ var vscode8 = __toESM(require("vscode"));
 // src/changedFilesTree.ts
 var vscode7 = __toESM(require("vscode"));
 
+// src/diffParser.ts
+function parseDiffFileList(unifiedDiff) {
+  if (!unifiedDiff.trim()) return [];
+  const blocks = unifiedDiff.split(/^diff --git /m).slice(1);
+  const entries = [];
+  for (const block of blocks) {
+    const headerMatch = block.match(/^a\/(.+) b\/(.+)$/m);
+    if (!headerMatch) continue;
+    const oldPath = headerMatch[1];
+    const newPath = headerMatch[2];
+    let status = "M" /* Modified */;
+    if (/^new file mode/m.test(block)) {
+      status = "A" /* Added */;
+    } else if (/^deleted file mode/m.test(block)) {
+      status = "D" /* Deleted */;
+    } else if (/^rename from /m.test(block)) {
+      status = "R" /* Renamed */;
+    }
+    let additions = 0;
+    let deletions = 0;
+    const lines = block.split("\n");
+    for (const line of lines) {
+      if (line.startsWith("+") && !line.startsWith("+++")) additions++;
+      else if (line.startsWith("-") && !line.startsWith("---")) deletions++;
+    }
+    entries.push({
+      path: status === "D" /* Deleted */ ? oldPath : newPath,
+      oldPath,
+      newPath,
+      status,
+      additions,
+      deletions
+    });
+  }
+  return entries;
+}
+
 // src/fileDecorationProvider.ts
 var vscode6 = __toESM(require("vscode"));
 var SCHEME_REVIEW_FILE = "local-review-file";
 var STATUS_DECORATIONS = {
-  A: {
+  ["A" /* Added */]: {
     badge: "A",
     color: "gitDecoration.addedResourceForeground",
     tooltip: "Added"
   },
-  D: {
+  ["D" /* Deleted */]: {
     badge: "D",
     color: "gitDecoration.deletedResourceForeground",
     tooltip: "Deleted"
   },
-  M: {
+  ["M" /* Modified */]: {
     badge: "M",
     color: "gitDecoration.modifiedResourceForeground",
     tooltip: "Modified"
   },
-  R: {
+  ["R" /* Renamed */]: {
     badge: "R",
     color: "gitDecoration.renamedResourceForeground",
     tooltip: "Renamed"
@@ -855,7 +905,7 @@ var ReviewFileDecorationProvider = class {
     for (const file of files) {
       const uri = makeReviewFileUri(file.path);
       const def = STATUS_DECORATIONS[file.status];
-      const tooltip = file.status === "R" ? `Renamed: ${file.oldPath} \u2192 ${file.newPath}` : def.tooltip;
+      const tooltip = file.status === "R" /* Renamed */ ? `Renamed: ${file.oldPath} \u2192 ${file.newPath}` : def.tooltip;
       this._decorations.set(
         uri.path,
         new vscode6.FileDecoration(
@@ -920,16 +970,16 @@ function getFileIcon(filePath) {
   return EXT_ICON_MAP[ext] ?? "file";
 }
 var STATUS_COLORS = {
-  A: "gitDecoration.addedResourceForeground",
-  D: "gitDecoration.deletedResourceForeground",
-  M: "gitDecoration.modifiedResourceForeground",
-  R: "gitDecoration.renamedResourceForeground"
+  ["A" /* Added */]: "gitDecoration.addedResourceForeground",
+  ["D" /* Deleted */]: "gitDecoration.deletedResourceForeground",
+  ["M" /* Modified */]: "gitDecoration.modifiedResourceForeground",
+  ["R" /* Renamed */]: "gitDecoration.renamedResourceForeground"
 };
 var STATUS_LABELS = {
-  A: "Added",
-  D: "Deleted",
-  M: "Modified",
-  R: "Renamed"
+  ["A" /* Added */]: "Added",
+  ["D" /* Deleted */]: "Deleted",
+  ["M" /* Modified */]: "Modified",
+  ["R" /* Renamed */]: "Renamed"
 };
 function buildFolderTree(files) {
   if (files.length === 0) return [];
@@ -1126,7 +1176,7 @@ var ChangedFilesTreeProvider = class {
     };
     const statusLabel = STATUS_LABELS[element.status];
     const tooltipLines = [`${statusLabel}: ${element.path}`];
-    if (element.status === "R") {
+    if (element.status === "R" /* Renamed */) {
       tooltipLines.push(`${element.oldPath} \u2192 ${element.newPath}`);
     }
     if (element.additions + element.deletions > 0) {
@@ -1143,43 +1193,6 @@ var ChangedFilesTreeProvider = class {
     return item;
   }
 };
-
-// src/diffParser.ts
-function parseDiffFileList(unifiedDiff) {
-  if (!unifiedDiff.trim()) return [];
-  const blocks = unifiedDiff.split(/^diff --git /m).slice(1);
-  const entries = [];
-  for (const block of blocks) {
-    const headerMatch = block.match(/^a\/(.+) b\/(.+)$/m);
-    if (!headerMatch) continue;
-    const oldPath = headerMatch[1];
-    const newPath = headerMatch[2];
-    let status = "M";
-    if (/^new file mode/m.test(block)) {
-      status = "A";
-    } else if (/^deleted file mode/m.test(block)) {
-      status = "D";
-    } else if (/^rename from /m.test(block)) {
-      status = "R";
-    }
-    let additions = 0;
-    let deletions = 0;
-    const lines = block.split("\n");
-    for (const line of lines) {
-      if (line.startsWith("+") && !line.startsWith("+++")) additions++;
-      else if (line.startsWith("-") && !line.startsWith("---")) deletions++;
-    }
-    entries.push({
-      path: status === "D" ? oldPath : newPath,
-      oldPath,
-      newPath,
-      status,
-      additions,
-      deletions
-    });
-  }
-  return entries;
-}
 
 // src/gitDiff.ts
 var import_child_process3 = require("child_process");
@@ -1251,6 +1264,12 @@ var DiffPanelManager = class {
   _context;
   get treeProvider() {
     return this._treeProvider;
+  }
+  /** Look up a diff file entry by path (matches path, oldPath, or newPath) */
+  getFileByPath(filePath) {
+    return this._files.find(
+      (f) => f.path === filePath || f.oldPath === filePath || f.newPath === filePath
+    );
   }
   constructor(workspaceRoot, baseProvider, outputChannel, context) {
     this._workspaceRoot = workspaceRoot;
@@ -1331,15 +1350,15 @@ var DiffPanelManager = class {
     let oldUri;
     let newUri;
     switch (file.status) {
-      case "D":
+      case "D" /* Deleted */:
         oldUri = makeSchemeUri(SCHEME_BASE, file.oldPath);
         newUri = makeSchemeUri(SCHEME_EMPTY, file.oldPath);
         break;
-      case "A":
+      case "A" /* Added */:
         oldUri = makeSchemeUri(SCHEME_EMPTY, file.newPath);
         newUri = vscode8.Uri.file(`${this._workspaceRoot}/${file.newPath}`);
         break;
-      case "R":
+      case "R" /* Renamed */:
         oldUri = makeSchemeUri(SCHEME_BASE, file.oldPath);
         newUri = vscode8.Uri.file(`${this._workspaceRoot}/${file.newPath}`);
         break;
@@ -1347,7 +1366,7 @@ var DiffPanelManager = class {
         oldUri = makeSchemeUri(SCHEME_BASE, file.path);
         newUri = vscode8.Uri.file(`${this._workspaceRoot}/${file.path}`);
     }
-    const title = file.status === "R" ? `${file.oldPath} \u2192 ${file.newPath} (Review Diff)` : `${file.path} (Review Diff)`;
+    const title = file.status === "R" /* Renamed */ ? `${file.oldPath} \u2192 ${file.newPath} (Review Diff)` : `${file.path} (Review Diff)`;
     await vscode8.commands.executeCommand("vscode.diff", oldUri, newUri, title);
     this._viewedFiles.add(file.path);
     this._updateTitle();
@@ -1448,6 +1467,7 @@ var ThreadsTreeProvider = class {
     item.tooltip = `${filePath}:${line}
 ${preview}`;
     item.iconPath = new vscode9.ThemeIcon("comment");
+    item.contextValue = t.status === "open" ? "thread-open" : "thread-closed";
     if (filePath) {
       item.command = {
         command: "local-review.goToThread",
@@ -1544,6 +1564,16 @@ function activate(context) {
         `Session file changed: reconciling ${threads.length} threads for ${currentFeatureId}`
       );
       commentManager.loadThreads(threads);
+      statusBar.updateThreadCount(threads.length);
+      diffPanelManager.updateThreadCounts(threads);
+      threadsTree.updateThreads(threads);
+    })
+  );
+  context.subscriptions.push(
+    commentManager.onDidUpdateThread(async (featureId) => {
+      const session = await sessionStore.getSession(featureId);
+      if (!session) return;
+      const threads = session.threads ?? [];
       statusBar.updateThreadCount(threads.length);
       diffPanelManager.updateThreadCounts(threads);
       threadsTree.updateThreads(threads);
@@ -1744,12 +1774,13 @@ function activate(context) {
     vscode10.commands.registerCommand(
       "local-review.goToThread",
       async (filePath, line) => {
-        await diffPanelManager.openFile({
+        const fileRef = diffPanelManager.getFileByPath(filePath) ?? {
           path: filePath,
           oldPath: filePath,
           newPath: filePath,
-          status: "M"
-        });
+          status: "M" /* Modified */
+        };
+        await diffPanelManager.openFile(fileRef);
         setTimeout(() => {
           const editor = vscode10.window.activeTextEditor;
           if (editor) {
