@@ -1,19 +1,19 @@
 import { THREAD_STATUS, type ThreadStatus } from "../types/constants";
 
 /** Normalize legacy "approved" status to "resolved". */
-export function normalizeStatus(status: ThreadStatus | string): ThreadStatus {
+export function normalizeStatus(status: ThreadStatus): ThreadStatus {
   if (status === THREAD_STATUS.Approved) return THREAD_STATUS.Resolved;
-  return status as ThreadStatus;
+  return status;
 }
 
 /** Returns true if the thread is in any non-open (closed) state. */
-export function isClosed(status: ThreadStatus | string): boolean {
+export function isClosed(status: ThreadStatus): boolean {
   const s = normalizeStatus(status);
   return s !== THREAD_STATUS.Open;
 }
 
 /** Human-readable label for a thread status. */
-export function statusLabel(status: ThreadStatus | string): string {
+export function statusLabel(status: ThreadStatus): string {
   const s = normalizeStatus(status);
   switch (s) {
     case THREAD_STATUS.Open:

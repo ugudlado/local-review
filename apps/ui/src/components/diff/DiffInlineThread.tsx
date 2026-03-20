@@ -39,7 +39,7 @@ function initials(author: string): string {
 /** Extract plain text preview from the first message (strip markdown). */
 function previewText(text: string, maxLen = 80): string {
   const plain = text
-    .replace(/[#*_`~\[\]()>]/g, "")
+    .replace(/[#*_`~[\]()>]/g, "")
     .replace(/\n+/g, " ")
     .trim();
   return plain.length > maxLen ? plain.slice(0, maxLen) + "..." : plain;
