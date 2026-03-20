@@ -109,7 +109,37 @@ cd $HOME/code/review
 git tag vx.y.z
 ```
 
-### 7. Report
+### 7. Push and Create GitHub Release
+
+Push commits and tags, then create a GitHub release with the `.vsix` asset:
+
+```bash
+cd $HOME/code/review
+git push origin main --tags
+```
+
+```bash
+cd $HOME/code/claude-marketplace
+git push
+```
+
+Extract the changelog entry for this version (everything between the `## x.y.z` heading and the next `##` heading) into a temp file, then create the GitHub release:
+
+```bash
+cd $HOME/code/review
+gh release create vx.y.z \
+  apps/vscode/local-review-vscode-x.y.z.vsix \
+  --title "vx.y.z" \
+  --notes-file <temp-changelog-file>
+```
+
+Verify the release was created:
+
+```bash
+gh release view vx.y.z
+```
+
+### 8. Report
 
 Output:
 
@@ -118,7 +148,6 @@ Output:
 - Files updated (CHANGELOG.md, package.json, app.ts, plugin.json, marketplace.json x2, vscode/package.json)
 - VS Code extension `.vsix` path and size
 - Tag name created
+- GitHub release URL
 - Remind user to:
-  - Run `git push origin main --tags` in this repo
-  - Run `git push` in the marketplace repo
   - Install the `.vsix` via `code --install-extension apps/vscode/local-review-vscode-x.y.z.vsix`
