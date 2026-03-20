@@ -1,10 +1,53 @@
 import * as vscode from "vscode";
 import type { DiffFileEntry } from "./diffParser";
+import { makeReviewFileUri } from "./fileDecorationProvider";
 import type { SessionThread } from "./serverClient";
 
 export interface DiffFileItem extends DiffFileEntry {
   openThreads: number;
 }
+
+/** Map file extensions to VS Code codicon IDs for file-type icons */
+const EXT_ICON_MAP: Record<string, string> = {
+  ts: "symbol-file",
+  tsx: "symbol-file",
+  js: "symbol-file",
+  jsx: "symbol-file",
+  json: "json",
+  md: "markdown",
+  css: "symbol-color",
+  scss: "symbol-color",
+  html: "code",
+  svg: "symbol-misc",
+  png: "file-media",
+  jpg: "file-media",
+  gif: "file-media",
+  yaml: "list-tree",
+  yml: "list-tree",
+  sh: "terminal",
+  bash: "terminal",
+  lock: "lock",
+};
+
+function getFileIcon(filePath: string): string {
+  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+  return EXT_ICON_MAP[ext] ?? "file";
+}
+
+/** Status color applied to file-type icon for at-a-glance scanning */
+const STATUS_COLORS: Record<DiffFileEntry["status"], string> = {
+  A: "gitDecoration.addedResourceForeground",
+  D: "gitDecoration.deletedResourceForeground",
+  M: "gitDecoration.modifiedResourceForeground",
+  R: "gitDecoration.renamedResourceForeground",
+};
+
+const STATUS_LABELS: Record<DiffFileEntry["status"], string> = {
+  A: "Added",
+  D: "Deleted",
+  M: "Modified",
+  R: "Renamed",
+};
 
 export class ChangedFilesTreeProvider
   implements vscode.TreeDataProvider<DiffFileItem>
@@ -49,35 +92,42 @@ export class ChangedFilesTreeProvider
   }
 
   getTreeItem(element: DiffFileItem): vscode.TreeItem {
+    // Filename as label for fast scanning; dir path goes in description
     const label = element.path.split("/").pop() ?? element.path;
     const item = new vscode.TreeItem(
       label,
       vscode.TreeItemCollapsibleState.None,
     );
 
-    item.description = element.path.includes("/")
-      ? element.path.slice(0, element.path.lastIndexOf("/"))
-      : undefined;
+    // Resource URI enables FileDecorationProvider to apply colored status badges
+    item.resourceUri = makeReviewFileUri(element.path);
 
-    // Thread count suffix
+    // Build description: dir path + diff stats + thread count
+    const parts: string[] = [];
+
+    // Directory path
+    if (element.path.includes("/")) {
+      parts.push(element.path.slice(0, element.path.lastIndexOf("/")));
+    }
+
+    // Diff stats (omit when zero changes — pure renames, mode changes, binary diffs)
+    if (element.additions + element.deletions > 0) {
+      parts.push(`+${element.additions}/\u2212${element.deletions}`);
+    }
+
+    // Thread count
     if (element.openThreads > 0) {
-      item.description = `${item.description ? item.description + " " : ""}· ${element.openThreads} comment${element.openThreads > 1 ? "s" : ""}`;
+      const suffix = `${element.openThreads} comment${element.openThreads > 1 ? "s" : ""}`;
+      parts.push(parts.length > 0 ? `\u00b7 ${suffix}` : suffix);
     }
 
-    // Status icons
-    switch (element.status) {
-      case "A":
-        item.iconPath = new vscode.ThemeIcon("diff-added");
-        break;
-      case "D":
-        item.iconPath = new vscode.ThemeIcon("diff-removed");
-        break;
-      case "R":
-        item.iconPath = new vscode.ThemeIcon("file-renamed");
-        break;
-      default:
-        item.iconPath = new vscode.ThemeIcon("diff-modified");
-    }
+    item.description = parts.length > 0 ? parts.join(" ") : undefined;
+
+    // File-type icon tinted by status color for at-a-glance scanning
+    item.iconPath = new vscode.ThemeIcon(
+      getFileIcon(element.path),
+      new vscode.ThemeColor(STATUS_COLORS[element.status]),
+    );
 
     item.command = {
       command: "local-review.openDiffFile",
@@ -85,7 +135,23 @@ export class ChangedFilesTreeProvider
       arguments: [element],
     };
 
-    item.tooltip = `${element.status === "R" ? `Renamed: ${element.oldPath} → ${element.newPath}` : element.path}`;
+    // Tooltip: status context + path + stats (not repeating visible label)
+    const statusLabel = STATUS_LABELS[element.status];
+    const tooltipLines = [`${statusLabel}: ${element.path}`];
+    if (element.status === "R") {
+      tooltipLines.push(`${element.oldPath} → ${element.newPath}`);
+    }
+    if (element.additions + element.deletions > 0) {
+      tooltipLines.push(
+        `+${element.additions} additions, ${element.deletions} deletions`,
+      );
+    }
+    if (element.openThreads > 0) {
+      tooltipLines.push(
+        `${element.openThreads} open comment${element.openThreads > 1 ? "s" : ""}`,
+      );
+    }
+    item.tooltip = tooltipLines.join("\n");
 
     return item;
   }
