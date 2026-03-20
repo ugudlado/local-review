@@ -1,46 +1,52 @@
 ---
-description: Load a review session (spec or code) and resolve all open threads in this Claude session
-argument-hint: "[--spec|--code] [feature-id] or [session-file] — resolve spec or code review threads"
+description: Load a review session and resolve all open threads in this Claude session
+argument-hint: "[feature-id] — resolve review threads for a feature"
 ---
 
 # Resolve Review Threads
 
-Load a saved review session and address every open thread directly in this Claude session — no subagents. Claude will work through each thread sequentially, applying fixes and replying via the local API.
+Load a saved review session and address every open thread directly in this Claude session — no subagents. Claude will work through each thread sequentially, applying fixes and updating the session file directly.
 
 ## Steps
 
 ### 1. Find the session file
 
-Parse `$ARGUMENTS` to determine the session type and file:
+Parse `$ARGUMENTS` to determine the feature ID:
 
-- **`--spec [feature-id]`**: Find `~/.config/local-review/workspace/{name}/sessions/*-spec.json` matching the feature ID
-- **`--code [feature-id]`**: Find `~/.config/local-review/workspace/{name}/sessions/*-code.json` matching the feature ID
-- **`[session-file]`** (no flag): Use `~/.config/local-review/workspace/{name}/sessions/$ARGUMENTS` directly
-- **No arguments**: Fall back to the most recent session (any type)
+- **`[feature-id]`**: Use the provided feature ID directly
+- **No arguments**: Detect feature ID from the current git branch
 
-```bash
-# With --spec flag:
-ls -t ~/.config/local-review/workspace/{name}/sessions/*-spec.json 2>/dev/null | head -1
+#### Detecting feature ID from the current branch
 
-# With --code flag:
-ls -t ~/.config/local-review/workspace/{name}/sessions/*-code.json 2>/dev/null | head -1
-
-# No arguments — most recent session of any type:
-ls -t ~/.config/local-review/workspace/{name}/sessions/*.json 2>/dev/null | head -1
-```
-
-If no sessions exist, tell the user to save one from the review UI first.
-
-### 2. Read the session and detect type
+When no arguments are provided, extract the feature ID from the current git branch name:
 
 ```bash
-cat ~/.config/local-review/workspace/{name}/sessions/<session-file>
+# Get current branch name
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Extract feature ID (strip 'feature/' prefix if present)
+FEATURE_ID="${BRANCH#feature/}"
 ```
 
-Detect session type:
+If on `main` or `master`, tell the user to either switch to the feature branch or provide the feature ID explicitly: `/resolve <feature-id>`
 
-- **Code session**: has `sourceBranch` and `targetBranch` fields
-- **Spec session**: has a `specPath` or `specFile` field
+#### Resolve workspace name and find session
+
+```bash
+# Resolve workspace name from git
+WORKSPACE_NAME=$(basename "$(git rev-parse --git-common-dir)" | sed 's/\.git$//')
+
+# Find session file
+SESSION_FILE=~/.config/local-review/workspace/${WORKSPACE_NAME}/sessions/${FEATURE_ID}-code.json
+```
+
+If the session file doesn't exist, tell the user to save one from the review UI first.
+
+### 2. Read the session
+
+```bash
+cat ~/.config/local-review/workspace/${WORKSPACE_NAME}/sessions/${FEATURE_ID}-code.json
+```
 
 Extract: `featureId`, `threads[]`.
 
@@ -52,10 +58,8 @@ Work only on threads where `status === "open"`. If none, report "No open threads
 
 For each open thread, extract context then analyze and act:
 
-#### Code threads
-
 ```bash
-bash scripts/review-context.sh ~/.config/local-review/workspace/{name}/sessions/<session-file> <threadId>
+bash scripts/review-context.sh ~/.config/local-review/workspace/${WORKSPACE_NAME}/sessions/${FEATURE_ID}-code.json <threadId>
 ```
 
 This returns JSON with `fileContext`, `diffHunk`, and `messages`. Use it to:
@@ -64,35 +68,47 @@ This returns JSON with `fileContext`, `diffHunk`, and `messages`. Use it to:
 - Apply the fix with the Edit tool if it's unambiguous
 - Or reply with explanation / clarifying question
 
-#### Spec threads
-
-Read the spec file directly. Locate the section via `thread.anchor.sectionPath` and `thread.anchor.blockIndex`. Use the Edit tool to revise the spec if needed.
-
-#### Decision rules (same for both types)
+#### Decision rules
 
 - **Apply fix** — issue is clear, fix is unambiguous, self-contained
 - **Reply with explanation** — reviewer asking "why", or code is correct as-is
 - **Ask clarification** — intent unclear, multiple valid approaches, missing context
 
-### 5. PATCH each thread via API
+### 5. Update session file directly
 
-After handling each thread, immediately update it:
+After handling each thread, read the session JSON, update the thread in-place, and write it back. Use the Read and Edit tools to modify the JSON file directly.
 
-```bash
-curl -s -X PATCH http://localhost:37003/api/features/<featureId>/<code|spec>-session/threads/<threadId> \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "status": "<resolved|open>",
-    "messages": [{
-      "authorType": "agent",
-      "author": "claude",
-      "text": "<your reply>",
-      "createdAt": "<ISO timestamp>"
-    }]
-  }'
+Each thread in the `threads` array has this structure:
+
+```json
+{
+  "id": "thread-uuid",
+  "anchor": { "type": "diff-line", "path": "src/foo.ts", "line": 42, "side": "new", ... },
+  "status": "open",
+  "severity": "improvement",
+  "messages": [
+    { "id": "msg-uuid", "authorType": "human", "author": "Reviewer", "text": "...", "createdAt": "..." }
+  ],
+  "lastUpdatedAt": "2026-03-21T00:00:00.000Z"
+}
 ```
 
-Use `"status": "open"` when asking a clarifying question. Use `"status": "resolved"` otherwise.
+To resolve a thread, update these fields:
+
+- Set `"status"` to `"resolved"` (or keep `"open"` if asking a clarifying question)
+- Append a new message to `"messages"`:
+  ```json
+  {
+    "id": "<new-uuid>",
+    "authorType": "agent",
+    "author": "claude",
+    "text": "<your reply>",
+    "createdAt": "<ISO timestamp>"
+  }
+  ```
+- Update `"lastUpdatedAt"` to the current timestamp
+
+The VS Code extension and browser UI will pick up changes automatically via file watchers.
 
 ### 6. Report
 
