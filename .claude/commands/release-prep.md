@@ -74,7 +74,17 @@ After approval, update all version files:
 
 Read each file before editing. Use Edit to update version fields in-place.
 
-### 5. Build VS Code Extension
+### 5. Build Dist Artifacts
+
+Run a full build so that committed dist artifacts match the release version:
+
+```bash
+pnpm build
+```
+
+Verify the build succeeds before proceeding. This ensures the plugin's dist (used by `node apps/server/dist/index.js` at runtime) matches the source.
+
+### 6. Build VS Code Extension
 
 After version bumps, build and package the VS Code extension `.vsix`:
 
@@ -85,12 +95,12 @@ pnpm exec vsce package --no-dependencies
 
 This produces `apps/vscode/local-review-vscode-x.y.z.vsix`. Verify the file was created and the version in the filename matches.
 
-### 6. Commit and Tag
+### 7. Commit and Tag
 
-Stage all changed files and commit:
+Stage all changed files including rebuilt dist:
 
 ```bash
-git add CHANGELOG.md package.json apps/ui/src/config/app.ts .claude-plugin/plugin.json .claude-plugin/marketplace.json apps/vscode/package.json pnpm-lock.yaml
+git add CHANGELOG.md package.json apps/ui/src/config/app.ts .claude-plugin/plugin.json .claude-plugin/marketplace.json apps/vscode/package.json pnpm-lock.yaml apps/server/dist/ apps/ui/dist/ packages/schema/dist/
 git commit -m "chore: release vx.y.z"
 ```
 
@@ -109,7 +119,7 @@ cd $HOME/code/review
 git tag vx.y.z
 ```
 
-### 7. Push and Create GitHub Release
+### 8. Push and Create GitHub Release
 
 Push commits and tags, then create a GitHub release with the `.vsix` asset:
 
@@ -139,7 +149,7 @@ Verify the release was created:
 gh release view vx.y.z
 ```
 
-### 8. Report
+### 9. Report
 
 Output:
 
