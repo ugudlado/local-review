@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-03-21
+
+### Plugin
+
+- Changed cleanup-cache to read active plugin version from ~/.claude/plugins/installed_plugins.json instead of local plugin.json, improving reliability when multiple versions are cached
+
 ## [2.0.1] - 2026-03-21
 
 ### VS Code Extension
