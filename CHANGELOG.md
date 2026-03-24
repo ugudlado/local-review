@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## 2.0.5 — 2026-03-24
+
+### Plugin
+
+- Publish VS Code extension to VS Code Marketplace (ugudlado.local-review-vscode)
+
+* Rename plugin ID to local-code-review (install: claude plugin install local-code-review@ugudlado)
+* Rename VS Code extension display name to "Local Code Review"
+
+### VS Code Extension
+
+- Add repository and license fields to extension manifest
+
+* Add VSCE_PAT guard and --packagePath flag to release process for safe marketplace publishing
+
 ## [2.0.4] - 2026-03-21
 
 ### Server
