@@ -19,7 +19,7 @@ claude plugin marketplace add ugudlado/claude-marketplace
 **Step 2:** Install the plugin:
 
 ```
-claude plugin install local-review@ugudlado
+claude plugin install local-code-review@ugudlado
 ```
 
 **Step 3:** Open the review UI:
