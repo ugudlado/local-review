@@ -6,11 +6,11 @@
   "publisher": "ugudlado",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ugudlado/local-review"
+    "url": "https://github.com/ugudlado/local-code-review"
   },
-  "homepage": "https://github.com/ugudlado/local-review#readme",
+  "homepage": "https://github.com/ugudlado/local-code-review#readme",
   "bugs": {
-    "url": "https://github.com/ugudlado/local-review/issues"
+    "url": "https://github.com/ugudlado/local-code-review/issues"
   },
   "license": "MIT",
   "keywords": [

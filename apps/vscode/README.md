@@ -2,7 +2,7 @@
 
 Review code, leave threaded comments, and let Claude resolve them — right in VS Code.
 
-Part of the [Local Code Review](https://github.com/ugudlado/local-review) Claude Code plugin. Works alongside the browser UI and Claude Code CLI — all three share the same session files so everything stays in sync.
+Part of the [Local Code Review](https://github.com/ugudlado/local-code-review) Claude Code plugin. Works alongside the browser UI and Claude Code CLI — all three share the same session files so everything stays in sync.
 
 ## Features
 
@@ -22,7 +22,7 @@ Full diff view with inline thread annotations. Navigate between threads, resolve
 
 ### Claude integration via Claude Code
 
-This extension works with the [Local Code Review Claude Code plugin](https://github.com/ugudlado/local-review). When you've added review comments in VS Code, switch to Claude Code and run:
+This extension works with the [Local Code Review Claude Code plugin](https://github.com/ugudlado/local-code-review). When you've added review comments in VS Code, switch to Claude Code and run:
 
 ```
 /local-review:resolve
@@ -42,7 +42,7 @@ The extension reads and writes session files directly. No server to start, no HT
 
 ## Requirements
 
-- [Local Code Review Claude Code plugin](https://github.com/ugudlado/local-review) installed
+- [Local Code Review Claude Code plugin](https://github.com/ugudlado/local-code-review) installed
 - VS Code 1.85 or later
 
 ## Install
@@ -75,9 +75,9 @@ All three read and write the same `.review/sessions/*.json` files.
 
 ## Links
 
-- [GitHub](https://github.com/ugudlado/local-review)
-- [Issues](https://github.com/ugudlado/local-review/issues)
-- [Changelog](https://github.com/ugudlado/local-review/blob/main/CHANGELOG.md)
+- [GitHub](https://github.com/ugudlado/local-code-review)
+- [Issues](https://github.com/ugudlado/local-code-review/issues)
+- [Changelog](https://github.com/ugudlado/local-code-review/blob/main/CHANGELOG.md)
 
 ## License
 

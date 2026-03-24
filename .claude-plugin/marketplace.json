@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Local code review tool for Claude Code",
-    "homepage": "https://github.com/ugudlado/local-review"
+    "homepage": "https://github.com/ugudlado/local-code-review"
   },
   "plugins": [
     {

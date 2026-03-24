@@ -69,10 +69,10 @@ Install from the VS Code Marketplace:
 code --install-extension ugudlado.local-code-review
 ```
 
-Or download from the [latest release](https://github.com/ugudlado/local-review/releases) and install manually:
+Or download from the [latest release](https://github.com/ugudlado/local-code-review/releases) and install manually:
 
 ```bash
-code --install-extension local-review-vscode-<version>.vsix
+code --install-extension local-code-review-<version>.vsix
 ```
 
 ## Claude Code Integration
@@ -129,8 +129,8 @@ The `SessionStart` hook auto-starts the server and registers the current repo as
 ## Development
 
 ```bash
-git clone https://github.com/ugudlado/local-review.git
-cd local-review
+git clone https://github.com/ugudlado/local-code-review.git
+cd local-code-review
 pnpm install
 pnpm dev                      # Start server (tsx watch mode)
 pnpm -C apps/ui dev           # Start Vite dev server (HMR for UI work)
