@@ -20,9 +20,21 @@ See all changed files with diff stats in the Source Control panel. Click any fil
 
 Full diff view with inline thread annotations. Navigate between threads, resolve or re-open them without leaving the editor.
 
-### Claude integration
+### Claude integration via Claude Code
 
-When you're done reviewing, run `/local-review:resolve` in Claude Code. Claude reads every open thread and responds — applying fixes, explaining decisions, or asking clarifying questions. Replies appear inline in both VS Code and the browser UI.
+This extension works with the [Local Code Review Claude Code plugin](https://github.com/ugudlado/local-review). When you've added review comments in VS Code, switch to Claude Code and run:
+
+```
+/local-review:resolve
+```
+
+Claude reads every open thread you created — in VS Code, in the browser, or both — and responds to each one:
+
+- **Applies a fix** when the issue is clear and unambiguous
+- **Replies with an explanation** when the comment asks "why"
+- **Asks a clarifying question** when context is missing
+
+Replies are written back to the same session files, so they appear inline in VS Code immediately — no reload needed.
 
 ### Serverless — no setup required
 
